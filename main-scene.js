@@ -26,7 +26,7 @@ import {
   Transforms_Sandbox,
 } from "./examples/transforms-sandbox.js";
 
-import { Demo } from "./my_code/main.js";
+import { BumperCars } from "./my_code/main.js";
 
 Object.assign(
   defs,
@@ -40,12 +40,12 @@ Object.assign(
   { Scene_To_Texture_Demo },
   { Text_Demo },
   { Transforms_Sandbox_Base, Transforms_Sandbox },
-  { Demo },
+  { BumperCars },
 );
 
 // ******************** SELECT THE DEMO TO DISPLAY:
 
-const main_scene = Demo;
+const main_scene = BumperCars;
 const additional_scenes = [];
 
 export { main_scene, additional_scenes, defs };

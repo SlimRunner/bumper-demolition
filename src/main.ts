@@ -3,7 +3,7 @@ import { defs } from "../examples/common";
 import { math } from "../tiny-graphics-math";
 import { UVShader } from "./shaders/UVShader";
 
-export class DemoBase extends tiny.Component {
+export class BumperCarsBase extends tiny.Component {
   render_animation(context: tiny.Component): void {
     const time = (this.uniforms.animation_time ?? 0) / 1000;
 
@@ -33,16 +33,9 @@ export class DemoBase extends tiny.Component {
       ),
     ];
   }
-
-  render_controls(): void {
-    // minimal working example
-    this.key_triggered_button("my button", ["Control", "0"], () =>
-      console.log("pressed"),
-    );
-  }
 }
 
-export class Demo extends DemoBase {
+export class BumperCars extends BumperCarsBase {
   shapes: {
     box: defs.Cube;
   };
@@ -65,23 +58,26 @@ export class Demo extends DemoBase {
   constructor() {
     super();
 
-    // NOTE: if you need to call new multiple times for the same object
-    // just pull it out and assign it in a constant first. Tiny-Graphics
-    // assumes that objects are independent of their context.
+    const uvShader = new UVShader();
+    const phongShader = new defs.Phong_Shader();
+
     this.materials = {
       uvSimple: {
-        shader: new UVShader(),
+        shader: uvShader,
       },
       plastic: {
-        shader: new defs.Phong_Shader(),
+        shader: phongShader,
         ambient: 0.2,
         diffusivity: 1,
         specularity: 0.5,
         color: math.color(0.9, 0.5, 0.9, 1),
       },
     };
+
+    const cubeShape = new defs.Cube();
+
     this.shapes = {
-      box: new defs.Cube(),
+      box: cubeShape,
     };
 
     this.colors = {
@@ -97,6 +93,7 @@ export class Demo extends DemoBase {
     const CMT = this.uniforms?.camera_transform!;
     const cam_loc = CMT.sub_block([0, 3], [3, 4]).flat();
 
+    // this pattern can be used to create a sky texture later
     GL.disable(GL.DEPTH_TEST);
     this.shapes.box.draw(
       context,
@@ -110,5 +107,12 @@ export class Demo extends DemoBase {
       ...this.materials.plastic,
       color: this.colors.red,
     });
+  }
+
+  render_controls(): void {
+    // minimal working example
+    this.key_triggered_button("my button", ["Control", "0"], () =>
+      console.log("pressed"),
+    );
   }
 }
