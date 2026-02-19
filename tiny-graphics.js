@@ -371,7 +371,7 @@ const Component = tiny.Component =
       make_context (canvas, background_color = color (0, 0, 0, 1), dimensions) {
           this.canvas              = canvas;
           const try_making_context = name => this.context = this.canvas.getContext (name);
-          for (let name of ["webgl2"])
+          for (let name of ["webgl2", "webgl", "experimental-webgl", "webkit-3d", "moz-webgl"])
               if (try_making_context (name)) break;
           if ( !this.context) throw "Canvas failed to make a WebGL context.";
           const gl = this.context;
