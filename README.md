@@ -1,75 +1,56 @@
-# tiny-graphics.js
+# CS174C - Final Project
 
-This project adds type declarations for the modules in tiny graphics. Here is the link to the original project:
-- https://github.com/encyclopedia-of-code/tiny-graphics-js
+## Name: TBD
 
-This project is intended to generate near native JS code from type-safe TS. First install the node
+Members:
+- Adrian Pu
+- Andy Kasbarian
+- Kyle Deveaux
+- Mario Flores
+
+A bumper-cars inspired game implemented using tiny-graphics with a typescript layer on top. The goal of the game is to damage your opponent to deplete their health to 0 first.
+
+## Setup
+
+First install the node packages
 ```sh
 npm install
 ```
 
-Then run
+Then open a terminal to run nodemon for continuous building
 ```sh
 npm run dev
 ```
 
-Then just run the server whichever way you like. The project official way is
+Or if you just want to build once
+```sh
+npm run build
+```
+
+That will generate all the JS output in a directory called [my-code](./my-code/). Be aware that code in this folder should not be modified directly and is also not git-tracked.
+
+Finally open a second terminal and execute the default provided script to run localhost
 ```sh
 python server.py
+# or ./host.*
 ```
 
-You will likely need two terminals since both of those take over. Also, when you make changes it takes a few seconds to update the JS code because of the script to fix references that I explain below.
+> NOTE: building takes about 4 seconds because of the script to fix import references (adds the `.js`).
 
-## Usage
+## Development
 
-Make sure that you **import only using relative paths for all files w/o extension** that includes within and outside the `src` directory. The reason for this is that this project does not use a bundler to preserve the directory structure, so it relies on a script to parse the paths and add the `.js` extension. Correct address are resolved simply because `src` and `my_code` both share the same relative position to the root. Hence the "enforced" structure is
-```
-📁 root
-├─🔹 ... other files/directories
-├─📁 my_code
-│ └─🔹 mirrors src structure and *.ts -> *.js
-└─📁 src
-  ├─📁 ... however folders you want to add
-  └─📄 *.ts
-```
+1. Make sure that you **import only using relative paths for all files and do not use extensions**.
+   ```ts
+   // example
+   import { tiny } from "../tiny-graphic";
+   import { math } from "../tiny-graphics-math";
+   import { defs } from "../examples/common";
+   import { myTSLib } from "./library/some-ts-file"
+   // NOTE that tiny-graphics "encourages" to import `tiny` and `math`
+   // from common but these are not changed at all, so it is pointless.
+   // The declaration file was simplified and prevents this so just
+   // import from their actual source
+   ```
+2. All the code should be contained in `src`. The output is perfectly mirrored in `my-code`.
 
-Other than that code as you would normally, and use the types as guide.
-
-## List of Modified Files
-This is the list of files you need to copy if you want to implement TS into your project
-```
-./.gitignore
-./examples/common-components.d.ts
-./examples/common-shaders.d.ts
-./examples/common-shapes.d.ts
-./examples/common.d.ts
-./host.sh
-./jest.config.js
-./nodemon.json
-./package.json
-./resolve-imports.js
-./tests
-./tiny-graphics-gui.d.ts
-./tiny-graphics-math.d.ts
-./tiny-graphics.d.ts
-./tsconfig.json
-```
-
-Alternatively, you might want to ensure these files match as well since it is the version the declaration files are based on
-```
-./examples/common-components.js
-./examples/common-shaders.js
-./examples/common-shapes.js
-./examples/common.js
-./tiny-graphics-gui.js
-./tiny-graphics-math.js
-./tiny-graphics.js
-```
-
-## About tiny-graphics.js
-
-The tiny-graphics.js software library by Garett Ridge has accompanied UCLA Computer Science's 174a course (Intro to Computer Graphics) since 2016.  In Spring 2019, the course used all-new assignments based on tiny-graphics-js.  The library served as a framework for giving students a high-level tour of computer graphics concepts.  You can view the assignments from Spring 2019 at the link below, including their instructions/specification documents, starting code, and animated results:
-
-https://github.com/encyclopedia-of-code/tiny-graphics-assignments
-
-This code library accompanies and supports a web project by the same author called "The Encyclopedia of Code", a crowd-sourced repository of WebGL demos and educational tutorials that uses an online editor.
+The reason for the import requirement is to enable jest testing (in case we might need it), but still allow the references to be trivially fixable since tiny graphics crashes if you do not import using `.js`.
