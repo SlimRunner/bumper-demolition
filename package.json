@@ -1,10 +1,11 @@
 {
-  "name": "tiny-graphics-ts-template",
+  "name": "cs174c-final-project",
   "version": "1.0.0",
-  "description": "The tiny-graphics-js library refactors common WebGL steps, demonstrating how to organize a complex graphics program.",
+  "description": "Final project for CS174C.",
   "main": "main-scene.js",
   "directories": {
-    "example": "examples"
+    "source": "src",
+    "test": "tests"
   },
   "scripts": {
     "test": "jest",
@@ -13,16 +14,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SlimRunner/tiny-graphics-ts-template.git"
+    "url": "git+https://github.com/SlimRunner/cs174c-final-project.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/SlimRunner/tiny-graphics-ts-template/issues"
+    "url": "https://github.com/SlimRunner/cs174c-final-project/issues"
   },
-  "homepage": "https://github.com/SlimRunner/tiny-graphics-ts-template#readme",
+  "homepage": "https://github.com/SlimRunner/cs174c-final-project#readme",
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "jest": "^29.7.0",
