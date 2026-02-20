@@ -37,6 +37,28 @@ export function clamp(num: number, min: number, max: number) {
   return Math.max(min, Math.min(max, num));
 }
 
+export function vecTransform(lhs: number[][], vec: number[]) {
+  const lhsRows = lhs.length;
+  const lhsCols = lhs[0]?.length ?? 0;
+  const rhsRows = vec.length;
+  const rhsCols = 1;
+
+  if (lhsCols !== rhsRows) {
+    throw new Error(
+      `Matrix error: cannot multiply ${lhsRows}⨯${lhsCols} times ${rhsRows}⨯${1}`,
+    );
+  }
+  const prod: number[] = new Array(lhsRows);
+  for (let i = 0; i < lhsRows; ++i) {
+    let sum = 0;
+    for (let k = 0; k < lhsCols; ++k) {
+      sum += lhs[i][k] * vec[k];
+    }
+    prod[i] = sum;
+  }
+  return prod;
+}
+
 export function matrixMult(lhs: number[][], rhs: number[][]) {
   const lhsRows = lhs.length;
   const lhsCols = lhs[0]?.length ?? 0;
