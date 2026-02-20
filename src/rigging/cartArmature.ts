@@ -81,18 +81,6 @@ export class CartArmature {
       },
     } = props;
 
-    // try to keep things in meters so lengths make more sense
-
-    // these are the measurements of a camry sedan (approximately)
-    // - wheelbase: 2.82448; // distance between wheel centers front-to-back
-    // - axleTrack: 1.83896; // distance between wheel centers left-to-right
-    // - rimSize: 0.4064; // size of metallic rim (if we need later)
-    // - tireWallSize: 0.13975; // tire sidewall length
-    // - tireWidth: 0.215;
-    // - roofHeight: 1.455;
-    // - armLinkRadius: 0.05;
-    // - armLinkLength: 1.25;
-
     const wheelDiameter = tireWallSize + rimSize;
     const chassisLength = wheelbase + wheelDiameter * 1.5;
     const chassisWidth = axleTrack;
