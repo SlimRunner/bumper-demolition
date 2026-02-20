@@ -143,7 +143,7 @@ export namespace tiny {
     animated_children: Component[]; // TODO: verify this is correct?
     document_children: Component[]; // TODO: verify this is correct?
     key_controls: widgets.Keyboard_Manager;
-    canvas: HTMLCanvasElement;
+    canvas?: HTMLCanvasElement;
     context?: WebGL2RenderingContext;
     width: number; // these can technically be undefined but that is a pain in the ass
     height: number; // these can technically be undefined but that is a pain in the ass
