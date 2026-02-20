@@ -38,12 +38,12 @@ export namespace defs {
     constructor(
       rows: number,
       columns: number,
-      next_row_function: (t: number, prev_point: number) => number,
+      next_row_function: (t: number, prev_point: number) => math.Vector3,
       next_column_function: (
         u: number,
         prev_point: number,
         v: number,
-      ) => number,
+      ) => math.Vector3,
       texture_coord_range: TextureRange,
     );
     static sample_array(array: math.Vector3[], ratio: number): math.Vector3;

@@ -1,5 +1,4 @@
 import { math } from "../../tiny-graphics-math";
-import { defs } from "../../examples/common";
 import { GPUAddresses, tiny, Uniforms } from "../../tiny-graphics";
 
 export class UVShader extends tiny.Shader {
@@ -7,9 +6,9 @@ export class UVShader extends tiny.Shader {
     super();
   }
 
-  shared_glsl_code() {
+  private shared_glsl_code() {
     // ********* SHARED CODE, INCLUDED IN BOTH SHADERS *********
-    return ` 
+    return `
       precision mediump float;
 
       varying vec3 vViewPosition;
@@ -26,7 +25,7 @@ export class UVShader extends tiny.Shader {
     return `
       ${this.shared_glsl_code()}
       attribute vec3 position, normal;
-      
+
       uniform mat4 projection;
       uniform mat4 view;
       uniform mat4 model;
@@ -40,10 +39,10 @@ export class UVShader extends tiny.Shader {
         //determine view space p4
         mat4 modelViewMatrix = view * model;
         vec4 viewModelPosition = modelViewMatrix * p4;
-        
+
         //pass varyings to fragment shader
         vViewPosition = viewModelPosition.xyz;
-      
+
         //determine final 3D position
         gl_Position = projection * viewModelPosition;
       }
@@ -54,15 +53,14 @@ export class UVShader extends tiny.Shader {
     // ********* FRAGMENT SHADER *********
     return `
       ${this.shared_glsl_code()}
-      
+
       void main() {
         gl_FragColor = vec4(uvs, 1.0);
       }
     `;
   }
 
-  // send_gpu_state(gl, gpu, gpu_state, model_transform) {
-  send_uniforms(
+  private send_uniforms(
     gl: WebGL2RenderingContext,
     gpu: GPUAddresses,
     uniforms: Uniforms,
