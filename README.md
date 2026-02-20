@@ -4,7 +4,6 @@
 
 Members:
 - Adrian Pu
-- Andy Kasbarian
 - Kyle Deveaux
 - Mario Flores
 
@@ -15,28 +14,45 @@ A bumper-cars inspired game implemented using tiny-graphics with a typescript la
 A tentative and non-exhaustive TODO list
 
 - [ ] add library to manage kinematic chains
-  - [ ] integrate mesh for saw arm with armature
+  - [x] integrate mesh for saw arm with armature
   - [ ] create a function to make the arm swing forward or back ward (think of a scorpion strikes)
+  - [ ] create a function to manage wheel rotation
+  - [ ] create a function to manage steer rotation (see link for steer geometry below)
 - [ ] create a way to manage the game state
   - [ ] timer for game cycle
-- [ ] add a library to manage rigid body physics
-  - [ ] allow friction and thrust forces for the tires
+  - [ ] health of each car
+- [ ] add a library to manage mass-spring-damper (MSD) frame
+  - [ ] add a way to assign signed distance fields to nodes (search Inigo Quilez)
+  - [ ] add a rolling-friction model assignable to nodes (for tires)
   - [ ] allow arbitrary external forces for the particles
-  - [ ] detect collision (optionally allow a callback)
-- [ ] create library to manage turning and accelerating
+  - [ ] synchronize MSD frame position-direction with cart armature
+  - [ ] create MSD-frames for both vehicles
+- [ ] add a shader that shows a GUI
+  - [ ] show health bars above (fighter game-like)
+  - [ ] allow printing text to screen
+    - [ ] show timer in between health bars
+    - [ ] show WIN toast at the end
 
 Proposals for implementation
 - rigid body physics
   - simulate in 2D; render in 3D
   - use stacked circles to make the "oval" shape of the cart
-- particle beam collision can be detected in 3D then projected onto a plane for the 2D engine
+- particle beam collision detection
   - triangle intersection is the easiest
   - use bounding box for cart instead of the mesh (less triangle transformations)
 - steering
-  - let's simply manage 4 contact patches.
-    - The rear patches provide thrust
-    - the front patches provide steering through lateral grip
+  - ~~let's simply manage 4 contact patches.~~
+    - ~~The rear patches provide thrust~~
+    - ~~the front patches provide steering through lateral grip~~
     - reference for steering geometry: https://www.desmos.com/calculator/rnlmx54x2f
+  - now it can be handled by the MSD-system
+- structure of MSD-frame
+  - make the body a trussed extruded oval for rigidity
+  - connect the tire nodes below with a two nodes to the body
+    - single node per tire
+    - the floor is touched by only 4 nodes
+    - add most weight to the tires to prevent it flipping over
+    - add a cross truss to the the tires for stiffness
 
 ### Game Description
 
