@@ -60,6 +60,39 @@ Proposals for implementation
     - add most weight to the tires to prevent it flipping over
     - add a cross truss to the the tires for stiffness
 
+### Game Specs
+
+#### Car Dimensions
+
+You can find and/or tune the find dimensions in the constructor of `BumperCarsBase`. These are
+- wheelbase: distance between front and back wheel center
+- axleTrack: distance between the right and left wheel centers
+- rimSize: diameter of the metal part of the rim (not used directly)
+- tireWallSize: size of the tire sidewall (not used directly)
+- tireWidth: self explanatory
+- chassisHeight: height of the car body (without wheels)
+- armLinkLength: size of *both* links for the jointed arm
+- armLinkRadius: radius of *both* links for the jointed arm
+- sawRadius: radius of saw blade
+
+The above are currently assigned the following primitive meshes
+| part      | mesh     |
+| --------- | -------- |
+| arm 1     | cylinder |
+| arm 2     | cylinder |
+| chassis   | cube     |
+| saw blade | disc     |
+| wheels    | cylinder |
+
+These are the **base** dimensions expected by `CartArmature`
+- cylinder: (`x: [-1, 1], y: [-1, 1], z: [-0.5, 0.5]`)
+- disc: (`x: [-1, 1], y: [-1, 1], z: [0, 0]`)
+- cube: (`x: [-1, 1], y: [-1, 1], z: [-1, 1]`)
+
+Use these as reference to prepare meshes and/or textures. For example, if you have a nice mesh/texture, make sure that the base shape you feed to the constructor is a tire bounded tightly by the cylinder above. There are two options to make this easy
+1. edit in blender before importing
+2. create a mesh loader that let's you pre-apply a transformation to the raw vertices.
+
 ### Game Description
 
 Our game will be based on Bumper Cars. It is a 2-player game where the goal of the game is to damage your opponent to deplete their health to 0 first. The arena is a square with rounded sides and the camera is a fixed top down view to allow both players to see their car. Crashing mindlessly depletes both your and the other car's health. The game provides randomly generated power-ups which can be collected and provide the player different powers which can be:
