@@ -8,6 +8,7 @@ import {
   SpringDamperSystem,
   SymplecticEuler,
 } from "./msdSystem";
+import { basisChange } from "../utils/math";
 
 export class CartFrame {
   msdSystem: SpringDamperSystem;
@@ -116,8 +117,8 @@ export class CartFrame {
     // this.msdSystem.addTag(particles.container[4], "kinematic");
 
     for (const p of this.msdSystem.getGroup("CarB")) {
-      p.location[1] += 2
-      p.location[2] -= 4
+      p.location[1] += 2;
+      p.location[2] -= 4;
     }
 
     pairs.forEach(([i1, i2], i) => {
@@ -128,5 +129,35 @@ export class CartFrame {
     });
 
     this.integrator = new SymplecticEuler();
+  }
+
+  getTransforms() {
+    const pc = this.msdSystem.particles.container;
+
+    const Ma = basisChange(
+      pc[3].location,
+      pc[2].location,
+      pc[1].location,
+      pc
+        .slice(0, 4)
+        .map((p) => p.location)
+        .reduce((acc, cv) => acc.plus(cv))
+        .times(1 / 4),
+    );
+    const Mb = basisChange(
+      pc[8].location,
+      pc[7].location,
+      pc[6].location,
+      pc
+        .slice(5, 9)
+        .map((p) => p.location)
+        .reduce((acc, cv) => acc.plus(cv))
+        .times(1 / 4),
+    );
+
+    return {
+      mtxCarA: Ma,
+      mtxCarB: Mb,
+    };
   }
 }

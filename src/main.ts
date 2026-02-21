@@ -279,56 +279,18 @@ export class BumperCars extends BumperCarsBase {
     // });
 
     const { cart1, cart2 } = this.armatures;
+    const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
 
-    const [p1, p2, p3] = [
-      cartMSD.msdSystem.particles.container[3].location,
-      cartMSD.msdSystem.particles.container[2].location,
-      cartMSD.msdSystem.particles.container[1].location,
-    ]
-    const loc1 = cartMSD.msdSystem.particles.container
-      .slice(0, 4)
-      .map((p) => p.location)
-      .reduce((acc, cv) => acc.plus(cv))
-      .times(1 / 4);
-
-    const [q1, q2, q3] = [
-      cartMSD.msdSystem.particles.container[8].location,
-      cartMSD.msdSystem.particles.container[7].location,
-      cartMSD.msdSystem.particles.container[6].location,
-    ]
-    const loc2 = cartMSD.msdSystem.particles.container
-      .slice(5, 9)
-      .map((p) => p.location)
-      .reduce((acc, cv) => acc.plus(cv))
-      .times(1 / 4);
-    
-
-    cart1.arcs.root.traverse(
-      (joint, node, matrix) => {
-        // discriminate material based on name
-        const name = node.name as CartNodeNames;
-        node.shape.draw(
-          context,
-          this.uniforms,
-          matrix,
-          this.materials.uvSimple,
-        );
-      },
-      basisChange(p1, p2, p3, loc1),
-    );
-    cart2.arcs.root.traverse(
-      (joint, node, matrix) => {
-        // discriminate material based on name
-        const name = node.name as CartNodeNames;
-        node.shape.draw(
-          context,
-          this.uniforms,
-          matrix,
-          this.materials.uvSimple,
-        );
-      },
-      basisChange(q1, q2, q3, loc2),
-    );
+    cart1.arcs.root.traverse((joint, node, matrix) => {
+      // discriminate material based on name
+      const name = node.name as CartNodeNames;
+      node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
+    }, mtxCarA);
+    cart2.arcs.root.traverse((joint, node, matrix) => {
+      // discriminate material based on name
+      const name = node.name as CartNodeNames;
+      node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
+    }, mtxCarB);
 
     this.shapes.grid.draw(
       context,
