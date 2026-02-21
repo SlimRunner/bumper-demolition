@@ -141,7 +141,11 @@ export class BumperCarsBase extends tiny.Component {
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
     super.render_layout(div, options);
     const canvas = this.canvas ?? document.getElementById("canvas")!;
-    this.globalProps.gcam = new GimbalCamera(8, canvas);
+    this.globalProps.gcam = new GimbalCamera(canvas, {
+      distance: 8,
+      pitchAngle: Math.PI / 8,
+      rollAngle: Math.PI / 4,
+    });
   }
 
   render_animation(context: tiny.Component): void {

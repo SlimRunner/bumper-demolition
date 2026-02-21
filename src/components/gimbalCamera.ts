@@ -15,11 +15,16 @@ export class GimbalCamera {
     scroll: 1,
   };
 
-  constructor(distance: number, target: HTMLElement) {
-    this.pitchAngle = 0;
-    this.rollAngle = 0;
-    this.distance = distance;
-    this.center = math.vec3(0, 0, 0);
+  constructor(target: HTMLElement, initial?: {
+    distance?: number,
+    pitchAngle?: number,
+    rollAngle?: number,
+    center?: math.Vector3,
+  }) {
+    this.pitchAngle = initial?.pitchAngle ?? 0;
+    this.rollAngle = initial?.rollAngle ?? 0;
+    this.distance = initial?.distance ?? 1;
+    this.center = initial?.center ?? math.vec3(0, 0, 0);
 
     target.addEventListener("mousedown", (ev) => {
       switch (ev.button) {
