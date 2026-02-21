@@ -15,12 +15,15 @@ export class GimbalCamera {
     scroll: 1,
   };
 
-  constructor(target: HTMLElement, initial?: {
-    distance?: number,
-    pitchAngle?: number,
-    rollAngle?: number,
-    center?: math.Vector3,
-  }) {
+  constructor(
+    target: HTMLElement,
+    initial?: {
+      distance?: number;
+      pitchAngle?: number;
+      rollAngle?: number;
+      center?: math.Vector3;
+    },
+  ) {
     this.pitchAngle = initial?.pitchAngle ?? 0;
     this.rollAngle = initial?.rollAngle ?? 0;
     this.distance = initial?.distance ?? 1;
@@ -48,23 +51,42 @@ export class GimbalCamera {
     target.addEventListener("mousemove", (ev) => {
       this.mseX ??= ev.screenX;
       this.mseY ??= ev.screenY;
-      if (this.mouseLatch === "left") {
+      const modKey = (ev.ctrlKey ? 1 : 0) | (ev.altKey ? 2 : 0)
+      if (this.mouseLatch === "left" && modKey === 0) {
         ev.preventDefault();
         const xd = ev.screenX - this.mseX;
         const yd = ev.screenY - this.mseY;
         this.rollAngle += xd * this.sensitivity.mouse;
         this.pitchAngle += yd * this.sensitivity.mouse;
-      } else if (this.mouseLatch === "right") {
-        // move the center? how?
+      } else if (this.mouseLatch === "left" && modKey === 1) {
+        ev.preventDefault();
+        const xd = ev.screenX - this.mseX;
+        const yd = ev.screenY - this.mseY;
+        const cs = Math.cos(this.rollAngle + Math.PI);
+        const sn = Math.sin(this.rollAngle + Math.PI);
+        const vel = this.sensitivity.mouse * this.distance * 0.25;
+        this.center[0] += (xd * sn + yd * cs) * vel;
+        this.center[2] -= (xd * cs - yd * sn) * vel;
+      } else if (this.mouseLatch === "left" && modKey === 2) {
+        ev.preventDefault();
+        const yd = ev.screenY - this.mseY;
+        const vel = this.sensitivity.mouse * this.distance * 0.25;
+        this.center[1] += yd * vel;
       }
       this.mseX = ev.screenX;
       this.mseY = ev.screenY;
     });
+    target.addEventListener("dblclick", (ev) => {
+      this.center[0] = 0;
+      this.center[1] = 0;
+      this.center[2] = 0;
+    })
     target.addEventListener("wheel", (ev) => {
       ev.preventDefault();
       const dir = Math.sign(ev.deltaY);
       if (dir != 0) {
-        const dist = this.distance + dir * this.sensitivity.scroll;
+        const vel = this.sensitivity.scroll * this.distance * 0.15;
+        const dist = this.distance + dir * vel;
         if (dist > 0) {
           this.distance = dist;
         }
