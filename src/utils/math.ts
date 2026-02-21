@@ -1,4 +1,8 @@
+import { math } from "../../tiny-graphics-math";
+
 type tuple3 = [number, number, number];
+type tuple2 = [number, number];
+export type PlaneChoice = "xy" | "yx" | "xz" | "zx" | "yz" | "zy";
 
 export function lerp(a: number, b: number, t: number): number {
   return (1 - t) * a + t * b;
@@ -83,3 +87,110 @@ export function matrixMult(lhs: number[][], rhs: number[][]) {
   }
   return prod;
 }
+
+export function basisChange(
+  p1: math.Vector3,
+  p2: math.Vector3,
+  p3: math.Vector3,
+  loc: math.Vector3,
+) {
+  const w = p1.minus(p2).normalized();
+  const v = w.cross(p3.minus(p2)).normalized();
+  const u = v.cross(w);
+
+  return new math.Mat4(
+    [u[0], v[0], w[0], loc[0]],
+    [u[1], v[1], w[1], loc[1]],
+    [u[2], v[2], w[2], loc[2]],
+    [0, 0, 0, 1],
+  );
+}
+
+export class Vector2 extends Float32Array {
+  static create(x: number, y: number) {
+    const v = new Vector2(2);
+    v[0] = x;
+    v[1] = y;
+    return v;
+  }
+
+  plus(rhs: Vector2) {
+    return vec2(this[0] + rhs[0], this[1] + rhs[1]);
+  }
+
+  minus(rhs: Vector2) {
+    return vec2(this[0] - rhs[0], this[1] - rhs[1]);
+  }
+
+  times(rhs: number) {
+    return vec2(this[0] * rhs, this[1] * rhs);
+  }
+
+  norm() {
+    return Math.sqrt(this[0] * this[0] + this[1] * this[1]);
+  }
+
+  normalized() {
+    const d = 1 / this.norm();
+    return vec2(this[0] * d, this[1] * d);
+  }
+
+  dot(rhs: Vector2) {
+    return this[0] * rhs[0] + this[1] * rhs[1];
+  }
+
+  to3(last: number = 0, onto: PlaneChoice = "xz") {
+    switch (onto) {
+      case "xy":
+        return math.vec3(this[0], this[1], last);
+      case "yx":
+        return math.vec3(this[1], this[0], last);
+      case "xz":
+        return math.vec3(this[0], last, this[1]);
+      case "zx":
+        return math.vec3(this[1], last, this[0]);
+      case "yz":
+        return math.vec3(last, this[0], this[1]);
+      case "zy":
+        return math.vec3(last, this[1], this[0]);
+    }
+  }
+
+  transform(mtx: [tuple2, tuple2]) {
+    return vec2(
+      mtx[0][0] * this[0] + mtx[0][1] * this[1],
+      mtx[1][0] * this[0] + mtx[1][1] * this[1],
+    )
+  }
+
+  abs() {
+    return vec2(Math.abs(this[0]), Math.abs(this[1]));
+  }
+
+  static max(v: Vector2, n: number) {
+    return vec2(Math.max(v[0], n), Math.max(v[1], n));
+  }
+
+  static min(v: Vector2, n: number) {
+    return vec2(Math.min(v[0], n), Math.min(v[1], n));
+  }
+
+  static from3d(pt3: math.Vector3, pick: PlaneChoice) {
+    switch (pick) {
+      case "xy":
+        return vec2(pt3[0], pt3[1]);
+      case "yx":
+        return vec2(pt3[1], pt3[0]);
+      case "xz":
+        return vec2(pt3[0], pt3[2]);
+      case "zx":
+        return vec2(pt3[2], pt3[0]);
+      case "yz":
+        return vec2(pt3[1], pt3[2]);
+      case "zy":
+        return vec2(pt3[2], pt3[1]);
+    }
+  }
+}
+
+export const vec2 = Vector2.create;
