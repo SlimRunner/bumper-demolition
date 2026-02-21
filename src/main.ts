@@ -7,6 +7,10 @@ import { Axis3D } from "./shapes/axis3d";
 import { GimbalCamera } from "./components/gimbalCamera";
 import { SimpleGrid } from "./shapes/simpleGrid";
 import { CartArmature, CartNodeNames } from "./rigging/cartArmature";
+import { CartFrame } from "./physics/cartFrame";
+import { MSDFrameShape } from "./shapes/msdShape";
+import { range } from "./utils/iterators";
+import { basisChange } from "./utils/math";
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -16,11 +20,12 @@ export class BumperCarsBase extends tiny.Component {
     ball: defs.Subdivision_Sphere;
     disc: defs.Regular_2D_Polygon;
   };
-  drawables: {
-    axes3d: Axis3D;
-  };
   colors: {
-    red: math.Vector4;
+    readonly red: math.Vector4;
+    readonly blue: math.Vector4;
+    readonly gray: math.Vector4;
+    readonly softBlue: math.Vector4;
+    readonly yellow: math.Vector4;
   };
   materials: {
     uvSimple: {
@@ -41,6 +46,13 @@ export class BumperCarsBase extends tiny.Component {
   armatures: {
     cart1: CartArmature;
     cart2: CartArmature;
+  };
+  physics: {
+    cartMSD: CartFrame;
+  };
+  drawables: {
+    axes3d: Axis3D;
+    cartFrame: MSDFrameShape;
   };
 
   globalProps: {
@@ -88,21 +100,12 @@ export class BumperCarsBase extends tiny.Component {
       disc: discShape,
     };
 
-    // these are NOT tiny graphic shapes, but collections of shapes.
-    // Ideally only to be used as collections of actual shapes.
-    const axes3d = new Axis3D({
-      length: 5,
-      headRatio: {
-        height: 0.2,
-        width: 1,
-      },
-    });
-    this.drawables = {
-      axes3d,
-    };
-
     this.colors = {
       red: math.color(0.8, 0.1, 0.1, 1),
+      blue: math.color(0, 0, 1, 1),
+      gray: math.color(0.6, 0.6, 0.6, 1),
+      softBlue: math.color(0.176, 0.439, 0.702, 1),
+      yellow: math.color(1, 1, 0, 1),
     };
 
     this.globalProps = {};
@@ -136,6 +139,55 @@ export class BumperCarsBase extends tiny.Component {
         meshes: cartMeshes,
       }),
     };
+
+    const cartMSD = new CartFrame({
+      dimensions: {
+        wheelbase: 1.6,
+        axleTrack: 1.2,
+        frameWidth: 0,
+        frameLength: 0,
+        frameHeight: 0,
+      },
+    });
+    const cartFrame = new MSDFrameShape(
+      {
+        particle: {
+          shape: sphereShape,
+          material: {
+            ...this.materials.solid,
+            color: this.colors.yellow,
+          },
+          radius: 0.1,
+        },
+        beam: {
+          shape: cubeShape,
+          material: {
+            ...this.materials.plastic,
+            color: this.colors.softBlue,
+          },
+          radius: 0.025,
+        },
+      },
+      cartMSD.msdSystem,
+    );
+
+    // these are NOT tiny graphic shapes, but collections of shapes.
+    // Ideally only to be used as collections of actual shapes.
+    const axes3d = new Axis3D({
+      length: 5,
+      headRatio: {
+        height: 0.2,
+        width: 1,
+      },
+    });
+    this.drawables = {
+      axes3d,
+      cartFrame,
+    };
+    this.physics = {
+      cartMSD,
+    };
+    cartMSD.enable = true;
   }
 
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
@@ -190,6 +242,27 @@ export class BumperCars extends BumperCarsBase {
     const CMT = this.uniforms?.camera_transform!;
     const cam_loc = CMT.sub_block([0, 3], [3, 4]).flat();
 
+    const cartMSD = this.physics.cartMSD;
+
+    if (cartMSD.enable) {
+      const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
+
+      if (timeDelta > 0) {
+        const timeStep = cartMSD.timeStep;
+        // may miss the last target (do it manually after the loop)
+        const steps = Math.floor(timeDelta / timeStep);
+
+        for (const _ of range(steps)) {
+          cartMSD.integrator.step(cartMSD.msdSystem, timeStep);
+        }
+
+        const remainder = timeDelta - steps * timeStep;
+        if (remainder > 0) {
+          cartMSD.integrator.step(cartMSD.msdSystem, remainder);
+        }
+      }
+    }
+
     // this pattern can be used to create a sky texture later
     GL.disable(GL.DEPTH_TEST);
     this.shapes.box.draw(
@@ -207,6 +280,29 @@ export class BumperCars extends BumperCarsBase {
 
     const { cart1, cart2 } = this.armatures;
 
+    const [p1, p2, p3] = [
+      cartMSD.msdSystem.particles.container[3].location,
+      cartMSD.msdSystem.particles.container[2].location,
+      cartMSD.msdSystem.particles.container[1].location,
+    ]
+    const loc1 = cartMSD.msdSystem.particles.container
+      .slice(0, 4)
+      .map((p) => p.location)
+      .reduce((acc, cv) => acc.plus(cv))
+      .times(1 / 4);
+
+    const [q1, q2, q3] = [
+      cartMSD.msdSystem.particles.container[8].location,
+      cartMSD.msdSystem.particles.container[7].location,
+      cartMSD.msdSystem.particles.container[6].location,
+    ]
+    const loc2 = cartMSD.msdSystem.particles.container
+      .slice(5, 9)
+      .map((p) => p.location)
+      .reduce((acc, cv) => acc.plus(cv))
+      .times(1 / 4);
+    
+
     cart1.arcs.root.traverse(
       (joint, node, matrix) => {
         // discriminate material based on name
@@ -218,7 +314,7 @@ export class BumperCars extends BumperCarsBase {
           this.materials.uvSimple,
         );
       },
-      math.Mat4.rotation(time, 0, 1, 0),
+      basisChange(p1, p2, p3, loc1),
     );
     cart2.arcs.root.traverse(
       (joint, node, matrix) => {
@@ -231,8 +327,9 @@ export class BumperCars extends BumperCarsBase {
           this.materials.uvSimple,
         );
       },
-      math.Mat4.translation(2, 0, 2).times(math.Mat4.rotation(time, 0, 1, 0)),
+      basisChange(q1, q2, q3, loc2),
     );
+
     this.shapes.grid.draw(
       context,
       this.uniforms,
@@ -240,6 +337,7 @@ export class BumperCars extends BumperCarsBase {
       this.materials.solid,
     );
     this.drawables.axes3d.draw(context, this.uniforms, math.Mat4.identity());
+    this.drawables.cartFrame.draw(context, this.uniforms, math.Mat4.identity());
   }
 
   render_controls(): void {
