@@ -32,6 +32,12 @@ A tentative and non-exhaustive TODO list
   - [ ] allow printing text to screen
     - [ ] show timer in between health bars
     - [ ] show WIN toast at the end
+- [ ] prettify game
+  - [ ] find nice meshes/textures (off the internet?)
+    - [ ] wheels
+    - [ ] arm-links
+    - [ ] body
+    - [ ] saw
 
 Proposals for implementation
 - rigid body physics
