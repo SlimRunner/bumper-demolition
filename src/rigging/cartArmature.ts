@@ -58,7 +58,7 @@ export class CartArmature {
       rimSize: number;
       tireWallSize: number;
       tireWidth: number;
-      roofHeight: number;
+      chassisHeight: number;
       armLinkRadius: number;
       armLinkLength: number;
       sawRadius: number;
@@ -72,7 +72,7 @@ export class CartArmature {
         rimSize,
         tireWallSize,
         tireWidth,
-        roofHeight,
+        chassisHeight,
         armLinkRadius,
         armLinkLength,
         sawRadius,
@@ -83,7 +83,7 @@ export class CartArmature {
     const chassisLength = wheelbase + wheelDiameter * 1.5;
     const chassisWidth = axleTrack;
     const floorClearance = (wheelDiameter * 2) / 3;
-    const chassisHeight = roofHeight - floorClearance;
+    const roofHeight = chassisHeight + floorClearance;
 
     const chassisMatrix = math.Mat4.scale(
       chassisLength / 2,

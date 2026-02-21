@@ -107,46 +107,33 @@ export class BumperCarsBase extends tiny.Component {
 
     this.globalProps = {};
 
+    const cartDims = {
+      wheelbase: 1.6,
+      axleTrack: 1.2,
+      rimSize: 0.4064,
+      tireWallSize: 0.13975,
+      tireWidth: 0.215,
+      chassisHeight: 0.8359,
+      armLinkLength: 1.25,
+      armLinkRadius: 0.05,
+      sawRadius: 0.3,
+    };
+    const cartMeshes = {
+      arm1: closedTube,
+      arm2: closedTube,
+      chassis: cubeShape,
+      saw: discShape,
+      wheel: closedTube,
+    };
+
     this.armatures = {
       cart1: new CartArmature({
-        dimensions: {
-          wheelbase: 1.6,
-          axleTrack: 1.2,
-          rimSize: 0.4064,
-          tireWallSize: 0.13975,
-          tireWidth: 0.215,
-          roofHeight: 1.2,
-          armLinkLength: 1.25,
-          armLinkRadius: 0.05,
-          sawRadius: 0.3,
-        },
-        meshes: {
-          arm1: closedTube,
-          arm2: closedTube,
-          chassis: cubeShape,
-          saw: discShape,
-          wheel: closedTube,
-        },
+        dimensions: cartDims,
+        meshes: cartMeshes,
       }),
       cart2: new CartArmature({
-        dimensions: {
-          wheelbase: 1.6,
-          axleTrack: 1.2,
-          rimSize: 0.4064,
-          tireWallSize: 0.13975,
-          tireWidth: 0.215,
-          roofHeight: 1.2,
-          armLinkLength: 1.25,
-          armLinkRadius: 0.05,
-          sawRadius: 0.3,
-        },
-        meshes: {
-          arm1: closedTube,
-          arm2: closedTube,
-          chassis: cubeShape,
-          saw: discShape,
-          wheel: closedTube,
-        },
+        dimensions: cartDims,
+        meshes: cartMeshes,
       }),
     };
   }
