@@ -1,10 +1,18 @@
+- [CS174C - Final Project](#cs174c---final-project)
+  - [Name: TBD](#name-tbd)
+    - [TODOs](#todos)
+    - [Game Description](#game-description)
+  - [Setup](#setup)
+  - [Development](#development)
+  - [Game Specs](#game-specs)
+    - [Car Dimensions](#car-dimensions)
+
 # CS174C - Final Project
 
 ## Name: TBD
 
 Members:
 - Adrian Pu
-- Andy Kasbarian
 - Kyle Deveaux
 - Mario Flores
 
@@ -15,28 +23,51 @@ A bumper-cars inspired game implemented using tiny-graphics with a typescript la
 A tentative and non-exhaustive TODO list
 
 - [ ] add library to manage kinematic chains
-  - [ ] integrate mesh for saw arm with armature
+  - [x] integrate mesh for saw arm with armature
   - [ ] create a function to make the arm swing forward or back ward (think of a scorpion strikes)
+  - [ ] create a function to manage wheel rotation
+  - [ ] create a function to manage steer rotation (see link for steer geometry below)
 - [ ] create a way to manage the game state
   - [ ] timer for game cycle
-- [ ] add a library to manage rigid body physics
-  - [ ] allow friction and thrust forces for the tires
+  - [ ] health of each car
+- [ ] add a library to manage mass-spring-damper (MSD) frame
+  - [ ] add a way to assign signed distance fields to nodes (search Inigo Quilez)
+  - [ ] add a rolling-friction model assignable to nodes (for tires)
   - [ ] allow arbitrary external forces for the particles
-  - [ ] detect collision (optionally allow a callback)
-- [ ] create library to manage turning and accelerating
+  - [ ] synchronize MSD frame position-direction with cart armature
+  - [ ] create MSD-frames for both vehicles
+- [ ] add a shader that shows a GUI
+  - [ ] show health bars above (fighter game-like)
+  - [ ] allow printing text to screen
+    - [ ] show timer in between health bars
+    - [ ] show WIN toast at the end
+- [ ] prettify game
+  - [ ] find nice meshes/textures (off the internet?)
+    - [ ] wheels
+    - [ ] arm-links
+    - [ ] body
+    - [ ] saw
 
 Proposals for implementation
 - rigid body physics
   - simulate in 2D; render in 3D
   - use stacked circles to make the "oval" shape of the cart
-- particle beam collision can be detected in 3D then projected onto a plane for the 2D engine
+- particle beam collision detection
   - triangle intersection is the easiest
   - use bounding box for cart instead of the mesh (less triangle transformations)
 - steering
-  - let's simply manage 4 contact patches.
-    - The rear patches provide thrust
-    - the front patches provide steering through lateral grip
+  - ~~let's simply manage 4 contact patches.~~
+    - ~~The rear patches provide thrust~~
+    - ~~the front patches provide steering through lateral grip~~
     - reference for steering geometry: https://www.desmos.com/calculator/rnlmx54x2f
+  - now it can be handled by the MSD-system
+- structure of MSD-frame
+  - make the body a trussed extruded oval for rigidity
+  - connect the tire nodes below with a two nodes to the body
+    - single node per tire
+    - the floor is touched by only 4 nodes
+    - add most weight to the tires to prevent it flipping over
+    - add a cross truss to the the tires for stiffness
 
 ### Game Description
 
@@ -100,3 +131,36 @@ python server.py
 2. All the code should be contained in `src`. The output is perfectly mirrored in `my-code`.
 
 The reason for the import requirement is to enable jest testing (in case we might need it), but still allow the references to be trivially fixable since tiny graphics crashes if you do not import using `.js`.
+
+## Game Specs
+
+### Car Dimensions
+
+You can find and/or tune the find dimensions in the constructor of `BumperCarsBase`. These are
+- wheelbase: distance between front and back wheel center
+- axleTrack: distance between the right and left wheel centers
+- rimSize: diameter of the metal part of the rim (not used directly)
+- tireWallSize: size of the tire sidewall (not used directly)
+- tireWidth: self explanatory
+- chassisHeight: height of the car body (without wheels)
+- armLinkLength: size of *both* links for the jointed arm
+- armLinkRadius: radius of *both* links for the jointed arm
+- sawRadius: radius of saw blade
+
+The above are currently assigned the following primitive meshes
+| part      | mesh     |
+| --------- | -------- |
+| arm 1     | cylinder |
+| arm 2     | cylinder |
+| chassis   | cube     |
+| saw blade | disc     |
+| wheels    | cylinder |
+
+These are the **base** dimensions expected by `CartArmature`
+- cylinder: (`x: [-1, 1], y: [-1, 1], z: [-0.5, 0.5]`)
+- disc: (`x: [-1, 1], y: [-1, 1], z: [0, 0]`)
+- cube: (`x: [-1, 1], y: [-1, 1], z: [-1, 1]`)
+
+Use these as reference to prepare meshes and/or textures. For example, if you have a nice mesh/texture, make sure that the base shape you feed to the constructor is a tire bounded tightly by the cylinder above. There are two options to make this easy
+1. edit in blender before importing
+2. create a mesh loader that let's you pre-apply a transformation to the raw vertices.

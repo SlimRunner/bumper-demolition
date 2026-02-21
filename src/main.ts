@@ -40,7 +40,7 @@ export class BumperCarsBase extends tiny.Component {
   };
   armatures: {
     cart1: CartArmature;
-    // cart2: CartArmature;
+    cart2: CartArmature;
   };
 
   globalProps: {
@@ -107,26 +107,33 @@ export class BumperCarsBase extends tiny.Component {
 
     this.globalProps = {};
 
+    const cartDims = {
+      wheelbase: 1.6,
+      axleTrack: 1.2,
+      rimSize: 0.4064,
+      tireWallSize: 0.13975,
+      tireWidth: 0.215,
+      chassisHeight: 0.8359,
+      armLinkLength: 1.25,
+      armLinkRadius: 0.05,
+      sawRadius: 0.3,
+    };
+    const cartMeshes = {
+      arm1: closedTube,
+      arm2: closedTube,
+      chassis: cubeShape,
+      saw: discShape,
+      wheel: closedTube,
+    };
+
     this.armatures = {
       cart1: new CartArmature({
-        dimensions: {
-          wheelbase: 1.6,
-          axleTrack: 1.2,
-          rimSize: 0.4064,
-          tireWallSize: 0.13975,
-          tireWidth: 0.215,
-          roofHeight: 1.2,
-          armLinkLength: 1.25,
-          armLinkRadius: 0.05,
-          sawRadius: 0.3,
-        },
-        meshes: {
-          arm1: closedTube,
-          arm2: closedTube,
-          chassis: cubeShape,
-          saw: discShape,
-          wheel: closedTube,
-        },
+        dimensions: cartDims,
+        meshes: cartMeshes,
+      }),
+      cart2: new CartArmature({
+        dimensions: cartDims,
+        meshes: cartMeshes,
       }),
     };
   }
@@ -172,6 +179,8 @@ export class BumperCars extends BumperCarsBase {
   render_animation(context: tiny.Component): void {
     super.render_animation(context);
 
+    const time = (this.uniforms.animation_time ?? 0) / 1000;
+
     const GL = context.context!;
 
     const CMT = this.uniforms?.camera_transform!;
@@ -192,18 +201,34 @@ export class BumperCars extends BumperCarsBase {
     //   color: this.colors.red,
     // });
 
-    this.armatures.cart1.armature.arcs.root.traverse((joint, node, matrix) => {
-      const name = node.name as CartNodeNames;
-      node.shape.draw(
-        context,
-        this.uniforms,
-        matrix,
-        this.materials.uvSimple,
-        // "LINE_STRIP",
-      );
-      // if (node.name === "wheelRR") {
-      // }
-    });
+    const { cart1, cart2 } = this.armatures;
+
+    cart1.arcs.root.traverse(
+      (joint, node, matrix) => {
+        // discriminate material based on name
+        const name = node.name as CartNodeNames;
+        node.shape.draw(
+          context,
+          this.uniforms,
+          matrix,
+          this.materials.uvSimple,
+        );
+      },
+      math.Mat4.rotation(time, 0, 1, 0),
+    );
+    cart2.arcs.root.traverse(
+      (joint, node, matrix) => {
+        // discriminate material based on name
+        const name = node.name as CartNodeNames;
+        node.shape.draw(
+          context,
+          this.uniforms,
+          matrix,
+          this.materials.uvSimple,
+        );
+      },
+      math.Mat4.translation(2, 0, 2).times(math.Mat4.rotation(time, 0, 1, 0)),
+    );
     this.shapes.grid.draw(
       context,
       this.uniforms,

@@ -121,9 +121,15 @@ export class ArcJoint {
     this.rotation = R;
   }
 
-  traverse(callback: traverseCB) {
+  traverse(callback: traverseCB, matrix?: math.Mat4) {
     const dofStack: DOFRef[] = [];
-    this._traverse(this, math.Mat4.identity(), callback, [], dofStack);
+    this._traverse(
+      this,
+      matrix ?? math.Mat4.identity(),
+      callback,
+      [],
+      dofStack,
+    );
   }
 
   private _traverse(

@@ -1,13 +1,12 @@
 import { math } from "../../tiny-graphics-math";
-import { tiny, Uniforms } from "../../tiny-graphics";
-import type { Material } from "../shaders/types";
+import { MaterialRecord, tiny, Uniforms } from "../../tiny-graphics";
 
 export interface DrawableShape {
   draw(
     webgl_manager: tiny.Component,
     uniforms: Uniforms,
     model_transform: math.Mat4,
-    material: Material,
+    material: MaterialRecord,
     type?: keyof WebGL2RenderingContext,
   ): void;
 }

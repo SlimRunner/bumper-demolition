@@ -2,7 +2,6 @@ import { math } from "../../tiny-graphics-math";
 import { MaterialRecord, tiny, Uniforms } from "../../tiny-graphics";
 import { vecTransform } from "../utils/math";
 import type { DrawableShape } from "./types";
-import type { Material } from "../shaders/types";
 import { SolidColor } from "../shaders/solidColor";
 
 export type ArrowProps = {
@@ -68,7 +67,7 @@ export class Axis3D implements DrawableShape {
     y: AxisArrow;
     z: AxisArrow;
   };
-  private _mat: Material;
+  private _mat: MaterialRecord;
 
   constructor(props: Partial<ArrowProps>) {
     this._axes = {

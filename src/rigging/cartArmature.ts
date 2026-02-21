@@ -23,27 +23,25 @@ export type CartArcNames =
   | "sawHub";
 
 export class CartArmature {
-  armature: {
-    nodes: {
-      chassis: NodeLink;
-      wheelRL: NodeLink;
-      wheelRR: NodeLink;
-      wheelFR: NodeLink;
-      wheelFL: NodeLink;
-      sawArmLink1: NodeLink;
-      sawArmLink2: NodeLink;
-      saw: NodeLink;
-    };
-    arcs: {
-      root: ArcJoint;
-      wheelHubRL: ArcJoint;
-      wheelHubRR: ArcJoint;
-      wheelHubFR: ArcJoint;
-      wheelHubFL: ArcJoint;
-      sawArmJoint1: ArcJoint;
-      sawArmJoint2: ArcJoint;
-      sawHub: ArcJoint;
-    };
+  nodes: {
+    chassis: NodeLink;
+    wheelRL: NodeLink;
+    wheelRR: NodeLink;
+    wheelFR: NodeLink;
+    wheelFL: NodeLink;
+    sawArmLink1: NodeLink;
+    sawArmLink2: NodeLink;
+    saw: NodeLink;
+  };
+  arcs: {
+    root: ArcJoint;
+    wheelHubRL: ArcJoint;
+    wheelHubRR: ArcJoint;
+    wheelHubFR: ArcJoint;
+    wheelHubFL: ArcJoint;
+    sawArmJoint1: ArcJoint;
+    sawArmJoint2: ArcJoint;
+    sawHub: ArcJoint;
   };
 
   constructor(props: {
@@ -60,7 +58,7 @@ export class CartArmature {
       rimSize: number;
       tireWallSize: number;
       tireWidth: number;
-      roofHeight: number;
+      chassisHeight: number;
       armLinkRadius: number;
       armLinkLength: number;
       sawRadius: number;
@@ -74,7 +72,7 @@ export class CartArmature {
         rimSize,
         tireWallSize,
         tireWidth,
-        roofHeight,
+        chassisHeight,
         armLinkRadius,
         armLinkLength,
         sawRadius,
@@ -85,7 +83,7 @@ export class CartArmature {
     const chassisLength = wheelbase + wheelDiameter * 1.5;
     const chassisWidth = axleTrack;
     const floorClearance = (wheelDiameter * 2) / 3;
-    const chassisHeight = roofHeight - floorClearance;
+    const roofHeight = chassisHeight + floorClearance;
 
     const chassisMatrix = math.Mat4.scale(
       chassisLength / 2,
@@ -205,27 +203,25 @@ export class CartArmature {
     sawArmLink1.arcs.push(sawArmJoint2);
     sawArmLink2.arcs.push(sawHub);
 
-    this.armature = {
-      nodes: {
-        chassis,
-        saw,
-        sawArmLink1,
-        sawArmLink2,
-        wheelFL,
-        wheelFR,
-        wheelRL,
-        wheelRR,
-      },
-      arcs: {
-        root,
-        wheelHubRL,
-        wheelHubRR,
-        wheelHubFR,
-        wheelHubFL,
-        sawArmJoint1,
-        sawArmJoint2,
-        sawHub,
-      },
+    this.nodes = {
+      chassis,
+      saw,
+      sawArmLink1,
+      sawArmLink2,
+      wheelFL,
+      wheelFR,
+      wheelRL,
+      wheelRR,
+    };
+    this.arcs = {
+      root,
+      wheelHubRL,
+      wheelHubRR,
+      wheelHubFR,
+      wheelHubFL,
+      sawArmJoint1,
+      sawArmJoint2,
+      sawHub,
     };
   }
 }
