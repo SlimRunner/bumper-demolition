@@ -6,7 +6,6 @@ type ParticleProperties = {
   mass: number;
   location: math.Vector3;
   velocity: math.Vector3;
-  kinematic?: boolean;
 };
 
 type SpringProperties = {
@@ -22,6 +21,8 @@ type GroundPlaneProperties = {
 
 type Triangle = [math.Vector3, math.Vector3, math.Vector3];
 
+type ParticleTags = "tire" | "structural" | "collidable" | "kinematic";
+
 export interface Collection<T> {
   container: T[];
 }
@@ -31,13 +32,15 @@ export class MSDParticle {
   location: math.Vector3;
   velocity: math.Vector3;
   prevLocation?: math.Vector3;
-  isKinematic: boolean;
+
+  tags: Set<ParticleTags>;
+  group?: string;
 
   constructor(props: Partial<ParticleProperties> = {}) {
     this.mass = props.mass ?? 0;
     this.location = props.location ?? math.vec3(0, 0, 0);
     this.velocity = props.velocity ?? math.vec3(0, 0, 0);
-    this.isKinematic = props.kinematic ?? false;
+    this.tags = new Set();
   }
 
   reset(props: ParticleProperties) {
@@ -192,22 +195,31 @@ export class SpringDamperSystem {
     kFrictionThres: 1e-2,
   };
 
+  particleGroups: Map<string, Set<MSDParticle>>;
+
   constructor(
     springs: SpringCollection,
     particles: ParticleCollection,
-    groundPlane: MSDGroundPlane,
+    // groundPlane: MSDGroundPlane,
     constAccel: math.Vector3,
     params: Partial<MSDSysParams> = {},
   ) {
     this.springs = springs;
     this.particles = particles;
     this.links = new Map();
-    this.groundPlane = groundPlane;
+    this.groundPlane = new MSDGroundPlane(
+      [math.vec3(0, 0, 0), math.vec3(0, -0.1, 1), math.vec3(1, 0, 0)],
+      {
+        kSpring: 15000,
+        kDamper: 10,
+      },
+    );
     this.constAccel = constAccel;
     this.params = {
       ...this.params,
       ...params,
     };
+    this.particleGroups = new Map();
   }
 
   resetLinks() {
@@ -219,6 +231,28 @@ export class SpringDamperSystem {
     const particle1 = this.particles.container[particleIndices[0]];
     const particle2 = this.particles.container[particleIndices[1]];
     this.links.set(spring, [particle1, particle2]);
+  }
+
+  addParticleToGroup(p: MSDParticle, group: string) {
+    p.group = group;
+
+    if (!this.particleGroups.has(group)) {
+      this.particleGroups.set(group, new Set());
+    }
+
+    this.particleGroups.get(group)!.add(p);
+  }
+
+  addTag(p: MSDParticle, tag: ParticleTags) {
+    p.tags.add(tag);
+  }
+
+  getParticlesWithTag(tag: ParticleTags): MSDParticle[] {
+    return this.particles.container.filter((p) => p.tags.has(tag));
+  }
+
+  getGroup(group: string): MSDParticle[] {
+    return Array.from(this.particleGroups.get(group) ?? []);
   }
 
   computeForces() {
@@ -246,7 +280,7 @@ export class SpringDamperSystem {
     }
 
     for (const p of this.particles.container) {
-      if (p.isKinematic) continue;
+      if (p.tags.has("kinematic")) continue;
       let FNet = getOrInsertCond(forces, p, () => math.vec3(0, 0, 0)).plus(
         this.constAccel.times(p.mass),
       );
@@ -303,7 +337,7 @@ export class ForwardEuler implements Integrator {
     const forces = system.computeForces();
 
     for (const p of system.particles.container) {
-      if (p.isKinematic) continue;
+      if (p.tags.has("kinematic")) continue;
       let acc = forces.get(p)!.times(1 / p.mass);
 
       p.location = p.location.plus(p.velocity.times(dt));
@@ -317,7 +351,7 @@ export class SymplecticEuler implements Integrator {
     const forces = system.computeForces();
 
     for (const p of system.particles.container) {
-      if (p.isKinematic) continue;
+      if (p.tags.has("kinematic")) continue;
       const a = forces.get(p)!.times(1 / p.mass);
 
       p.velocity = p.velocity.plus(a.times(dt));
@@ -331,7 +365,7 @@ export class Verlet implements Integrator {
     const forces = system.computeForces();
 
     for (const p of system.particles.container) {
-      if (p.isKinematic) continue;
+      if (p.tags.has("kinematic")) continue;
       if (!p.prevLocation) {
         p.prevLocation = p.location.minus(p.velocity.times(dt));
       }
