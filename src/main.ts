@@ -44,8 +44,8 @@ export class BumperCarsBase extends tiny.Component {
     };
   };
   armatures: {
-    cart1: CartArmature;
-    cart2: CartArmature;
+    cartA: CartArmature;
+    cartB: CartArmature;
   };
   physics: {
     cartMSD: CartFrame;
@@ -130,11 +130,11 @@ export class BumperCarsBase extends tiny.Component {
     };
 
     this.armatures = {
-      cart1: new CartArmature({
+      cartA: new CartArmature({
         dimensions: cartDims,
         meshes: cartMeshes,
       }),
-      cart2: new CartArmature({
+      cartB: new CartArmature({
         dimensions: cartDims,
         meshes: cartMeshes,
       }),
@@ -278,15 +278,15 @@ export class BumperCars extends BumperCarsBase {
     //   color: this.colors.red,
     // });
 
-    const { cart1, cart2 } = this.armatures;
+    const { cartA, cartB } = this.armatures;
     const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
 
-    cart1.arcs.root.traverse((joint, node, matrix) => {
+    cartA.arcs.root.traverse((joint, node, matrix) => {
       // discriminate material based on name
       const name = node.name as CartNodeNames;
       node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
     }, mtxCarA);
-    cart2.arcs.root.traverse((joint, node, matrix) => {
+    cartB.arcs.root.traverse((joint, node, matrix) => {
       // discriminate material based on name
       const name = node.name as CartNodeNames;
       node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
