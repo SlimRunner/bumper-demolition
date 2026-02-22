@@ -316,8 +316,8 @@ export class BumperCars extends BumperCarsBase {
 
   render_controls(): void {
     // minimal working example
-    this.key_triggered_button("my button", ["Control", "0"], () =>
-      console.log("pressed"),
-    );
+    this.key_triggered_button("toggle physics", ["p"], () => {
+      this.physics.cartMSD.enable = !this.physics.cartMSD.enable;
+    });
   }
 }
