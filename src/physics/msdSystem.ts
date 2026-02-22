@@ -1,6 +1,7 @@
 import { range } from "../utils/iterators";
 import { math } from "../../tiny-graphics-math";
 import { getOrInsertCond } from "../utils/polyfills";
+import { ContactField } from "./contactFields";
 
 type ParticleProperties = {
   mass: number;
@@ -68,97 +69,6 @@ export class MSDSpring {
   }
 }
 
-export class MSDGroundPlane {
-  private _tri: Triangle;
-  private _normalCache?: math.Vector3;
-  kDamper: number;
-  kSpring: number;
-
-  constructor(tri: Triangle, props: Partial<GroundPlaneProperties> = {}) {
-    this._tri = tri;
-    this.kDamper = props.kDamper ?? 0;
-    this.kSpring = props.kSpring ?? 0;
-  }
-
-  reset(props: GroundPlaneProperties) {
-    this.kSpring = props.kSpring;
-    this.kDamper = props.kDamper;
-  }
-
-  normal() {
-    if (this._normalCache == null) {
-      const [A, B, C] = this._tri;
-      const P = B.minus(A);
-      const Q = C.minus(A);
-      this._normalCache = P.cross(Q).normalized();
-      return this._normalCache;
-    } else {
-      return this._normalCache;
-    }
-  }
-
-  projectOnto(p: math.Vector3, pType: "point" | "vector") {
-    const A = this._tri[0];
-    const N = this.normal();
-    if (pType === "vector") {
-      return p.minus(N.times(N.dot(p)));
-    } else {
-      return p.minus(N.times(N.dot(p.minus(A))));
-    }
-  }
-
-  distance(probe: math.Vector3) {
-    const A = this._tri[0];
-    return this.normal().dot(probe.minus(A));
-  }
-
-  intersection(
-    p1: math.Vector3,
-    p2: math.Vector3,
-  ): {
-    location: math.Vector3;
-    distance: number;
-  } | null {
-    // reference: https://www.desmos.com/3d/mhkxcxndij
-
-    const A = this._tri[0];
-    const gndNormal = this.normal();
-
-    const p1Delta = p1.minus(A);
-    const dist1 = gndNormal.dot(p1Delta);
-    const dist2 = gndNormal.dot(p2.minus(A));
-
-    if (Math.sign(dist1) === Math.sign(dist2)) {
-      return null;
-    }
-
-    const delta = p2.minus(p1);
-    // note that it would normally be A - p1 but I used the reverse and
-    // factored out the negative to reuse one calculation
-    const normDist = -gndNormal.dot(p1Delta);
-    const normVel = gndNormal.dot(delta);
-    const time = normDist / normVel;
-
-    // NOTE: if required, calculate here the x_hat and y_hat, i.e the
-    // projection of the intersection point to two edges of the triangle
-    // and use those to compute the boundaries instead of checking signs
-    // of the triangle. This would be more flexible.
-
-    return {
-      location: p1.plus(delta.times(time)),
-      distance: Math.abs(dist2),
-    };
-  }
-
-  computeForce(distance: number, velocity: math.Vector3) {
-    const normal = this.normal();
-
-    return normal.times(
-      distance * this.kSpring - velocity.dot(normal) * this.kDamper,
-    );
-  }
-}
-
 export class ParticleCollection implements Collection<MSDParticle> {
   container: MSDParticle[];
 
@@ -175,51 +85,26 @@ export class SpringCollection implements Collection<MSDSpring> {
   }
 }
 
-export interface MSDSysParams {
-  coefRestitution: number;
-  coefSFriction: number;
-  coefKFriction: number;
-  kFrictionThres: number;
-}
-
 export class SpringDamperSystem {
   springs: SpringCollection;
   particles: ParticleCollection;
   links: Map<MSDSpring, [MSDParticle, MSDParticle]>;
-  groundPlane: MSDGroundPlane;
   constAccel: math.Vector3;
-  params: MSDSysParams = {
-    coefRestitution: 1,
-    coefSFriction: 0,
-    coefKFriction: 0,
-    kFrictionThres: 1e-2,
-  };
+  contactFields: ContactField[];
 
   particleGroups: Map<string, Set<MSDParticle>>;
 
   constructor(
     springs: SpringCollection,
     particles: ParticleCollection,
-    // groundPlane: MSDGroundPlane,
     constAccel: math.Vector3,
-    params: Partial<MSDSysParams> = {},
   ) {
     this.springs = springs;
     this.particles = particles;
     this.links = new Map();
-    this.groundPlane = new MSDGroundPlane(
-      [math.vec3(0, 0, 0), math.vec3(0, -0.1, 1), math.vec3(1, 0, 0)],
-      {
-        kSpring: 15000,
-        kDamper: 10,
-      },
-    );
     this.constAccel = constAccel;
-    this.params = {
-      ...this.params,
-      ...params,
-    };
     this.particleGroups = new Map();
+    this.contactFields = [];
   }
 
   resetLinks() {
@@ -257,7 +142,7 @@ export class SpringDamperSystem {
 
   computeForces() {
     const forces = new Map<MSDParticle, math.Vector3>();
-    const velThreshold = this.params.kFrictionThres;
+    // const velThreshold = this.params.kFrictionThres;
 
     for (const [spring, [p1, p2]] of this.links) {
       const delta = p2.location.minus(p1.location);
@@ -285,41 +170,80 @@ export class SpringDamperSystem {
         this.constAccel.times(p.mass),
       );
 
-      const d = this.groundPlane.distance(p.location);
-      const normal = this.groundPlane.normal();
-      const Nf = normal.times(normal.dot(FNet));
+      for (const field of this.contactFields) {
+        // apply contact forces
+        if (field.affects(p)) {
+          const dist = field.sdf(p.location);
+          const normal = field.normal(p.location);
+          const normalForce = normal.times(normal.dot(FNet));
 
-      if (d < 0 && p.velocity.dot(normal) < 0) {
-        const FTan = FNet.minus(Nf);
-        const vTan = this.groundPlane.projectOnto(p.velocity, "vector");
+          if (dist < 0) {
+            const normSpeed = p.velocity.dot(normal);
+            const normVelocity = normal.times(normSpeed);
+            const tangVelocity = p.velocity.minus(normVelocity);
+            // penetration happened
+            // if (field.friction) {
+            //   // compute tangential friction forces
+            //   if (tangVelocity.norm() < field.friction.threshold) {
+            //     // static
+            //     const muS = field.friction.static;
+            //     const fmax = normalForce.norm() * muS;
 
-        if (vTan.norm() < velThreshold) {
-          const muS = this.params.coefSFriction;
-          const fmax = Nf.norm() * muS;
+            //     p.velocity = normVelocity;
+            //   } else {
+            //     // kinetic
+            //   }
+            // }
+            if (field.restitution && normSpeed < 0) {
+              const restitution = normal.times(
+                normSpeed * (1 + field.restitution.coefficient),
+              );
+              p.velocity = p.velocity.minus(restitution);
+            }
 
-          // zero out tangential velocity under threshold
-          p.velocity = p.velocity.minus(
-            this.groundPlane.projectOnto(p.velocity, "vector"),
-          );
-
-          if (FTan.norm() <= fmax) {
-            // zero out tangential force
-            FNet = FNet.minus(FTan);
-          } else {
-            // subtract fmax along tangent
-            FNet = FNet.minus(FTan.normalized().times(fmax));
+            const msdForce = normal.times(
+              field.stiffness * dist + field.damping * normSpeed,
+            );
+            FNet = FNet.minus(msdForce);
           }
-        } else {
-          const muK = this.params.coefKFriction;
-          FNet = FNet.minus(vTan.normalized().times(Nf.norm() * muK));
         }
-
-        const e = this.params.coefRestitution;
-        // flip velocity with applied coefficient of restitution
-        const restitution = normal.times(p.velocity.dot(normal) * (1 + e));
-        p.velocity = p.velocity.minus(restitution);
-        FNet = FNet.plus(this.groundPlane.computeForce(-d, p.velocity));
       }
+
+      // const d = this.groundPlane.distance(p.location);
+      // const normal = this.groundPlane.normal();
+      // const Nf = normal.times(normal.dot(FNet));
+
+      // if (d < 0 && p.velocity.dot(normal) < 0) {
+      //   const FTan = FNet.minus(Nf);
+      //   const vTan = this.groundPlane.projectOnto(p.velocity, "vector");
+
+      //   if (vTan.norm() < velThreshold) {
+      //     const muS = this.params.coefSFriction;
+      //     const fmax = Nf.norm() * muS;
+
+      //     // zero out tangential velocity under threshold
+      //     p.velocity = p.velocity.minus(
+      //       this.groundPlane.projectOnto(p.velocity, "vector"),
+      //     );
+
+      //     if (FTan.norm() <= fmax) {
+      //       // zero out tangential force
+      //       FNet = FNet.minus(FTan);
+      //     } else {
+      //       // subtract fmax along tangent
+      //       FNet = FNet.minus(FTan.normalized().times(fmax));
+      //     }
+      //   } else {
+      //     const muK = this.params.coefKFriction;
+      //     FNet = FNet.minus(vTan.normalized().times(Nf.norm() * muK));
+      //   }
+
+      //   const e = this.params.coefRestitution;
+      //   // flip velocity with applied coefficient of restitution
+      //   const restitution = normal.times(p.velocity.dot(normal) * (1 + e));
+      //   p.velocity = p.velocity.minus(restitution);
+      //   FNet = FNet.plus(this.groundPlane.computeForce(-d, p.velocity));
+      // }
 
       forces.set(p, FNet);
     }

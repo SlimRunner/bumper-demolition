@@ -2,13 +2,13 @@
 // - https://iquilezles.org/articles/distfunctions/
 // - https://iquilezles.org/articles/distfunctions2d/
 
-import { clamp, PlaneChoice, vec2, Vector2 } from "src/utils/math";
+import { clamp, PlaneChoice, vec2, Vector2 } from "../utils/math";
 import { math } from "../../tiny-graphics-math";
 
 // reference: https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-0.html
 type Arr = readonly unknown[];
 
-type FunctorSDF<T, R> = (p: T) => R;
+export type FunctorSDF<T, R> = (p: T) => R;
 
 export function curry<T, R, Args extends Arr>(
   sdf: (p: T, ...args: [...Args]) => R,
@@ -24,7 +24,7 @@ export function curryDyn<T, R, Args extends Arr>(
   return (p: T) => sdf(p, ...args());
 }
 
-export function sdGradient(
+export function sdGradient2D(
   pt3: math.Vector3,
   sdf: FunctorSDF<math.Vector3, number>,
   delta: number,
@@ -36,10 +36,13 @@ export function sdGradient(
   return vec2(
     sdf(pt.plus(xdt).to3(0, onto)) - sdf(pt.minus(xdt).to3(0, onto)),
     sdf(pt.plus(ydt).to3(0, onto)) - sdf(pt.minus(ydt).to3(0, onto)),
-  ).times(2 * delta).to3(0, onto);
+  )
+    .times(2 * delta)
+    .to3(0, onto)
+    .normalized();
 }
 
-export function sdGradientExt(
+export function sdGradient3D(
   pt: math.Vector3,
   sdf: FunctorSDF<math.Vector3, number>,
   delta: number,
@@ -47,11 +50,14 @@ export function sdGradientExt(
   const xdt = math.vec3(delta, 0, 0);
   const ydt = math.vec3(0, delta, 0);
   const zdt = math.vec3(0, 0, delta);
-  return math.vec3(
-    sdf(pt.plus(xdt)) - sdf(pt.minus(xdt)),
-    sdf(pt.plus(ydt)) - sdf(pt.minus(ydt)),
-    sdf(pt.plus(zdt)) - sdf(pt.minus(zdt)),
-  ).times(2 * delta);
+  return math
+    .vec3(
+      sdf(pt.plus(xdt)) - sdf(pt.minus(xdt)),
+      sdf(pt.plus(ydt)) - sdf(pt.minus(ydt)),
+      sdf(pt.plus(zdt)) - sdf(pt.minus(zdt)),
+    )
+    .times(2 * delta)
+    .normalized();
 }
 
 export function sdPlane(

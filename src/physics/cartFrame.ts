@@ -1,4 +1,3 @@
-import { range } from "src/utils/iterators";
 import { math } from "../../tiny-graphics-math";
 import {
   Integrator,
@@ -8,7 +7,9 @@ import {
   SpringDamperSystem,
   SymplecticEuler,
 } from "./msdSystem";
-import { basisChange } from "../utils/math";
+import { basisChange, PlaneChoice, Vector2 } from "../utils/math";
+import { CartField, PlaneField } from "./contactFields";
+import { curryDyn, sdOrientedPillExt } from "../linearAlgebra/sdfs";
 
 export class CartFrame {
   msdSystem: SpringDamperSystem;
@@ -25,7 +26,7 @@ export class CartFrame {
       frameLength: number;
     };
   }) {
-    const y_disp = 1;
+    const y_disp = 0.1;
     const particles = new ParticleCollection(0);
     const wx = props.dimensions.wheelbase / 2;
     const wz = props.dimensions.axleTrack / 2;
@@ -47,7 +48,7 @@ export class CartFrame {
       ([x, y, z, m], i) =>
         new MSDParticle({
           mass: m,
-          location: math.vec3(x, y, z + 2),
+          location: math.vec3(x, y, z),
           velocity: math.vec3(0, 0, 0),
         }),
     );
@@ -82,7 +83,7 @@ export class CartFrame {
     springs.container.forEach((sp) => {
       sp.reset({
         kSpring: 5000,
-        kDamper: 40,
+        kDamper: 80,
         length: 1,
       });
     });
@@ -91,11 +92,11 @@ export class CartFrame {
       springs,
       particles,
       math.vec3(0, -9.8, 0),
-      {
-        coefRestitution: 0.2,
-        coefKFriction: 0.5,
-        coefSFriction: 0.7,
-      },
+      // {
+      //   coefRestitution: 0.2,
+      //   coefKFriction: 0.5,
+      //   coefSFriction: 0.7,
+      // },
     );
 
     for (const i of [0, 1, 2, 3]) {
@@ -117,8 +118,12 @@ export class CartFrame {
     // this.msdSystem.addTag(particles.container[4], "kinematic");
 
     for (const p of this.msdSystem.getGroup("CarB")) {
-      p.location[1] += 2;
-      p.location[2] -= 4;
+      p.location[0] -= 1;
+      p.location[2] -= 2;
+    }
+    for (const p of this.msdSystem.getGroup("CarA")) {
+      p.location[2] += 2;
+      p.velocity[2] -= 5;
     }
 
     pairs.forEach(([i1, i2], i) => {
@@ -128,7 +133,78 @@ export class CartFrame {
       this.msdSystem.makeLink(i, [i1, i2]);
     });
 
+    const plChoice: PlaneChoice = "xz";
+
+    this.msdSystem.contactFields.push(
+      new PlaneField(new Set(), math.vec3(0, 1, 0), {
+        stiffness: 15000,
+        damping: 10,
+        friction: {
+          kinetic: 0.5,
+          static: 0.7,
+          threshold: 1e-3,
+        },
+        restitution: {
+          coefficient: 0.2,
+        },
+        height: 0,
+      }),
+      new CartField(
+        new Set(["CarB"]),
+        curryDyn(sdOrientedPillExt, () => {
+          return [
+            Vector2.from3d(this.getLocAverage(0, 1), plChoice),
+            Vector2.from3d(this.getLocAverage(2, 3), plChoice),
+            props.dimensions.axleTrack / 2,
+            plChoice,
+          ];
+        }),
+        {
+          stiffness: 15000,
+          damping: 10,
+          friction: {
+            kinetic: 0.5,
+            static: 0.7,
+            threshold: 1e-3,
+          },
+          restitution: {
+            coefficient: 0.2,
+          },
+          height: 0,
+        },
+      ),
+      new CartField(
+        new Set(["CarA"]),
+        curryDyn(sdOrientedPillExt, () => {
+          return [
+            Vector2.from3d(this.getLocAverage(7, 8), plChoice),
+            Vector2.from3d(this.getLocAverage(5, 6), plChoice),
+            props.dimensions.axleTrack / 2,
+            plChoice,
+          ];
+        }),
+        {
+          stiffness: 15000,
+          damping: 10,
+          friction: {
+            kinetic: 0.5,
+            static: 0.7,
+            threshold: 1e-3,
+          },
+          restitution: {
+            coefficient: 0.2,
+          },
+          height: 0,
+        },
+      ),
+    );
+
     this.integrator = new SymplecticEuler();
+  }
+
+  private getLocAverage(i1: number, i2: number) {
+    const pc = this.msdSystem.particles.container;
+    return pc[i1].location.plus(pc[i2].location).times(0.5);
   }
 
   getTransforms() {
