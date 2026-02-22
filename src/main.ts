@@ -57,7 +57,7 @@ export class BumperCarsBase extends tiny.Component {
 
   globalProps: {
     gcam?: GimbalCamera;
-    animIdle: boolean;
+    isIdling: boolean;
   };
 
   constructor() {
@@ -110,7 +110,7 @@ export class BumperCarsBase extends tiny.Component {
     };
 
     this.globalProps = {
-      animIdle: false,
+      isIdling: false,
     };
 
     const cartDims = {
@@ -197,7 +197,7 @@ export class BumperCarsBase extends tiny.Component {
       // (which has a fixed time delta) trying to step through a large
       // time delta. Consider it a pause sync with the browser since it
       // idles requestAnimationFrame when the window loses visibility.
-      this.globalProps.animIdle = document.hidden;
+      this.globalProps.isIdling = document.hidden;
     });
   }
 
@@ -256,7 +256,7 @@ export class BumperCars extends BumperCarsBase {
 
     const cartMSD = this.physics.cartMSD;
 
-    if (cartMSD.enable && !this.globalProps.animIdle) {
+    if (cartMSD.enable && !this.globalProps.isIdling) {
       const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
 
       if (timeDelta > 0) {
