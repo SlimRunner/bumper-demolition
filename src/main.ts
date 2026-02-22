@@ -208,6 +208,7 @@ export class BumperCarsBase extends tiny.Component {
       distance: 8,
       pitchAngle: Math.PI / 8,
       rollAngle: Math.PI / 4,
+      center: math.vec3(1, 2.5, 0),
     });
   }
 
