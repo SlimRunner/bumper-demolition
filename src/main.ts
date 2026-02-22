@@ -190,7 +190,7 @@ export class BumperCarsBase extends tiny.Component {
     this.physics = {
       cartMSD,
     };
-    cartMSD.enable = true;
+    cartMSD.enable = false;
 
     document.addEventListener("visibilitychange", () => {
       // this prevents the window from hanging due to the physics loop
