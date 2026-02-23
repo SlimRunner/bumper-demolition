@@ -30,12 +30,13 @@ A tentative and non-exhaustive TODO list
 - [ ] create a way to manage the game state
   - [ ] timer for game cycle
   - [ ] health of each car
+  - [ ] allow game to be reset
 - [ ] add a library to manage mass-spring-damper (MSD) frame
-  - [ ] add a way to assign signed distance fields to nodes (search Inigo Quilez)
+  - [x] add a way to assign signed distance fields to nodes (search Inigo Quilez)
   - [ ] add a rolling-friction model assignable to nodes (for tires)
   - [ ] allow arbitrary external forces for the particles
-  - [ ] synchronize MSD frame position-direction with cart armature
-  - [ ] create MSD-frames for both vehicles
+  - [x] synchronize MSD frame position-direction with cart armature
+  - [x] create MSD-frames for both vehicles
 - [ ] add a shader that shows a GUI
   - [ ] show health bars above (fighter game-like)
   - [ ] allow printing text to screen
@@ -49,25 +50,13 @@ A tentative and non-exhaustive TODO list
     - [ ] saw
 
 Proposals for implementation
-- rigid body physics
-  - simulate in 2D; render in 3D
-  - use stacked circles to make the "oval" shape of the cart
 - particle beam collision detection
   - triangle intersection is the easiest
   - use bounding box for cart instead of the mesh (less triangle transformations)
 - steering
-  - ~~let's simply manage 4 contact patches.~~
-    - ~~The rear patches provide thrust~~
-    - ~~the front patches provide steering through lateral grip~~
+  - implement a direction vector for "tire" type particles
+    - modify existing tangential friction using this direction vector
     - reference for steering geometry: https://www.desmos.com/calculator/rnlmx54x2f
-  - now it can be handled by the MSD-system
-- structure of MSD-frame
-  - make the body a trussed extruded oval for rigidity
-  - connect the tire nodes below with a two nodes to the body
-    - single node per tire
-    - the floor is touched by only 4 nodes
-    - add most weight to the tires to prevent it flipping over
-    - add a cross truss to the the tires for stiffness
 
 ### Game Description
 
