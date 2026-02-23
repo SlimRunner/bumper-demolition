@@ -51,17 +51,20 @@ export class GimbalCamera {
     target.addEventListener("mousemove", (ev) => {
       this.mseX ??= ev.screenX;
       this.mseY ??= ev.screenY;
-      const modKey = (ev.ctrlKey ? 1 : 0) | (ev.altKey ? 2 : 0)
+      const modKey = (ev.ctrlKey ? 1 : 0) | (ev.altKey ? 2 : 0);
+      const below = Math.sin(this.pitchAngle) < 0;
+      const flip = Math.cos(this.pitchAngle) < 0;
+
       if (this.mouseLatch === "left" && modKey === 0) {
         ev.preventDefault();
-        const xd = ev.screenX - this.mseX;
+        const xd = (ev.screenX - this.mseX) * (flip ? -1 : 1);
         const yd = ev.screenY - this.mseY;
         this.rollAngle += xd * this.sensitivity.mouse;
         this.pitchAngle += yd * this.sensitivity.mouse;
       } else if (this.mouseLatch === "left" && modKey === 1) {
         ev.preventDefault();
         const xd = ev.screenX - this.mseX;
-        const yd = ev.screenY - this.mseY;
+        const yd = (ev.screenY - this.mseY) * (below ? -1 : 1);
         const cs = Math.cos(this.rollAngle + Math.PI);
         const sn = Math.sin(this.rollAngle + Math.PI);
         const vel = this.sensitivity.mouse * this.distance * 0.25;
@@ -69,7 +72,7 @@ export class GimbalCamera {
         this.center[2] -= (xd * cs - yd * sn) * vel;
       } else if (this.mouseLatch === "left" && modKey === 2) {
         ev.preventDefault();
-        const yd = ev.screenY - this.mseY;
+        const yd = (ev.screenY - this.mseY) * (flip ? -1 : 1);
         const vel = this.sensitivity.mouse * this.distance * 0.25;
         this.center[1] += yd * vel;
       }
@@ -80,7 +83,7 @@ export class GimbalCamera {
       this.center[0] = 0;
       this.center[1] = 0;
       this.center[2] = 0;
-    })
+    });
     target.addEventListener("wheel", (ev) => {
       ev.preventDefault();
       const dir = Math.sign(ev.deltaY);
@@ -107,8 +110,9 @@ export class GimbalCamera {
         this.distance * z1 * cs,
       )
       .plus(this.center);
+    const upAxis = cs >= 0 ? math.vec3(0, 1, 0) : math.vec3(0, -1, 0);
     return {
-      cameraMatrix: math.Mat4.look_at(pos, this.center, math.vec3(0, 1, 0)),
+      cameraMatrix: math.Mat4.look_at(pos, this.center, upAxis),
       position: pos,
     };
   }
