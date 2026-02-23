@@ -97,6 +97,10 @@ export class GimbalCamera {
     });
   }
 
+  setOrigin(pos: math.Vector3) {
+    this.center = pos;
+  }
+
   getCameraTransform() {
     // reference: https://www.desmos.com/3d/uzweiuiouf
     const x1 = Math.cos(this.rollAngle);
