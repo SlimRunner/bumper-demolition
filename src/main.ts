@@ -59,6 +59,7 @@ export class BumperCarsBase extends tiny.Component {
     gcam?: GimbalCamera;
     isIdling: boolean;
     timeMultiplier: number;
+    cameraPin: "detached" | "carA" | "carB";
   };
 
   constructor() {
@@ -113,6 +114,7 @@ export class BumperCarsBase extends tiny.Component {
     this.globalProps = {
       isIdling: false,
       timeMultiplier: 1,
+      cameraPin: "detached",
     };
 
     const cartDims = {
@@ -222,8 +224,8 @@ export class BumperCarsBase extends tiny.Component {
     this.globalProps.gcam = new GimbalCamera(canvas, {
       distance: 8,
       pitchAngle: Math.PI / 8,
-      rollAngle: Math.PI / 4,
-      center: math.vec3(1, 2.5, 0),
+      rollAngle: 0,
+      center: math.vec3(0, 0, 0),
     });
   }
 
@@ -308,6 +310,18 @@ export class BumperCars extends BumperCarsBase {
 
     const { cartA, cartB } = this.armatures;
     const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
+    const carAPos = math.vec3(mtxCarA[0][3], mtxCarA[1][3], mtxCarA[2][3]);
+    const carBPos = math.vec3(mtxCarB[0][3], mtxCarB[1][3], mtxCarB[2][3]);
+    switch (this.globalProps.cameraPin) {
+      case "detached":
+        break;
+      case "carA":
+        this.globalProps.gcam?.setOrigin(carAPos);
+        break;
+      case "carB":
+        this.globalProps.gcam?.setOrigin(carBPos);
+        break;
+    }
 
     cartA.arcs.root.traverse((joint, node, matrix) => {
       // discriminate material based on name
@@ -348,6 +362,24 @@ export class BumperCars extends BumperCarsBase {
     });
     this.key_triggered_button("100x slow-mo", ["3"], () => {
       this.globalProps.timeMultiplier = 1 / 100;
+    });
+    this.new_line();
+    this.key_triggered_button("toggle camera", ["c"], () => {
+      switch (this.globalProps.cameraPin) {
+        case "detached":
+          this.globalProps.cameraPin = "carA";
+          break;
+        case "carA":
+          this.globalProps.cameraPin = "carB";
+          break;
+        case "carB":
+          this.globalProps.cameraPin = "detached";
+          break;
+      }
+    });
+    this.live_string((elem) => {
+      elem.style.paddingLeft = "20px";
+      elem.textContent = `status: ${this.globalProps.cameraPin}`;
     });
   }
 }
