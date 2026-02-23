@@ -7,6 +7,10 @@ import { Axis3D } from "./shapes/axis3d";
 import { GimbalCamera } from "./components/gimbalCamera";
 import { SimpleGrid } from "./shapes/simpleGrid";
 import { CartArmature, CartNodeNames } from "./rigging/cartArmature";
+import { CartFrame } from "./physics/cartFrame";
+import { MSDFrameShape } from "./shapes/msdShape";
+import { range } from "./utils/iterators";
+import { basisChange } from "./utils/math";
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -16,11 +20,12 @@ export class BumperCarsBase extends tiny.Component {
     ball: defs.Subdivision_Sphere;
     disc: defs.Regular_2D_Polygon;
   };
-  drawables: {
-    axes3d: Axis3D;
-  };
   colors: {
-    red: math.Vector4;
+    readonly red: math.Vector4;
+    readonly blue: math.Vector4;
+    readonly gray: math.Vector4;
+    readonly softBlue: math.Vector4;
+    readonly yellow: math.Vector4;
   };
   materials: {
     uvSimple: {
@@ -39,12 +44,22 @@ export class BumperCarsBase extends tiny.Component {
     };
   };
   armatures: {
-    cart1: CartArmature;
-    cart2: CartArmature;
+    cartA: CartArmature;
+    cartB: CartArmature;
+  };
+  physics: {
+    cartMSD: CartFrame;
+  };
+  drawables: {
+    axes3d: Axis3D;
+    cartFrame: MSDFrameShape;
   };
 
   globalProps: {
     gcam?: GimbalCamera;
+    isIdling: boolean;
+    timeMultiplier: number;
+    cameraPin: "detached" | "carA" | "carB";
   };
 
   constructor() {
@@ -88,32 +103,33 @@ export class BumperCarsBase extends tiny.Component {
       disc: discShape,
     };
 
-    // these are NOT tiny graphic shapes, but collections of shapes.
-    // Ideally only to be used as collections of actual shapes.
-    const axes3d = new Axis3D({
-      length: 5,
-      headRatio: {
-        height: 0.2,
-        width: 1,
-      },
-    });
-    this.drawables = {
-      axes3d,
-    };
-
     this.colors = {
       red: math.color(0.8, 0.1, 0.1, 1),
+      blue: math.color(0, 0, 1, 1),
+      gray: math.color(0.6, 0.6, 0.6, 1),
+      softBlue: math.color(0.176, 0.439, 0.702, 1),
+      yellow: math.color(1, 1, 0, 1),
     };
 
-    this.globalProps = {};
+    this.globalProps = {
+      isIdling: false,
+      timeMultiplier: 1,
+      cameraPin: "detached",
+    };
 
     const cartDims = {
+      chassisWidth: 1.2,
+      chassisLength: 1.6 + (0.13975 + 0.4064) * 1.5,
+      chassisHeight: 0.8359,
+      floorClearance: (0.13975 + 0.4064) / 3,
+
       wheelbase: 1.6,
       axleTrack: 1.2,
+
       rimSize: 0.4064,
       tireWallSize: 0.13975,
       tireWidth: 0.215,
-      chassisHeight: 0.8359,
+
       armLinkLength: 1.25,
       armLinkRadius: 0.05,
       sawRadius: 0.3,
@@ -127,21 +143,96 @@ export class BumperCarsBase extends tiny.Component {
     };
 
     this.armatures = {
-      cart1: new CartArmature({
+      cartA: new CartArmature({
         dimensions: cartDims,
         meshes: cartMeshes,
       }),
-      cart2: new CartArmature({
+      cartB: new CartArmature({
         dimensions: cartDims,
         meshes: cartMeshes,
       }),
     };
+
+    const cartMSD = new CartFrame({
+      dimensions: {
+        frameWidth: cartDims.axleTrack,
+        frameLength: cartDims.chassisLength,
+        frameHeight: cartDims.chassisHeight + cartDims.floorClearance,
+        wheelbase: cartDims.wheelbase,
+      },
+      transforms: {
+        cartA: math.Mat4.translation(0, 0, 6).times(
+          math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
+        ),
+        cartB: math.Mat4.translation(1, 0, -2).times(
+          math.Mat4.rotation(0, 0, 1, 0),
+        ),
+      },
+    });
+    const cartFrame = new MSDFrameShape(
+      {
+        particle: {
+          shape: sphereShape,
+          material: {
+            ...this.materials.solid,
+            color: this.colors.yellow,
+          },
+          radius: 0.1,
+        },
+        beam: {
+          shape: cubeShape,
+          material: {
+            ...this.materials.plastic,
+            color: this.colors.softBlue,
+          },
+          radius: 0.025,
+        },
+      },
+      cartMSD.msdSystem,
+    );
+
+    // these are NOT tiny graphic shapes, but collections of shapes.
+    // Ideally only to be used as collections of actual shapes.
+    const axes3d = new Axis3D({
+      length: 5,
+      headRatio: {
+        height: 0.2,
+        width: 1,
+      },
+    });
+    this.drawables = {
+      axes3d,
+      cartFrame,
+    };
+    this.physics = {
+      cartMSD,
+    };
+    cartMSD.enable = false;
+
+    document.addEventListener("visibilitychange", () => {
+      // this prevents the window from hanging due to the physics loop
+      // (which has a fixed time delta) trying to step through a large
+      // time delta. Consider it a pause sync with the browser since it
+      // idles requestAnimationFrame when the window loses visibility.
+      this.globalProps.isIdling = document.hidden;
+    });
+  }
+
+  protected resetGame() {
+    // this is just one function right now but keep it because we may
+    // need to reset other things later.
+    this.physics.cartMSD.resetState();
   }
 
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
     super.render_layout(div, options);
     const canvas = this.canvas ?? document.getElementById("canvas")!;
-    this.globalProps.gcam = new GimbalCamera(8, canvas);
+    this.globalProps.gcam = new GimbalCamera(canvas, {
+      distance: 8,
+      pitchAngle: Math.PI / 8,
+      rollAngle: 0,
+      center: math.vec3(0, 0, 0),
+    });
   }
 
   render_animation(context: tiny.Component): void {
@@ -186,6 +277,28 @@ export class BumperCars extends BumperCarsBase {
     const CMT = this.uniforms?.camera_transform!;
     const cam_loc = CMT.sub_block([0, 3], [3, 4]).flat();
 
+    const cartMSD = this.physics.cartMSD;
+
+    if (cartMSD.enable && !this.globalProps.isIdling) {
+      const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
+      const timeMult = this.globalProps.timeMultiplier;
+
+      if (timeDelta > 0) {
+        const timeStep = cartMSD.timeStep;
+        // may miss the last target (do it manually after the loop)
+        const steps = Math.floor(timeDelta / timeStep);
+
+        for (const _ of range(steps)) {
+          cartMSD.integrator.step(cartMSD.msdSystem, timeStep * timeMult);
+        }
+
+        const remainder = timeDelta - steps * timeStep;
+        if (remainder > 0) {
+          cartMSD.integrator.step(cartMSD.msdSystem, remainder * timeMult);
+        }
+      }
+    }
+
     // this pattern can be used to create a sky texture later
     GL.disable(GL.DEPTH_TEST);
     this.shapes.box.draw(
@@ -201,34 +314,32 @@ export class BumperCars extends BumperCarsBase {
     //   color: this.colors.red,
     // });
 
-    const { cart1, cart2 } = this.armatures;
+    const { cartA, cartB } = this.armatures;
+    const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
+    const carAPos = math.vec3(mtxCarA[0][3], mtxCarA[1][3], mtxCarA[2][3]);
+    const carBPos = math.vec3(mtxCarB[0][3], mtxCarB[1][3], mtxCarB[2][3]);
+    switch (this.globalProps.cameraPin) {
+      case "detached":
+        break;
+      case "carA":
+        this.globalProps.gcam?.setOrigin(carAPos);
+        break;
+      case "carB":
+        this.globalProps.gcam?.setOrigin(carBPos);
+        break;
+    }
 
-    cart1.arcs.root.traverse(
-      (joint, node, matrix) => {
-        // discriminate material based on name
-        const name = node.name as CartNodeNames;
-        node.shape.draw(
-          context,
-          this.uniforms,
-          matrix,
-          this.materials.uvSimple,
-        );
-      },
-      math.Mat4.rotation(time, 0, 1, 0),
-    );
-    cart2.arcs.root.traverse(
-      (joint, node, matrix) => {
-        // discriminate material based on name
-        const name = node.name as CartNodeNames;
-        node.shape.draw(
-          context,
-          this.uniforms,
-          matrix,
-          this.materials.uvSimple,
-        );
-      },
-      math.Mat4.translation(2, 0, 2).times(math.Mat4.rotation(time, 0, 1, 0)),
-    );
+    cartA.arcs.root.traverse((joint, node, matrix) => {
+      // discriminate material based on name
+      const name = node.name as CartNodeNames;
+      node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
+    }, mtxCarA);
+    cartB.arcs.root.traverse((joint, node, matrix) => {
+      // discriminate material based on name
+      const name = node.name as CartNodeNames;
+      node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
+    }, mtxCarB);
+
     this.shapes.grid.draw(
       context,
       this.uniforms,
@@ -236,12 +347,49 @@ export class BumperCars extends BumperCarsBase {
       this.materials.solid,
     );
     this.drawables.axes3d.draw(context, this.uniforms, math.Mat4.identity());
+    this.drawables.cartFrame.draw(context, this.uniforms, math.Mat4.identity());
   }
 
   render_controls(): void {
     // minimal working example
-    this.key_triggered_button("my button", ["Control", "0"], () =>
-      console.log("pressed"),
-    );
+    this.key_triggered_button("toggle physics", ["p"], () => {
+      this.physics.cartMSD.enable = !this.physics.cartMSD.enable;
+    });
+    this.new_line();
+    this.key_triggered_button("normal speed", ["0"], () => {
+      this.globalProps.timeMultiplier = 1;
+    });
+    this.key_triggered_button("2x slow-mo", ["1"], () => {
+      this.globalProps.timeMultiplier = 1 / 2;
+    });
+    this.new_line();
+    this.key_triggered_button("10x slow-mo", ["2"], () => {
+      this.globalProps.timeMultiplier = 1 / 10;
+    });
+    this.key_triggered_button("100x slow-mo", ["3"], () => {
+      this.globalProps.timeMultiplier = 1 / 100;
+    });
+    this.new_line();
+    this.key_triggered_button("toggle camera", ["c"], () => {
+      switch (this.globalProps.cameraPin) {
+        case "detached":
+          this.globalProps.cameraPin = "carA";
+          break;
+        case "carA":
+          this.globalProps.cameraPin = "carB";
+          break;
+        case "carB":
+          this.globalProps.cameraPin = "detached";
+          break;
+      }
+    });
+    this.live_string((elem) => {
+      elem.style.paddingLeft = "20px";
+      elem.textContent = `status: ${this.globalProps.cameraPin}`;
+    });
+    this.new_line();
+    this.key_triggered_button("reset", ["r"], () => {
+      this.resetGame();
+    });
   }
 }
