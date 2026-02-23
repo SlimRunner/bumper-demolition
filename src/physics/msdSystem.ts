@@ -278,8 +278,18 @@ export class SymplecticEuler implements Integrator {
       if (p.tags.has("kinematic")) continue;
       const a = forces.get(p)!.times(1 / p.mass);
 
-      p.velocity = p.velocity.plus(a.times(dt));
-      p.location = p.location.plus(p.velocity.times(dt));
+      const newVel = p.velocity.plus(a.times(dt));
+      if (newVel.every(n => !Number.isNaN(n))) {
+        p.velocity = newVel;
+      } else {
+        console.warn(["NAN vel in integrator", newVel])
+      }
+      const newLoc = p.location.plus(p.velocity.times(dt));
+      if (newLoc.every(n => !Number.isNaN(n))) {
+        p.location = newLoc;
+      } else {
+        console.warn(["NAN loc in integrator", newLoc])
+      }
     }
   }
 }
