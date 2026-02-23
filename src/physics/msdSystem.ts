@@ -22,7 +22,7 @@ type GroundPlaneProperties = {
 
 type Triangle = [math.Vector3, math.Vector3, math.Vector3];
 
-type ParticleTags = "tire" | "structural" | "collidable" | "kinematic";
+export type ParticleTags = "tire" | "structural" | "collidable" | "kinematic";
 
 export interface Collection<T> {
   container: T[];
