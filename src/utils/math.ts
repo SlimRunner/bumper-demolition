@@ -1,7 +1,16 @@
 import { math } from "../../tiny-graphics-math";
 
+type tuple4 = [number, number, number];
 type tuple3 = [number, number, number];
 type tuple2 = [number, number];
+type matrix3x3 = [tuple3, tuple3, tuple3];
+type matrix4x4 = [tuple4, tuple4, tuple4, tuple4];
+
+enum VectorKind {
+  vector = 0,
+  point = 1,
+}
+
 export type PlaneChoice = "xy" | "yx" | "xz" | "zx" | "yz" | "zy";
 
 export function lerp(a: number, b: number, t: number): number {
@@ -106,6 +115,27 @@ export function basisChange(
   );
 }
 
+export function affineTransform(
+  mtx: math.Mat4 | math.Matrix<4, 4> | matrix4x4,
+  tup3: math.Vector3 | math.Vector<3> | tuple3,
+  affine: VectorKind,
+): tuple3 {
+  return [
+    mtx[0][0] * tup3[0] +
+      mtx[0][1] * tup3[1] +
+      mtx[0][2] * tup3[2] +
+      mtx[0][3] * affine,
+    mtx[1][0] * tup3[0] +
+      mtx[1][1] * tup3[1] +
+      mtx[1][2] * tup3[2] +
+      mtx[1][3] * affine,
+    mtx[2][0] * tup3[0] +
+      mtx[2][1] * tup3[1] +
+      mtx[2][2] * tup3[2] +
+      mtx[2][3] * affine,
+  ];
+}
+
 export class Vector2 extends Float32Array {
   static create(x: number, y: number) {
     const v = new Vector2(2);
@@ -160,7 +190,7 @@ export class Vector2 extends Float32Array {
     return vec2(
       mtx[0][0] * this[0] + mtx[0][1] * this[1],
       mtx[1][0] * this[0] + mtx[1][1] * this[1],
-    )
+    );
   }
 
   abs() {
