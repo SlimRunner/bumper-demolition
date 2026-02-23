@@ -218,6 +218,12 @@ export class BumperCarsBase extends tiny.Component {
     });
   }
 
+  protected resetGame() {
+    // this is just one function right now but keep it because we may
+    // need to reset other things later.
+    this.physics.cartMSD.resetState();
+  }
+
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
     super.render_layout(div, options);
     const canvas = this.canvas ?? document.getElementById("canvas")!;
@@ -380,6 +386,10 @@ export class BumperCars extends BumperCarsBase {
     this.live_string((elem) => {
       elem.style.paddingLeft = "20px";
       elem.textContent = `status: ${this.globalProps.cameraPin}`;
+    });
+    this.new_line();
+    this.key_triggered_button("reset", ["r"], () => {
+      this.resetGame();
     });
   }
 }
