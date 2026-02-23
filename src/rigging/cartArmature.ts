@@ -53,12 +53,15 @@ export class CartArmature {
       saw: tiny.Shape;
     };
     dimensions: {
+      chassisWidth: number,
+      chassisLength: number,
+      chassisHeight: number;
       wheelbase: number;
       axleTrack: number;
       rimSize: number;
       tireWallSize: number;
       tireWidth: number;
-      chassisHeight: number;
+      floorClearance: number;
       armLinkRadius: number;
       armLinkLength: number;
       sawRadius: number;
@@ -67,12 +70,15 @@ export class CartArmature {
     const {
       meshes,
       dimensions: {
+        chassisWidth,
+        chassisLength,
+        chassisHeight,
         wheelbase,
         axleTrack,
         rimSize,
         tireWallSize,
         tireWidth,
-        chassisHeight,
+        floorClearance,
         armLinkRadius,
         armLinkLength,
         sawRadius,
@@ -80,10 +86,8 @@ export class CartArmature {
     } = props;
 
     const wheelDiameter = tireWallSize + rimSize;
-    const chassisLength = wheelbase + wheelDiameter * 1.5;
-    const chassisWidth = axleTrack;
-    const floorClearance = (wheelDiameter * 2) / 3;
-    const roofHeight = chassisHeight + floorClearance;
+    const wheelToGroundDist =
+      floorClearance + (chassisHeight - wheelDiameter) / 2;
 
     const chassisMatrix = math.Mat4.scale(
       chassisLength / 2,
@@ -123,25 +127,29 @@ export class CartArmature {
     const wheelRL = new NodeLink("wheelRL", meshes.wheel, wheelRLMatrix);
     const wheelRR = new NodeLink("wheelRR", meshes.wheel, wheelRRMatrix);
 
-    const rootMatrix = math.Mat4.translation(0, roofHeight / 2, 0);
+    const rootMatrix = math.Mat4.translation(
+      0,
+      floorClearance + chassisHeight / 2,
+      0,
+    );
     const wheelHubRLMatrix = math.Mat4.translation(
       -wheelbase / 2,
-      -(chassisHeight - floorClearance / 2) / 2,
+      -wheelToGroundDist,
       -axleTrack / 2,
     );
     const wheelHubRRMatrix = math.Mat4.translation(
       -wheelbase / 2,
-      -(chassisHeight - floorClearance / 2) / 2,
+      -wheelToGroundDist,
       axleTrack / 2,
     );
     const wheelHubFLMatrix = math.Mat4.translation(
       wheelbase / 2,
-      -(chassisHeight - floorClearance / 2) / 2,
+      -wheelToGroundDist,
       -axleTrack / 2,
     );
     const wheelHubFRMatrix = math.Mat4.translation(
       wheelbase / 2,
-      -(chassisHeight - floorClearance / 2) / 2,
+      -wheelToGroundDist,
       axleTrack / 2,
     );
     const sawArmJoint1Matrix = math.Mat4.translation(0, chassisHeight / 2, 0);
