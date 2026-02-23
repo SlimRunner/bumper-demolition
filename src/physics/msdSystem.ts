@@ -209,42 +209,6 @@ export class SpringDamperSystem {
         }
       }
 
-      // const d = this.groundPlane.distance(p.location);
-      // const normal = this.groundPlane.normal();
-      // const Nf = normal.times(normal.dot(FNet));
-
-      // if (d < 0 && p.velocity.dot(normal) < 0) {
-      //   const FTan = FNet.minus(Nf);
-      //   const vTan = this.groundPlane.projectOnto(p.velocity, "vector");
-
-      //   if (vTan.norm() < velThreshold) {
-      //     const muS = this.params.coefSFriction;
-      //     const fmax = Nf.norm() * muS;
-
-      //     // zero out tangential velocity under threshold
-      //     p.velocity = p.velocity.minus(
-      //       this.groundPlane.projectOnto(p.velocity, "vector"),
-      //     );
-
-      //     if (FTan.norm() <= fmax) {
-      //       // zero out tangential force
-      //       FNet = FNet.minus(FTan);
-      //     } else {
-      //       // subtract fmax along tangent
-      //       FNet = FNet.minus(FTan.normalized().times(fmax));
-      //     }
-      //   } else {
-      //     const muK = this.params.coefKFriction;
-      //     FNet = FNet.minus(vTan.normalized().times(Nf.norm() * muK));
-      //   }
-
-      //   const e = this.params.coefRestitution;
-      //   // flip velocity with applied coefficient of restitution
-      //   const restitution = normal.times(p.velocity.dot(normal) * (1 + e));
-      //   p.velocity = p.velocity.minus(restitution);
-      //   FNet = FNet.plus(this.groundPlane.computeForce(-d, p.velocity));
-      // }
-
       forces.set(p, FNet);
     }
 
