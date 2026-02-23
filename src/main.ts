@@ -114,12 +114,18 @@ export class BumperCarsBase extends tiny.Component {
     };
 
     const cartDims = {
+      chassisWidth: 1.2,
+      chassisLength: 1.6 + (0.13975 + 0.4064) * 1.5,
+      chassisHeight: 0.8359,
+      floorClearance: (0.13975 + 0.4064) / 3,
+
       wheelbase: 1.6,
       axleTrack: 1.2,
+
       rimSize: 0.4064,
       tireWallSize: 0.13975,
       tireWidth: 0.215,
-      chassisHeight: 0.8359,
+
       armLinkLength: 1.25,
       armLinkRadius: 0.05,
       sawRadius: 0.3,
@@ -145,11 +151,18 @@ export class BumperCarsBase extends tiny.Component {
 
     const cartMSD = new CartFrame({
       dimensions: {
-        wheelbase: 1.6,
-        axleTrack: 1.2,
-        frameWidth: 0,
-        frameLength: 0,
-        frameHeight: 0,
+        frameWidth: cartDims.axleTrack,
+        frameLength: cartDims.chassisLength,
+        frameHeight: cartDims.chassisHeight + cartDims.floorClearance,
+        wheelbase: cartDims.wheelbase,
+      },
+      transforms: {
+        cartA: math.Mat4.translation(0, 0, 6).times(
+          math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
+        ),
+        cartB: math.Mat4.translation(1, 0, -2).times(
+          math.Mat4.rotation(0, 0, 1, 0),
+        ),
       },
     });
     const cartFrame = new MSDFrameShape(
