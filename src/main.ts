@@ -58,6 +58,7 @@ export class BumperCarsBase extends tiny.Component {
   globalProps: {
     gcam?: GimbalCamera;
     isIdling: boolean;
+    timeMultiplier: number;
   };
 
   constructor() {
@@ -111,6 +112,7 @@ export class BumperCarsBase extends tiny.Component {
 
     this.globalProps = {
       isIdling: false,
+      timeMultiplier: 1,
     };
 
     const cartDims = {
@@ -271,6 +273,7 @@ export class BumperCars extends BumperCarsBase {
 
     if (cartMSD.enable && !this.globalProps.isIdling) {
       const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
+      const timeMult = this.globalProps.timeMultiplier;
 
       if (timeDelta > 0) {
         const timeStep = cartMSD.timeStep;
@@ -278,12 +281,12 @@ export class BumperCars extends BumperCarsBase {
         const steps = Math.floor(timeDelta / timeStep);
 
         for (const _ of range(steps)) {
-          cartMSD.integrator.step(cartMSD.msdSystem, timeStep);
+          cartMSD.integrator.step(cartMSD.msdSystem, timeStep * timeMult);
         }
 
         const remainder = timeDelta - steps * timeStep;
         if (remainder > 0) {
-          cartMSD.integrator.step(cartMSD.msdSystem, remainder);
+          cartMSD.integrator.step(cartMSD.msdSystem, remainder * timeMult);
         }
       }
     }
@@ -331,6 +334,20 @@ export class BumperCars extends BumperCarsBase {
     // minimal working example
     this.key_triggered_button("toggle physics", ["p"], () => {
       this.physics.cartMSD.enable = !this.physics.cartMSD.enable;
+    });
+    this.new_line();
+    this.key_triggered_button("normal speed", ["0"], () => {
+      this.globalProps.timeMultiplier = 1;
+    });
+    this.key_triggered_button("2x slow-mo", ["1"], () => {
+      this.globalProps.timeMultiplier = 1 / 2;
+    });
+    this.new_line();
+    this.key_triggered_button("10x slow-mo", ["2"], () => {
+      this.globalProps.timeMultiplier = 1 / 10;
+    });
+    this.key_triggered_button("100x slow-mo", ["3"], () => {
+      this.globalProps.timeMultiplier = 1 / 100;
     });
   }
 }
