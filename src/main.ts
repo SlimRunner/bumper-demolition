@@ -10,7 +10,7 @@ import { CartArmature, CartNodeNames } from "./rigging/cartArmature";
 import { CartFrame } from "./physics/cartFrame";
 import { MSDFrameShape } from "./shapes/msdShape";
 import { range } from "./utils/iterators";
-import { basisChange } from "./utils/math";
+import { basisChange, lerp, smoothstep } from "./utils/math";
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -114,7 +114,7 @@ export class BumperCarsBase extends tiny.Component {
     this.globalProps = {
       isIdling: false,
       timeMultiplier: 1,
-      cameraPin: "detached",
+      cameraPin: "carA",
     };
 
     const cartDims = {
@@ -161,10 +161,10 @@ export class BumperCarsBase extends tiny.Component {
         wheelbase: cartDims.wheelbase,
       },
       transforms: {
-        cartA: math.Mat4.translation(0, 0, 6).times(
+        cartB: math.Mat4.translation(0, 0, 6).times(
           math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
         ),
-        cartB: math.Mat4.translation(1, 0, -2).times(
+        cartA: math.Mat4.translation(1, 0, -2).times(
           math.Mat4.rotation(0, 0, 1, 0),
         ),
       },
@@ -232,6 +232,8 @@ export class BumperCarsBase extends tiny.Component {
       pitchAngle: Math.PI / 8,
       rollAngle: 0,
       center: math.vec3(0, 0, 0),
+    }, () => {
+      this.globalProps.cameraPin = "detached"
     });
   }
 
@@ -329,6 +331,27 @@ export class BumperCars extends BumperCarsBase {
         break;
     }
 
+    let tBlade = time % 3;
+    if (tBlade < 1) {
+      tBlade = 1 - Math.abs(tBlade - 1);
+    } else if (tBlade < 2) {
+      tBlade = 1;
+    } else {
+      tBlade = 1 - Math.abs(tBlade - 2);
+    }
+    tBlade *= tBlade;
+    tBlade *= tBlade;
+    let spinTire = -time * 3;
+    let steerTire = Math.sin(time * 2) * 0.2222 * Math.PI;
+    cartA.arcs.sawArmJoint1.setAngle("rz", lerp(0, -Math.PI * 0.9, smoothstep(tBlade)));
+    cartA.arcs.sawArmJoint2.setAngle("rz", lerp(0, 0.6 * Math.PI, smoothstep(tBlade)));
+    cartA.arcs.wheelHubRL.setAngle("rz", spinTire);
+    cartA.arcs.wheelHubRR.setAngle("rz", spinTire);
+    cartA.arcs.wheelHubFL.setAngle("rz", spinTire);
+    cartA.arcs.wheelHubFR.setAngle("rz", spinTire);
+    cartA.arcs.wheelHubFL.setAngle("ry", steerTire);
+    cartA.arcs.wheelHubFR.setAngle("ry", steerTire);
+
     cartA.arcs.root.traverse((joint, node, matrix) => {
       // discriminate material based on name
       const name = node.name as CartNodeNames;
@@ -347,7 +370,7 @@ export class BumperCars extends BumperCarsBase {
       this.materials.solid,
     );
     this.drawables.axes3d.draw(context, this.uniforms, math.Mat4.identity());
-    this.drawables.cartFrame.draw(context, this.uniforms, math.Mat4.identity());
+    // this.drawables.cartFrame.draw(context, this.uniforms, math.Mat4.identity());
   }
 
   render_controls(): void {

@@ -23,6 +23,7 @@ export class GimbalCamera {
       rollAngle?: number;
       center?: math.Vector3;
     },
+    actionCallback: () => void = () => {},
   ) {
     this.pitchAngle = initial?.pitchAngle ?? 0;
     this.rollAngle = initial?.rollAngle ?? 0;
@@ -70,11 +71,13 @@ export class GimbalCamera {
         const vel = this.sensitivity.mouse * this.distance * 0.25;
         this.center[0] += (xd * sn + yd * cs) * vel;
         this.center[2] -= (xd * cs - yd * sn) * vel;
+        actionCallback();
       } else if (this.mouseLatch === "left" && modKey === 2) {
         ev.preventDefault();
         const yd = (ev.screenY - this.mseY) * (flip ? -1 : 1);
         const vel = this.sensitivity.mouse * this.distance * 0.25;
         this.center[1] += yd * vel;
+        actionCallback();
       }
       this.mseX = ev.screenX;
       this.mseY = ev.screenY;
