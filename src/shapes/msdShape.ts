@@ -50,6 +50,7 @@ export class MSDFrameShape implements DrawableShape {
     if (this._msd) {
       const rp = this.particle.radius;
       for (const particle of this._msd.particles.container) {
+        if (particle.group === "CarB") continue;
         const [x, y, z] = particle.location;
         const transform = new math.Mat4(
           [rp, 0, 0, x],
@@ -68,6 +69,7 @@ export class MSDFrameShape implements DrawableShape {
 
       const rb = this.beam.radius;
       for (const [_, [p1, p2]] of this._msd.links) {
+        if (p1.group === "CarB") continue;
         const dir = p2.location.minus(p1.location);
         const dirNorm = dir.normalized();
         let mainAxis = math.vec3(0, 0, 1);

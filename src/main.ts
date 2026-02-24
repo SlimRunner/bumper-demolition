@@ -161,11 +161,11 @@ export class BumperCarsBase extends tiny.Component {
         wheelbase: cartDims.wheelbase,
       },
       transforms: {
-        cartA: math.Mat4.translation(0, 0, 6).times(
-          math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
+        cartA: math.Mat4.translation(1, 0, 2).times(
+          math.Mat4.rotation(Math.PI / 6, 0, 1, 0),
         ),
         cartB: math.Mat4.translation(1, 0, -2).times(
-          math.Mat4.rotation(0, 0, 1, 0),
+          math.Mat4.rotation(-Math.PI / 6, 0, 1, 0),
         ),
       },
     });
@@ -177,7 +177,7 @@ export class BumperCarsBase extends tiny.Component {
             ...this.materials.solid,
             color: this.colors.yellow,
           },
-          radius: 0.1,
+          radius: 0.05,
         },
         beam: {
           shape: cubeShape,
@@ -185,7 +185,7 @@ export class BumperCarsBase extends tiny.Component {
             ...this.materials.plastic,
             color: this.colors.softBlue,
           },
-          radius: 0.025,
+          radius: 0.0125,
         },
       },
       cartMSD.msdSystem,
@@ -329,11 +329,11 @@ export class BumperCars extends BumperCarsBase {
         break;
     }
 
-    cartA.arcs.root.traverse((joint, node, matrix) => {
-      // discriminate material based on name
-      const name = node.name as CartNodeNames;
-      node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
-    }, mtxCarA);
+    // cartA.arcs.root.traverse((joint, node, matrix) => {
+    //   // discriminate material based on name
+    //   const name = node.name as CartNodeNames;
+    //   node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
+    // }, mtxCarA);
     cartB.arcs.root.traverse((joint, node, matrix) => {
       // discriminate material based on name
       const name = node.name as CartNodeNames;
