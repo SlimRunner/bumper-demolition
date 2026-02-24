@@ -53,8 +53,8 @@ export class CartArmature {
       saw: tiny.Shape;
     };
     dimensions: {
-      chassisWidth: number,
-      chassisLength: number,
+      chassisWidth: number;
+      chassisLength: number;
       chassisHeight: number;
       wheelbase: number;
       axleTrack: number;
@@ -176,14 +176,20 @@ export class CartArmature {
       chassis,
       wheelFR,
       wheelHubFRMatrix,
-      { rz: { angle: 0, limit: [-1e100, 1e100] } },
+      {
+        rz: { angle: 0, limit: [-1e100, 1e100] },
+        ry: { angle: 0, limit: [(-45 / 180) * Math.PI, (45 / 180) * Math.PI] },
+      },
     );
     const wheelHubFL = new ArcJoint(
       "wheelHubFL",
       chassis,
       wheelFL,
       wheelHubFLMatrix,
-      { rz: { angle: 0, limit: [-1e100, 1e100] } },
+      {
+        rz: { angle: 0, limit: [-1e100, 1e100] },
+        ry: { angle: 0, limit: [(-45 / 180) * Math.PI, (45 / 180) * Math.PI] },
+      },
     );
     const sawArmJoint1 = new ArcJoint(
       "sawArmJoint1",
