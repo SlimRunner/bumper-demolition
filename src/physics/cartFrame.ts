@@ -328,9 +328,9 @@ export class CartFrame {
     for (let i = 0; i < pCount; ++i) {
       pcs[i].location = this.initial.locations[i].copy();
       pcs[i].velocity = math.vec3(0, 0, 0);
-      // if (pcs[i].group === "CarA") {
-      //   pcs[i].velocity[2] -= 10;
-      // }
+      if (pcs[i].group === "CarA") {
+        pcs[i].velocity[2] -= 12;
+      }
     }
   }
 

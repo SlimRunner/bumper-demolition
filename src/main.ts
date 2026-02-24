@@ -10,7 +10,7 @@ import { CartArmature, CartNodeNames } from "./rigging/cartArmature";
 import { CartFrame } from "./physics/cartFrame";
 import { MSDFrameShape } from "./shapes/msdShape";
 import { range } from "./utils/iterators";
-import { basisChange } from "./utils/math";
+import { basisChange, clamp, lerp, smoothstep } from "./utils/math";
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -60,6 +60,7 @@ export class BumperCarsBase extends tiny.Component {
     isIdling: boolean;
     timeMultiplier: number;
     cameraPin: "detached" | "carA" | "carB";
+    timestamp: number | null;
   };
 
   constructor() {
@@ -114,7 +115,8 @@ export class BumperCarsBase extends tiny.Component {
     this.globalProps = {
       isIdling: false,
       timeMultiplier: 1,
-      cameraPin: "detached",
+      cameraPin: "carA",
+      timestamp: null,
     };
 
     const cartDims = {
@@ -161,7 +163,7 @@ export class BumperCarsBase extends tiny.Component {
         wheelbase: cartDims.wheelbase,
       },
       transforms: {
-        cartA: math.Mat4.translation(0, 0, 6).times(
+        cartA: math.Mat4.translation(0, 0, 8).times(
           math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
         ),
         cartB: math.Mat4.translation(1, 0, -2).times(
@@ -222,6 +224,7 @@ export class BumperCarsBase extends tiny.Component {
     // this is just one function right now but keep it because we may
     // need to reset other things later.
     this.physics.cartMSD.resetState();
+    this.globalProps.timestamp = null;
   }
 
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
@@ -271,6 +274,9 @@ export class BumperCars extends BumperCarsBase {
     super.render_animation(context);
 
     const time = (this.uniforms.animation_time ?? 0) / 1000;
+    if (this.globalProps.timestamp == null) {
+      this.globalProps.timestamp = time;
+    }
 
     const GL = context.context!;
 
@@ -278,6 +284,10 @@ export class BumperCars extends BumperCarsBase {
     const cam_loc = CMT.sub_block([0, 3], [3, 4]).flat();
 
     const cartMSD = this.physics.cartMSD;
+
+    const tSh = time - this.globalProps.timestamp;
+    const tSm = clamp(4 * tSh, 0, 1) - clamp(4 * (tSh * 0.3), 0, 1) + clamp(tSh - 1, 0, 1) - clamp(tSh - 2, 0, 1);
+    const slowmo = 1 / lerp(1, 10, smoothstep(tSm));
 
     if (cartMSD.enable && !this.globalProps.isIdling) {
       const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
@@ -289,12 +299,12 @@ export class BumperCars extends BumperCarsBase {
         const steps = Math.floor(timeDelta / timeStep);
 
         for (const _ of range(steps)) {
-          cartMSD.integrator.step(cartMSD.msdSystem, timeStep * timeMult);
+          cartMSD.integrator.step(cartMSD.msdSystem, timeStep * timeMult * slowmo);
         }
 
         const remainder = timeDelta - steps * timeStep;
         if (remainder > 0) {
-          cartMSD.integrator.step(cartMSD.msdSystem, remainder * timeMult);
+          cartMSD.integrator.step(cartMSD.msdSystem, remainder * timeMult * slowmo);
         }
       }
     }
@@ -390,6 +400,7 @@ export class BumperCars extends BumperCarsBase {
     this.new_line();
     this.key_triggered_button("reset", ["r"], () => {
       this.resetGame();
+      this.physics.cartMSD.enable = true;
     });
   }
 }
