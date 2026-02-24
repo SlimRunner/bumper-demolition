@@ -385,21 +385,26 @@ export class CartFrame {
   getTransforms() {
     const pc = this.msdSystem.particles.container;
     const shift = pc.length / 2;
+    let [i1, i2, i3] = [3, 2, 1];
 
     const Ma = basisChange(
-      pc[3].location,
-      pc[2].location,
-      pc[1].location,
+      pc[i1].location.plus(pc[i1].location).times(0.5),
+      pc[i2].location.plus(pc[i2].location).times(0.5),
+      pc[i3].location.plus(pc[i3].location).times(0.5),
       pc
         .slice(0, 4)
         .map((p) => p.location)
         .reduce((acc, cv) => acc.plus(cv))
         .times(1 / 4),
     );
+    i1 += shift;
+    i2 += shift;
+    i3 += shift;
+
     const Mb = basisChange(
-      pc[3 + shift].location,
-      pc[2 + shift].location,
-      pc[1 + shift].location,
+      pc[i1].location.plus(pc[i1 + 8].location).times(0.5),
+      pc[i2].location.plus(pc[i2 + 8].location).times(0.5),
+      pc[i3].location.plus(pc[i3 + 8].location).times(0.5),
       pc
         .slice(0 + shift, 4 + shift)
         .map((p) => p.location)
