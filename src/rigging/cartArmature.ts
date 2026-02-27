@@ -97,11 +97,15 @@ export class CartArmature {
     const wheelFLMatrix = math.Mat4.scale(
       wheelDiameter / 2,
       wheelDiameter / 2,
+      -tireWidth,
+    );
+    const wheelFRMatrix = math.Mat4.scale(
+      wheelDiameter / 2,
+      wheelDiameter / 2,
       tireWidth,
     );
-    const wheelFRMatrix = wheelFLMatrix;
     const wheelRLMatrix = wheelFLMatrix;
-    const wheelRRMatrix = wheelFLMatrix;
+    const wheelRRMatrix = wheelFRMatrix;
     const sawArmLink1Matrix = math.Mat4.translation(-armLinkLength / 2, 0, 0)
       .times(math.Mat4.rotation(Math.PI / 2, 0, 1, 0))
       .times(math.Mat4.scale(armLinkRadius, armLinkRadius, armLinkLength));

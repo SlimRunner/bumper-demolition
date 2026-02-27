@@ -6,7 +6,7 @@ type tuple2 = [number, number];
 type matrix3x3 = [tuple3, tuple3, tuple3];
 type matrix4x4 = [tuple4, tuple4, tuple4, tuple4];
 
-enum VectorKind {
+export enum VectorKind {
   vector = 0,
   point = 1,
 }

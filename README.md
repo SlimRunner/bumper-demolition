@@ -145,6 +145,8 @@ The above are currently assigned the following primitive meshes
 | saw blade | disc     |
 | wheels    | cylinder |
 
+> note: for tires the outward edge looks towards +Z
+
 These are the **base** dimensions expected by `CartArmature`
 - cylinder: (`x: [-1, 1], y: [-1, 1], z: [-0.5, 0.5]`)
 - disc: (`x: [-1, 1], y: [-1, 1], z: [0, 0]`)

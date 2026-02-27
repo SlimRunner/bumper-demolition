@@ -11,6 +11,7 @@ import { CartFrame } from "./physics/cartFrame";
 import { MSDFrameShape } from "./shapes/msdShape";
 import { range } from "./utils/iterators";
 import { basisChange } from "./utils/math";
+import { FileMesh } from "./shapes/fileMesh";
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -19,6 +20,7 @@ export class BumperCarsBase extends tiny.Component {
     cyl: defs.Cylindrical_Tube;
     ball: defs.Subdivision_Sphere;
     disc: defs.Regular_2D_Polygon;
+    tire: tiny.Shape;
   };
   colors: {
     readonly red: math.Vector4;
@@ -94,6 +96,7 @@ export class BumperCarsBase extends tiny.Component {
       [0, 2],
       [0, 1],
     ]);
+    const tireMesh = new FileMesh("../assets/meshes/crappy-tire.obj");
 
     this.shapes = {
       grid: grid,
@@ -101,6 +104,7 @@ export class BumperCarsBase extends tiny.Component {
       cyl: closedTube,
       ball: sphereShape,
       disc: discShape,
+      tire: tireMesh,
     };
 
     this.colors = {
@@ -139,7 +143,7 @@ export class BumperCarsBase extends tiny.Component {
       arm2: closedTube,
       chassis: cubeShape,
       saw: discShape,
-      wheel: closedTube,
+      wheel: tireMesh,
     };
 
     this.armatures = {
