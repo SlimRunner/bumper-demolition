@@ -191,7 +191,7 @@ export class CartFrame {
     springs.container.forEach((sp) => {
       sp.reset({
         kSpring: 5000,
-        kDamper: 120,
+        kDamper: 240,
         length: 1,
       });
     });
@@ -272,7 +272,7 @@ export class CartFrame {
           //   threshold: 1e-3,
           // },
           restitution: {
-            coefficient: 1,
+            coefficient: 0.8,
           },
           height: 0,
         },
@@ -299,7 +299,7 @@ export class CartFrame {
           //   threshold: 1e-3,
           // },
           restitution: {
-            coefficient: 1,
+            coefficient: 0.8,
           },
           height: 0,
         },
