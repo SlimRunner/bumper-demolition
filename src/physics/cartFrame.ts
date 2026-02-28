@@ -25,6 +25,7 @@ export class CartFrame {
   timeStep: number = 0.001;
   private initial: {
     locations: math.Vector3[];
+    carNodeCount: number;
   };
 
   constructor(props: {
@@ -41,11 +42,13 @@ export class CartFrame {
   }) {
     this.initial = {
       locations: [],
+      carNodeCount: 0,
     };
     props.transforms ??= {
       cartA: math.Mat4.identity(),
       cartB: math.Mat4.identity(),
     };
+
     const pMass = 3.6;
     const y_disp = 0.1;
     const particles = new ParticleCollection(0);
@@ -310,6 +313,7 @@ export class CartFrame {
 
     // this.should always happen last
     this.initial.locations = particles.container.map((p) => p.location);
+    this.initial.carNodeCount = carNodeCount;
   }
 
   resetState() {
@@ -374,29 +378,28 @@ export class CartFrame {
 
   getTransforms() {
     const pc = this.msdSystem.particles.container;
-    const shift = pc.length / 2;
-    let [i1, i2, i3] = [3, 2, 1];
+    const sh = this.initial.carNodeCount;
+    const shRoof = 8; // tires + 8 -> roof index (assumes a box)
+    const [i0, i1, i2, i3] = [0, 1, 2, 3];
+    const [j0, j1, j2, j3] = [i0 + sh, i1 + sh, i2 + sh, i3 + sh];
 
     const Ma = basisChange(
-      pc[i1].location.plus(pc[i1].location).times(0.5),
-      pc[i2].location.plus(pc[i2].location).times(0.5),
-      pc[i3].location.plus(pc[i3].location).times(0.5),
+      pc[i3].location.plus(pc[i3 + shRoof].location).times(0.5),
+      pc[i2].location.plus(pc[i2 + shRoof].location).times(0.5),
+      pc[i1].location.plus(pc[i1 + shRoof].location).times(0.5),
       pc
         .slice(0, 4)
         .map((p) => p.location)
         .reduce((acc, cv) => acc.plus(cv))
         .times(1 / 4),
     );
-    i1 += shift;
-    i2 += shift;
-    i3 += shift;
 
     const Mb = basisChange(
-      pc[i1].location.plus(pc[i1 + 8].location).times(0.5),
-      pc[i2].location.plus(pc[i2 + 8].location).times(0.5),
-      pc[i3].location.plus(pc[i3 + 8].location).times(0.5),
+      pc[j3].location.plus(pc[j3 + shRoof].location).times(0.5),
+      pc[j2].location.plus(pc[j2 + shRoof].location).times(0.5),
+      pc[j1].location.plus(pc[j1 + shRoof].location).times(0.5),
       pc
-        .slice(0 + shift, 4 + shift)
+        .slice(0 + sh, 4 + sh)
         .map((p) => p.location)
         .reduce((acc, cv) => acc.plus(cv))
         .times(1 / 4),
