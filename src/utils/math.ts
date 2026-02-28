@@ -136,6 +136,36 @@ export function affineTransform(
   ];
 }
 
+export class Vec3Ext {
+  static max(a: math.Vector3, b: math.Vector3 | number) {
+    if (b instanceof math.Vector3) {
+      return math.vec3(
+        Math.max(a[0], b[0]),
+        Math.max(a[1], b[1]),
+        Math.max(a[2], b[2]),
+      );
+    } else {
+      return math.vec3(Math.max(a[0], b), Math.max(a[1], b), Math.max(a[2], b));
+    }
+  }
+
+  static min(a: math.Vector3, b: math.Vector3 | number) {
+    if (b instanceof math.Vector3) {
+      return math.vec3(
+        Math.min(a[0], b[0]),
+        Math.min(a[1], b[1]),
+        Math.min(a[2], b[2]),
+      );
+    } else {
+      return math.vec3(Math.min(a[0], b), Math.min(a[1], b), Math.min(a[2], b));
+    }
+  }
+
+  static abs(a: math.Vector3) {
+    return math.vec3(Math.abs(a[0]), Math.abs(a[1]), Math.abs(a[2]));
+  }
+}
+
 export class Vector2 extends Float32Array {
   static create(x: number, y: number) {
     const v = new Vector2(2);
