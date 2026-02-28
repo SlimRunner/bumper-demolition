@@ -59,10 +59,10 @@ export class CartFrame {
     // prettier-ignore
     const pArr: Array<[number, number, number, number, ParticleTags[]]> = [
       // floor nodes
-      [ wx,    0,  wz, pMass, ["tire"]],
-      [ wx,    0, -wz, pMass, ["tire"]],
-      [-wx,    0, -wz, pMass, ["tire"]],
-      [-wx,    0,  wz, pMass, ["tire"]],
+      [ wx,    0,  wz, pMass, ["tire", "structural"]],
+      [ wx,    0, -wz, pMass, ["tire", "structural"]],
+      [-wx,    0, -wz, pMass, ["tire", "structural"]],
+      [-wx,    0,  wz, pMass, ["tire", "structural"]],
       // mid section
       [ wx, wy/2,   0, pMass, ["structural"]],
       [  0, wy/2, -wz, pMass, ["structural"]],
