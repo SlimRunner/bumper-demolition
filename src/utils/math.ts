@@ -98,13 +98,13 @@ export function matrixMult(lhs: number[][], rhs: number[][]) {
 }
 
 export function basisChange(
-  p1: math.Vector3,
-  p2: math.Vector3,
-  p3: math.Vector3,
+  forward: math.Vector3,
+  center: math.Vector3,
+  right: math.Vector3,
   loc: math.Vector3,
 ) {
-  const w = p1.minus(p2).normalized();
-  const v = w.cross(p3.minus(p2)).normalized();
+  const w = forward.minus(center).normalized();
+  const v = w.cross(right.minus(center)).normalized();
   const u = v.cross(w);
 
   return new math.Mat4(
