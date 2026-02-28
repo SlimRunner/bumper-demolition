@@ -255,15 +255,10 @@ export class CartFrame {
         curryDyn(sdOrientedPillExt, () => {
           const front = this.averageBumperFront();
           const rear = this.averageBumperRear();
-          const center = front.plus(rear);
-          center.scale_by(0.5);
-          front.subtract_by(rear);
-          front.normalize();
-          front.scale_by(wx2);
 
           return [
-            Vector2.from3d(center.plus(front), plChoice),
-            Vector2.from3d(center.minus(front), plChoice),
+            Vector2.from3d(rear, plChoice),
+            Vector2.from3d(front, plChoice),
             wz, // frame width
             plChoice,
           ];
@@ -287,15 +282,10 @@ export class CartFrame {
         curryDyn(sdOrientedPillExt, () => {
           const front = this.averageBumperFront(carNodeCount);
           const rear = this.averageBumperRear(carNodeCount);
-          const center = front.plus(rear);
-          center.scale_by(0.5);
-          front.subtract_by(rear);
-          front.normalize();
-          front.scale_by(wx2);
 
           return [
-            Vector2.from3d(center.plus(front), plChoice),
-            Vector2.from3d(center.minus(front), plChoice),
+            Vector2.from3d(rear, plChoice),
+            Vector2.from3d(front, plChoice),
             wz, // frame width
             plChoice,
           ];

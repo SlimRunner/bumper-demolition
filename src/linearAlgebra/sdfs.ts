@@ -110,8 +110,11 @@ export function sdOrientedPillExt(
   // modified to make a "directed pill"
 
   const pt = Vector2.from3d(pt3, onto);
-  const pa = pt.minus(a);
-  const ba = b.minus(a);
+  let ba = b.minus(a);
+  let baN2 = b.normalized().times(r);
+  let baN1 = baN2.times(1 / 2);
+  const pa = pt.minus(a).minus(baN1);
+  ba = ba.minus(baN2);
   const h = clamp(pa.dot(ba) / ba.dot(ba), 0, 1);
   return pa.minus(ba.times(h)).norm() - r / 2;
 }
