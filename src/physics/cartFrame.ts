@@ -8,14 +8,9 @@ import {
   SpringDamperSystem,
   SymplecticEuler,
 } from "./msdSystem";
-import {
-  affineTransform,
-  basisChange,
-  PlaneChoice,
-  Vector2,
-} from "../utils/math";
+import { affineTransform, basisChange, PlaneChoice } from "../utils/math";
 import { CartField, PlaneField } from "./contactFields";
-import { curryDyn, sdOrientedPillExt } from "../linearAlgebra/sdfs";
+import { curryDyn, sdBox } from "../linearAlgebra/sdfs";
 import { range } from "../utils/iterators";
 
 export class CartFrame {
@@ -26,6 +21,10 @@ export class CartFrame {
   private initial: {
     locations: math.Vector3[];
     carNodeCount: number;
+  };
+  nodeRanges: {
+    CarA: [number, number];
+    CarB: [number, number];
   };
 
   constructor(props: {
@@ -255,16 +254,14 @@ export class CartFrame {
       }),
       new CartField(
         new Set(["CarB"]),
-        curryDyn(sdOrientedPillExt, () => {
-          const front = this.averageBumperFront();
-          const rear = this.averageBumperRear();
+        curryDyn(sdBox, () => {
+          const { min: A, max: B } = this.getBoundingBox([0, carNodeCount - 1]);
+          const center = B.plus(A);
+          center.scale_by(0.5);
+          const symmMax = B.minus(A);
+          symmMax.scale_by(0.5);
 
-          return [
-            Vector2.from3d(rear, plChoice),
-            Vector2.from3d(front, plChoice),
-            wz, // frame width
-            plChoice,
-          ];
+          return [symmMax, center];
         }),
         {
           stiffness: 15000,
@@ -282,16 +279,17 @@ export class CartFrame {
       ),
       new CartField(
         new Set(["CarA"]),
-        curryDyn(sdOrientedPillExt, () => {
-          const front = this.averageBumperFront(carNodeCount);
-          const rear = this.averageBumperRear(carNodeCount);
+        curryDyn(sdBox, () => {
+          const { min: A, max: B } = this.getBoundingBox([
+            carNodeCount,
+            carNodeCount * 2 - 1,
+          ]);
+          const center = B.plus(A);
+          center.scale_by(0.5);
+          const symmMax = B.minus(A);
+          symmMax.scale_by(0.5);
 
-          return [
-            Vector2.from3d(rear, plChoice),
-            Vector2.from3d(front, plChoice),
-            wz, // frame width
-            plChoice,
-          ];
+          return [symmMax, center];
         }),
         {
           stiffness: 15000,
@@ -314,6 +312,10 @@ export class CartFrame {
     // this.should always happen last
     this.initial.locations = particles.container.map((p) => p.location);
     this.initial.carNodeCount = carNodeCount;
+    this.nodeRanges = {
+      CarA: [0, carNodeCount - 1],
+      CarB: [carNodeCount, carNodeCount * 2 - 1],
+    };
   }
 
   resetState() {
@@ -374,6 +376,53 @@ export class CartFrame {
         pc[11 + sh].location[2]) /
       4;
     return math.vec3(x, y, z);
+  }
+
+  getBoundingBoxCenter(nodeRange: [number, number]) {
+    const [a, b] = nodeRange;
+    let x = 0;
+    let y = 0;
+    let z = 0;
+    for (let i = a; i < b; ++i) {
+      const loc = this.msdSystem.particles.container[i].location;
+      x += loc[0];
+      y += loc[1];
+      z += loc[2];
+    }
+    x /= b - a + 1;
+    y /= b - a + 1;
+    z /= b - a + 1;
+    return;
+  }
+
+  getBoundingBox(nodeRange: [number, number]) {
+    const [a, b] = nodeRange;
+    let xm: number | undefined;
+    let ym: number | undefined;
+    let zm: number | undefined;
+    let xM: number | undefined;
+    let yM: number | undefined;
+    let zM: number | undefined;
+    for (let i = a; i < b; ++i) {
+      const loc = this.msdSystem.particles.container[i].location;
+      xm ??= loc[0];
+      ym ??= loc[1];
+      zm ??= loc[2];
+      xM ??= loc[0];
+      yM ??= loc[1];
+      zM ??= loc[2];
+
+      xm = loc[0] < xm ? loc[0] : xm;
+      ym = loc[1] < ym ? loc[1] : ym;
+      zm = loc[2] < zm ? loc[2] : zm;
+      xM = loc[0] > xM ? loc[0] : xM;
+      yM = loc[1] > yM ? loc[1] : yM;
+      zM = loc[2] > zM ? loc[2] : zM;
+    }
+    return {
+      min: math.vec3(xm!, ym!, zm!),
+      max: math.vec3(xM!, yM!, zM!),
+    };
   }
 
   getTransforms() {
