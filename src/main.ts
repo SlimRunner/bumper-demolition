@@ -28,6 +28,7 @@ export class BumperCarsBase extends tiny.Component {
     readonly gray: math.Vector4;
     readonly softBlue: math.Vector4;
     readonly yellow: math.Vector4;
+    readonly white: math.Vector4;
   };
   materials: {
     uvSimple: {
@@ -67,6 +68,15 @@ export class BumperCarsBase extends tiny.Component {
   constructor() {
     super();
 
+    this.colors = {
+      red: math.color(0.8, 0.1, 0.1, 1),
+      blue: math.color(0, 0, 1, 1),
+      gray: math.color(0.6, 0.6, 0.6, 1),
+      softBlue: math.color(0.176, 0.439, 0.702, 1),
+      yellow: math.color(1, 1, 0, 1),
+      white: math.color(1, 1, 1, 1),
+    };
+
     const uvShader = new UVShader();
     const phongShader = new defs.Phong_Shader();
     const solidColor = new SolidColor();
@@ -105,14 +115,6 @@ export class BumperCarsBase extends tiny.Component {
       ball: sphereShape,
       disc: discShape,
       tire: tireMesh,
-    };
-
-    this.colors = {
-      red: math.color(0.8, 0.1, 0.1, 1),
-      blue: math.color(0, 0, 1, 1),
-      gray: math.color(0.6, 0.6, 0.6, 1),
-      softBlue: math.color(0.176, 0.439, 0.702, 1),
-      yellow: math.color(1, 1, 0, 1),
     };
 
     this.globalProps = {
