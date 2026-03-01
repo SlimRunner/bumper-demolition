@@ -73,6 +73,10 @@ export class CartFrame {
     const wz = props.dimensions.frameWidth / 2;
     const wz2 = wz * Math.SQRT1_2;
 
+    // NOTE: if you add any new point to the car template, do it at the
+    // very end. Code below relies on the order of the nodes to compute
+    // tire forces and the change of basis for the mesh.
+
     // prettier-ignore
     const pArr: Array<[number, number, number, number, ParticleTags[]]> = [
       // floor nodes
@@ -103,6 +107,11 @@ export class CartFrame {
     ];
     const carNodeCount = pArr.length;
     pArr.push(...pArr); // car B is identical
+
+    // If you need to add more particles (free or clusters), do it HERE.
+    // If you add particles before this line you will break the fixed
+    // distance between cars which is assumed to be true throughout this
+    // module.
 
     particles.container = pArr.map(([x, y, z, m, tags]) => {
       const p = new MSDParticle({
@@ -154,17 +163,14 @@ export class CartFrame {
       });
     });
 
+    // create MSD simulator
     this.msdSystem = new SpringDamperSystem(
       springs,
       particles,
       math.vec3(0, -9.8, 0),
-      // {
-      //   coefRestitution: 0.2,
-      //   coefKFriction: 0.5,
-      //   coefSFriction: 0.7,
-      // },
     );
 
+    // add particles to their appropriate groups
     for (const i of range(carNodeCount)) {
       this.msdSystem.addParticleToGroup(particles.container[i], "CarA");
     }
@@ -172,12 +178,11 @@ export class CartFrame {
       this.msdSystem.addParticleToGroup(particles.container[i], "CarB");
     }
 
+    // apply initial transform to all particles.
     for (const p of this.msdSystem.getGroup("CarA")) {
       p.location = math.vec3(
         ...affineTransform(props.transforms.cartA, p.location, 1),
       );
-      // p.location[2] += 2;
-      // p.velocity[2] -= 2;
     }
     for (const p of this.msdSystem.getGroup("CarB")) {
       p.location = math.vec3(
@@ -185,6 +190,7 @@ export class CartFrame {
       );
     }
 
+    // link particles with beams and set length
     pairs.forEach(([i1, i2], i) => {
       springs.container[i].length = particles.container[i1].location
         .minus(particles.container[i2].location)
@@ -194,6 +200,10 @@ export class CartFrame {
 
     const plChoice: PlaneChoice = "xz";
 
+    // this pattern is a clusterfuck ngl, but it is a necessary evil. It
+    // pushes the "contact fields" which are the colliders in the game,
+    // and allows them to manage an internal signed distance function
+    // and it's derivative. Trust me... this could have been way uglier.
     this.msdSystem.contactFields.push(
       new PlaneField(new Set(), math.vec3(0, 1, 0), {
         stiffness: 15000,
@@ -209,8 +219,9 @@ export class CartFrame {
         height: 0,
       }),
       new CartField(
-        new Set(["CarB"]),
+        new Set(["CarB"]), // affects CarB but follows CarA
         curryDyn(sdOrientedRect, () => {
+          // this line is implicitly getting orientation of CarA
           const dir = this.getOrientation();
           const rear = Vector2.from3d(
             dir.mid.minus(dir.fwd.times(wx2)),
@@ -226,11 +237,6 @@ export class CartFrame {
         {
           stiffness: 15000,
           damping: 10,
-          // friction: {
-          //   kinetic: 0.5,
-          //   static: 0.7,
-          //   threshold: 1e-3,
-          // },
           restitution: {
             coefficient: 0.8,
           },
@@ -238,8 +244,10 @@ export class CartFrame {
         },
       ),
       new CartField(
-        new Set(["CarA"]),
+        new Set(["CarA"]), // affects CarA but follows CarB
         curryDyn(sdOrientedRect, () => {
+          // this line is getting orientation of CarB (hence the shift
+          // by carNodeCount)
           const dir = this.getOrientation(carNodeCount);
           const rear = Vector2.from3d(
             dir.mid.minus(dir.fwd.times(wx2)),
@@ -255,11 +263,6 @@ export class CartFrame {
         {
           stiffness: 15000,
           damping: 10,
-          // friction: {
-          //   kinetic: 0.5,
-          //   static: 0.7,
-          //   threshold: 1e-3,
-          // },
           restitution: {
             coefficient: 0.8,
           },
@@ -268,9 +271,10 @@ export class CartFrame {
       ),
     );
 
+    // this was the best performing one
     this.integrator = new SymplecticEuler();
 
-    // this.should always happen last
+    // this saves the state for resetting purposes
     this.initial.locations = particles.container.map((p) => p.location);
     this.initial.carNodeCount = carNodeCount;
     this.nodeRanges = {
