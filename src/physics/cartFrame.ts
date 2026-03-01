@@ -359,9 +359,9 @@ export class CartFrame {
       y += loc[1];
       z += loc[2];
     }
-    x /= b - a + 1;
-    y /= b - a + 1;
-    z /= b - a + 1;
+    x /= b - a;
+    y /= b - a;
+    z /= b - a;
     return math.vec3(x, y, z);
   }
 
