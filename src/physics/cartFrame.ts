@@ -282,7 +282,7 @@ export class CartFrame {
       CarB: [carNodeCount, carNodeCount * 2 - 1],
     };
 
-    this.updateTireVectors(0, 0);
+    this.updateTireVectors(0, 0, 0, 0);
   }
 
   resetState() {
@@ -291,10 +291,6 @@ export class CartFrame {
     for (let i = 0; i < pCount; ++i) {
       pcs[i].location = this.initial.locations[i].copy();
       pcs[i].velocity = math.vec3(0, 0, 0);
-      // TODO: REMOVE if-statement once testing phase is done
-      if (pcs[i].group === "CarA") {
-        pcs[i].velocity[2] -= 1;
-      }
     }
   }
 
@@ -440,40 +436,48 @@ export class CartFrame {
     };
   }
 
-  updateTireVectors(steerAngle: number, thrust: number) {
-    // TODO: WTF? the same angle for both cars? Make sure to fix this
-    // later
+  updateTireVectors(
+    angleA: number,
+    thrustA: number,
+    angleB: number,
+    thrustB: number,
+  ) {
     const pc = this.msdSystem.particles.container;
 
     const out: {
-      leftAngle: number;
-      rightAngle: number;
+      frontLeft: number;
+      frontRight: number;
     }[] = [];
 
-    for (const sh of [0, this.initial.carNodeCount]) {
+    const foo: Array<[number, number, number]> = [
+      [0, angleA, thrustA],
+      [this.initial.carNodeCount, angleB, thrustB],
+    ];
+
+    for (const [sh, angle, thrust] of foo) {
       const [i0, i1, i2, i3, i4] = [0 + sh, 1 + sh, 2 + sh, 3 + sh, 8 + sh];
       const upVec = pc[i0].location.minus(pc[i4].location).normalized();
       const fwdVec = pc[i1].location.minus(pc[i2].location).normalized();
-      const innerAngle = steerAngle;
+      const innerAngle = angle;
       const outerAngle =
         Math.sign(innerAngle) *
         Math.atan(
           this.dimensions.wheelbase /
             (this.dimensions.frameWidth +
-              this.dimensions.wheelbase / Math.tan(innerAngle)),
+              this.dimensions.wheelbase / Math.tan(Math.abs(innerAngle))),
         );
-      let leftAngle;
-      let rightAngle;
+      let frontLeft;
+      let frontRight;
       if (Math.abs(innerAngle) < 1e-6) {
-        leftAngle = 0;
-        rightAngle = 0;
+        frontLeft = 0;
+        frontRight = 0;
       } else {
-        leftAngle = innerAngle < 0 ? innerAngle : outerAngle;
-        rightAngle = innerAngle < 0 ? outerAngle : innerAngle;
+        frontLeft = innerAngle < 0 ? innerAngle : outerAngle;
+        frontRight = innerAngle < 0 ? outerAngle : innerAngle;
       }
       out.push({
-        leftAngle,
-        rightAngle,
+        frontLeft,
+        frontRight,
       });
 
       // rear tires
@@ -486,13 +490,13 @@ export class CartFrame {
       pc[i0].tireForward = rotateAboutAxis(
         fwdVec,
         upVec,
-        leftAngle,
+        frontLeft,
       ).normalized();
       pc[i0].tireThrust = thrust;
       pc[i1].tireForward = rotateAboutAxis(
         fwdVec,
         upVec,
-        rightAngle,
+        frontRight,
       ).normalized();
       pc[i1].tireThrust = thrust;
     }

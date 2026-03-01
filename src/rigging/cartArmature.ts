@@ -50,11 +50,23 @@ export class CartArmature {
   private _props = {
     armBlade: {
       timing: 0,
-      animRate: 2,
+      animRate: 2, // units per second
       bladeAngle: 0,
       bladeAngSpeed: PI2 * 3,
       enabled: false,
       swinging: false,
+    },
+    control: {
+      steer: {
+        maxAngle: (Math.PI * 40) / 180,
+        animRate: 2, // units per second ??
+        direction: 0,
+        angle: 0,
+      },
+      thrust: {
+        target: 0,
+        force: 0,
+      },
     },
     spinRR: 0,
     spinRL: 0,
@@ -275,6 +287,18 @@ export class CartArmature {
         enabled: false,
         swinging: false,
       },
+      control: {
+        steer: {
+          maxAngle: (Math.PI * 40) / 180,
+          animRate: 2, // units per second
+          direction: 0,
+          angle: 0,
+        },
+        thrust: {
+          target: 0,
+          force: 0,
+        },
+      },
       spinRR: 0,
       spinRL: 0,
       spinFR: 0,
@@ -346,7 +370,43 @@ export class CartArmature {
     }
   }
 
-  setSteer(angleLeft: number, angleRight: number) {
+  updateControls(timeDelta: number) {
+    const {
+      control: { steer, thrust },
+    } = this._props;
+
+    if (steer.angle < steer.direction) {
+      steer.angle = Math.min(
+        steer.direction,
+        steer.angle + steer.animRate * timeDelta,
+      );
+    } else {
+      steer.angle = Math.max(
+        steer.direction,
+        steer.angle - steer.animRate * timeDelta,
+      );
+    }
+    // add animation if need smooth thrust
+    thrust.force = thrust.target;
+  }
+
+  get steerAngle() {
+    return this._props.control.steer.angle * this._props.control.steer.maxAngle;
+  }
+
+  get thrustForce() {
+    return this._props.control.thrust.force;
+  }
+
+  set steerTarget(unit: number) {
+    this._props.control.steer.direction = unit;
+  }
+
+  set thrustForce(thrust: number) {
+    this._props.control.thrust.target = thrust;
+  }
+
+  updateFrontWheels(angleLeft: number, angleRight: number) {
     // negated so that < 0 means left and vice-versa
     this.arcs.wheelHubFL.setAngle("ry", -angleLeft);
     this.arcs.wheelHubFR.setAngle("ry", -angleRight);
