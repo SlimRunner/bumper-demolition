@@ -280,15 +280,15 @@ export class CartArmature {
       spinFR: 0,
       spinFL: 0,
     };
-    this.arcs.sawArmJoint1.setAngle("rz", -0.1)
-    this.arcs.sawArmJoint2.setAngle("rz", 0.1)
-    this.arcs.sawHub.setAngle("rz", 0)
-    this.arcs.wheelHubFL.setAngle("rz", 0)
-    this.arcs.wheelHubFR.setAngle("rz", 0)
-    this.arcs.wheelHubRL.setAngle("rz", 0)
-    this.arcs.wheelHubRR.setAngle("rz", 0)
-    this.arcs.wheelHubFL.setAngle("ry", 0)
-    this.arcs.wheelHubFR.setAngle("ry", 0)
+    this.arcs.sawArmJoint1.setAngle("rz", -0.1);
+    this.arcs.sawArmJoint2.setAngle("rz", 0.1);
+    this.arcs.sawHub.setAngle("rz", 0);
+    this.arcs.wheelHubFL.setAngle("rz", 0);
+    this.arcs.wheelHubFR.setAngle("rz", 0);
+    this.arcs.wheelHubRL.setAngle("rz", 0);
+    this.arcs.wheelHubRR.setAngle("rz", 0);
+    this.arcs.wheelHubFL.setAngle("ry", 0);
+    this.arcs.wheelHubFR.setAngle("ry", 0);
   }
 
   updateTires(
@@ -328,10 +328,11 @@ export class CartArmature {
     const anim = this._props.armBlade;
     if (anim.swinging) {
       anim.timing = anim.timing + timeDelta * anim.animRate;
+      // reference: https://www.desmos.com/calculator/jaagh3jawk
       let t = smoothstep(
         clamp(anim.timing, 0, 1) + clamp(9 - anim.timing, 4, 5) - 5,
       );
-  
+
       this.arcs.sawArmJoint1.setAngle("rz", lerp(-0.1, -Math.PI * 0.9, t));
       this.arcs.sawArmJoint2.setAngle("rz", lerp(0.1, Math.PI * 0.6, t));
       if (anim.timing > 5) {
