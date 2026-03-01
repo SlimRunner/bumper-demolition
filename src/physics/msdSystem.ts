@@ -15,14 +15,7 @@ type SpringProperties = {
   length: number;
 };
 
-type GroundPlaneProperties = {
-  kSpring: number;
-  kDamper: number;
-};
-
-type Triangle = [math.Vector3, math.Vector3, math.Vector3];
-
-export type ParticleTags = "tire" | "structural" | "collidable" | "kinematic";
+export type ParticleTags = "tire" | "structural" | "kinematic";
 
 export interface Collection<T> {
   container: T[];
