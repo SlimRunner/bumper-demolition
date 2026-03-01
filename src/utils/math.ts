@@ -136,7 +136,11 @@ export function affineTransform(
   ];
 }
 
-export function rotateAboutAxis(v: math.Vector3, axis: math.Vector3, angle: number) {
+export function rotateAboutAxis(
+  v: math.Vector3,
+  axis: math.Vector3,
+  angle: number,
+) {
   // implements Rodrigues' rotation formula
   const k = axis.normalized();
   const cos = Math.cos(angle);

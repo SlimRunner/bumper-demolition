@@ -385,26 +385,50 @@ export class BumperCars extends BumperCarsBase {
     this.live_string((elem) => {
       elem.textContent = "Car A";
     });
-    this.key_triggered_button("accelerate", ["w"], () => {
-      this.armatures.cartA.thrustForce = 40;
-    }, undefined, () => {
-      this.armatures.cartA.thrustForce = 0;
-    });
-    this.key_triggered_button("brake", ["s"], () => {
-      this.armatures.cartA.thrustForce = -40;
-    }, undefined, () => {
-      this.armatures.cartA.thrustForce = 0;
-    });
-    this.key_triggered_button("steer left", ["a"], () => {
-      this.armatures.cartA.steerTarget = -1;
-    }, undefined, () => {
-      this.armatures.cartA.steerTarget = 0;
-    });
-    this.key_triggered_button("steer right", ["d"], () => {
-      this.armatures.cartA.steerTarget = 1;
-    }, undefined, () => {
-      this.armatures.cartA.steerTarget = 0;
-    });
+    this.key_triggered_button(
+      "accelerate",
+      ["w"],
+      () => {
+        this.armatures.cartA.thrustForce = 40;
+      },
+      undefined,
+      () => {
+        this.armatures.cartA.thrustForce = 0;
+      },
+    );
+    this.key_triggered_button(
+      "brake",
+      ["s"],
+      () => {
+        this.armatures.cartA.thrustForce = -40;
+      },
+      undefined,
+      () => {
+        this.armatures.cartA.thrustForce = 0;
+      },
+    );
+    this.key_triggered_button(
+      "steer left",
+      ["a"],
+      () => {
+        this.armatures.cartA.steerTarget = -1;
+      },
+      undefined,
+      () => {
+        this.armatures.cartA.steerTarget = 0;
+      },
+    );
+    this.key_triggered_button(
+      "steer right",
+      ["d"],
+      () => {
+        this.armatures.cartA.steerTarget = 1;
+      },
+      undefined,
+      () => {
+        this.armatures.cartA.steerTarget = 0;
+      },
+    );
     this.key_triggered_button("swing blade", ["e"], () => {
       // TODO: remove setBladeStatus once power-up system is implemented
       this.armatures.cartA.setBladeStatus(true);
@@ -416,26 +440,50 @@ export class BumperCars extends BumperCarsBase {
     this.live_string((elem) => {
       elem.textContent = "Car B";
     });
-    this.key_triggered_button("accelerate", ["8"], () => {
-      this.armatures.cartB.thrustForce = 40;
-    }, undefined, () => {
-      this.armatures.cartB.thrustForce = 0;
-    });
-    this.key_triggered_button("brake", ["5"], () => {
-      this.armatures.cartB.thrustForce = -40;
-    }, undefined, () => {
-      this.armatures.cartB.thrustForce = 0;
-    });
-    this.key_triggered_button("steer left", ["4"], () => {
-      this.armatures.cartB.steerTarget = -1;
-    }, undefined, () => {
-      this.armatures.cartB.steerTarget = 0;
-    });
-    this.key_triggered_button("steer right", ["6"], () => {
-      this.armatures.cartB.steerTarget = 1;
-    }, undefined, () => {
-      this.armatures.cartB.steerTarget = 0;
-    });
+    this.key_triggered_button(
+      "accelerate",
+      ["8"],
+      () => {
+        this.armatures.cartB.thrustForce = 40;
+      },
+      undefined,
+      () => {
+        this.armatures.cartB.thrustForce = 0;
+      },
+    );
+    this.key_triggered_button(
+      "brake",
+      ["5"],
+      () => {
+        this.armatures.cartB.thrustForce = -40;
+      },
+      undefined,
+      () => {
+        this.armatures.cartB.thrustForce = 0;
+      },
+    );
+    this.key_triggered_button(
+      "steer left",
+      ["4"],
+      () => {
+        this.armatures.cartB.steerTarget = -1;
+      },
+      undefined,
+      () => {
+        this.armatures.cartB.steerTarget = 0;
+      },
+    );
+    this.key_triggered_button(
+      "steer right",
+      ["6"],
+      () => {
+        this.armatures.cartB.steerTarget = 1;
+      },
+      undefined,
+      () => {
+        this.armatures.cartB.steerTarget = 0;
+      },
+    );
     this.key_triggered_button("swing blade", ["7"], () => {
       // TODO: remove setBladeStatus once power-up system is implemented
       this.armatures.cartB.setBladeStatus(true);

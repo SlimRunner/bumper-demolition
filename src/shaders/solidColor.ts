@@ -1,9 +1,14 @@
 import { math } from "../../tiny-graphics-math";
-import { GPUAddresses, tiny, Uniforms, MaterialRecord } from "../../tiny-graphics";
+import {
+  GPUAddresses,
+  tiny,
+  Uniforms,
+  MaterialRecord,
+} from "../../tiny-graphics";
 
 export type uvMats = MaterialRecord & {
-  color: math.Vector4,
-}
+  color: math.Vector4;
+};
 
 export class SolidColor extends tiny.Shader {
   constructor() {

@@ -1,6 +1,6 @@
 /**
  * polyfill for `Map.getOrInsert` see
- * 
+ *
  * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/getOrInsert
  * @param map container source
  * @param key map locator
@@ -23,7 +23,11 @@ export function getOrInsert<T, S>(map: Map<T, S>, key: T, initial: S): S {
  * @param ctor callback that constructs the initial object
  * @returns value found in `key` or constructed initial value
  */
-export function getOrInsertCond<T, S>(map: Map<T, S>, key: T, ctor: () => S): S {
+export function getOrInsertCond<T, S>(
+  map: Map<T, S>,
+  key: T,
+  ctor: () => S,
+): S {
   const value = map.get(key);
   if (value == null) {
     map.set(key, ctor());
