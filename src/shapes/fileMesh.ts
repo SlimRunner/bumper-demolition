@@ -105,22 +105,23 @@ export class FileMesh extends tiny.Shape {
           throw error;
         }
       }
-
-      // here is where all the data is pushed into the tiny-graphics Shape
-      for (const tri of faces) {
-        for (const idx of tri) {
-          if (this._transform) {
-            this.arrays.position!.push(vertices[idx.vertex - 1]);
-            this.arrays.normal!.push(vertNormals[idx.normal - 1]);
-          } else {
-            this.arrays.position!.push(vertices[idx.vertex - 1]);
-            this.arrays.normal!.push(vertNormals[idx.normal - 1]);
-          }
-          this.arrays.texture_coord!.push(textures[idx.texture - 1]);
-        }
-      }
-      this._ready = true;
     }
+
+    // here is where all the data is pushed into the tiny-graphics Shape
+    for (const tri of faces) {
+      for (const idx of tri) {
+        if (this._transform) {
+          this.arrays.position!.push(vertices[idx.vertex - 1]);
+          this.arrays.normal!.push(vertNormals[idx.normal - 1]);
+        } else {
+          this.arrays.position!.push(vertices[idx.vertex - 1]);
+          this.arrays.normal!.push(vertNormals[idx.normal - 1]);
+        }
+        this.arrays.texture_coord!.push(textures[idx.texture - 1]);
+      }
+    }
+
+    this._ready = true;
   }
 
   draw(
