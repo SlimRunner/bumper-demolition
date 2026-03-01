@@ -36,8 +36,15 @@ export class FileMesh extends tiny.Shape {
     let errors = 0;
     const expressions = normalizeLines(objFile);
     const lines = expressions.split("\n");
-    const at = <T>(arr: Array<T>, n: number) =>
-      n > 0 ? arr[n - 1] : arr[arr.length + n];
+    const at = <T>(arr: Array<T>, i: number) => {
+      i = i > 0 ? i - 1 : arr.length + i;
+      if (i < 0 || i >= arr.length) {
+        throw new OBJParserError(
+          "Face contains reference to undefined element",
+        );
+      }
+      return arr[i];
+    };
 
     const vertices: math.Vector3[] = [];
     const vertNormals: math.Vector3[] = [];
