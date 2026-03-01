@@ -228,6 +228,8 @@ export class BumperCarsBase extends tiny.Component {
     // this is just one function right now but keep it because we may
     // need to reset other things later.
     this.physics.cartMSD.resetState();
+    this.armatures.cartA.resetState();
+    this.armatures.cartB.resetState();
   }
 
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
