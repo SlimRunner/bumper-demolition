@@ -104,6 +104,9 @@ export class FileMesh extends tiny.Shape {
             throw new OBJParserError(`'${expr.ident}' not implemented`);
           case "g":
             throw new OBJParserError(`'${expr.ident}' not implemented`);
+          case "#":
+            // ignore comments
+            break;
           default: // just in case this code is modified in JS
             throw new Error("Parser type safety violated");
         }
@@ -172,6 +175,13 @@ class TokenStream {
 
 type _2tuple = [number, number];
 type _3tuple<T> = [T, T, T];
+
+type CommentExpr = {
+  ident: "#";
+  params: {
+    message: string;
+  };
+};
 
 type MTLExpr = {
   ident: "mtllib";
@@ -263,6 +273,7 @@ type groupExpr = {
 };
 
 export type exprPayload =
+  | CommentExpr
   | MTLExpr
   | VertexExpr
   | FaceExpr
@@ -294,6 +305,8 @@ function parseOBJLine(expression: string): exprPayload {
   assertToken(head != null, "expression is empty");
 
   switch (head) {
+    case "#":
+      return tokenComment(tokens);
     case "mtllib":
       assertToken(false, `Implementation pending: '${head}'`);
     case "v":
@@ -315,6 +328,15 @@ function parseOBJLine(expression: string): exprPayload {
     default:
       assertToken(false, `Unrecognized function found: '${head}'`);
   }
+}
+
+function tokenComment(tokens: TokenStream): CommentExpr {
+  return {
+    ident: "#",
+    params: {
+      message: tokens.next(),
+    },
+  };
 }
 
 function tokenVertex(tokens: TokenStream): VertexExpr {
