@@ -22,22 +22,22 @@ A bumper-cars inspired game implemented using tiny-graphics with a typescript la
 
 A tentative and non-exhaustive TODO list
 
-- [ ] add library to manage kinematic chains
+- [x] add library to manage kinematic chains
   - [x] integrate mesh for saw arm with armature
-  - [ ] create a function to make the arm swing forward or back ward (think of a scorpion strikes)
-  - [ ] create a function to manage wheel rotation
-  - [ ] create a function to manage steer rotation (see link for steer geometry below)
+  - [x] create a function to make the arm swing forward or back ward (think of a scorpion strikes)
+  - [x] create a function to manage wheel rotation
+  - [x] create a function to manage steer rotation (see link for steer geometry below)
 - [ ] create a way to manage the game state
   - [ ] timer for game cycle
   - [ ] health of each car
-  - [ ] allow game to be reset
+  - [x] allow game to be reset
 - [ ] add a library to manage mass-spring-damper (MSD) frame
   - [x] add a way to assign signed distance fields to nodes (search Inigo Quilez)
-  - [ ] add a rolling-friction model assignable to nodes (for tires)
+  - [x] add a rolling-friction model assignable to nodes (for tires)
   - [ ] allow arbitrary external forces for the particles
   - [x] synchronize MSD frame position-direction with cart armature
   - [x] create MSD-frames for both vehicles
-- [ ] add a shader that shows a GUI
+- [ ] add a GUI (either CSS or Shader)
   - [ ] show health bars above (fighter game-like)
   - [ ] allow printing text to screen
     - [ ] show timer in between health bars
@@ -51,12 +51,11 @@ A tentative and non-exhaustive TODO list
 
 Proposals for implementation
 - particle beam collision detection
-  - triangle intersection is the easiest
-  - use bounding box for cart instead of the mesh (less triangle transformations)
-- steering
-  - implement a direction vector for "tire" type particles
-    - modify existing tangential friction using this direction vector
-    - reference for steering geometry: https://www.desmos.com/calculator/rnlmx54x2f
+  - add kinetic particles to the MSD system and use car SDF colliders (use tags)
+  - implement a drawable for the subset of these particles (use tags)
+- For the GUI
+  - preferably use CSS: shaders would be cleaner but that is making a GUI from scratch and other group already used CSS so probably we don't have to.
+  - Make sure you make the elements children of canvas. This is loaded in the base constructor of main
 
 ### Game Description
 
@@ -64,8 +63,8 @@ Our game will be based on Bumper Cars. It is a 2-player game where the goal of t
 
 1. mass increase for a few seconds
 2. instant speed boost
-3. a mechanic arm with a saw: it appears on top of the car while active for 20 seconds, and during that time it requires user input to "pound" in front or behind it.
-4. particle beam: a wide range barrage of particles that lasts for 20 seconds, and the user can select for it to shoot from the front or the rear. The particles collide with the opponent causing it to lose speed and receive damage
+3. a mechanic arm with a saw: it appears on top of the car while active for 20 seconds, and during that time it requires user input to "pound" in front it.
+4. particle cloud: a cluster of orbiting particles that lasts for 20 seconds, and it causes damage to the opponent if these hit. Each hit "consumes" the particle.
 
 The game has a 5 minute time limit. If at the end of that time no player has won, two large circular saws being to close-in from the sides until they meet in the middle. Touching causes great damage. The saws take 1 minute from the time they appear until they meet at the middle.
 
