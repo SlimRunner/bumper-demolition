@@ -215,6 +215,30 @@ export interface Integrator {
   step(system: SpringDamperSystem, dt: number): void;
 }
 
+export class SymplecticEuler implements Integrator {
+  step(system: SpringDamperSystem, dt: number) {
+    const forces = system.computeForces();
+
+    for (const p of system.particles.container) {
+      if (p.tags.has("kinematic")) continue;
+      const a = forces.get(p)!.times(1 / p.mass);
+
+      const newVel = p.velocity.plus(a.times(dt));
+      if (newVel.every((n) => !Number.isNaN(n))) {
+        p.velocity = newVel;
+      } else {
+        console.warn(["NAN vel in integrator", newVel]);
+      }
+      const newLoc = p.location.plus(p.velocity.times(dt));
+      if (newLoc.every((n) => !Number.isNaN(n))) {
+        p.location = newLoc;
+      } else {
+        console.warn(["NAN loc in integrator", newLoc]);
+      }
+    }
+  }
+}
+
 export class ForwardEuler implements Integrator {
   step(system: SpringDamperSystem, dt: number): void {
     const forces = system.computeForces();
@@ -225,30 +249,6 @@ export class ForwardEuler implements Integrator {
 
       p.location = p.location.plus(p.velocity.times(dt));
       p.velocity = p.velocity.plus(acc.times(dt));
-    }
-  }
-}
-
-export class SymplecticEuler implements Integrator {
-  step(system: SpringDamperSystem, dt: number) {
-    const forces = system.computeForces();
-
-    for (const p of system.particles.container) {
-      if (p.tags.has("kinematic")) continue;
-      const a = forces.get(p)!.times(1 / p.mass);
-
-      const newVel = p.velocity.plus(a.times(dt));
-      if (newVel.every(n => !Number.isNaN(n))) {
-        p.velocity = newVel;
-      } else {
-        console.warn(["NAN vel in integrator", newVel])
-      }
-      const newLoc = p.location.plus(p.velocity.times(dt));
-      if (newLoc.every(n => !Number.isNaN(n))) {
-        p.location = newLoc;
-      } else {
-        console.warn(["NAN loc in integrator", newLoc])
-      }
     }
   }
 }
