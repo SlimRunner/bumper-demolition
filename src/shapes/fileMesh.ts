@@ -58,6 +58,8 @@ export class FileMesh extends tiny.Shape {
     // appropriate token dispatcher below in `parseOBJLine`
     for (const line of lines) {
       ++lineNumber;
+      if (line === "") continue;
+
       try {
         const expr: exprPayload = parseOBJLine(line);
 
