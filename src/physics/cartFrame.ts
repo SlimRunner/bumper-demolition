@@ -12,6 +12,7 @@ import {
   affineTransform,
   basisChange,
   PlaneChoice,
+  rotateAboutAxis,
   Vector2,
 } from "../utils/math";
 import { CartField, PlaneField } from "./contactFields";
@@ -26,6 +27,10 @@ export class CartFrame {
   private initial: {
     locations: math.Vector3[];
     carNodeCount: number;
+  };
+  private readonly dimensions: {
+    frameWidth: number;
+    wheelbase: number;
   };
   nodeRanges: {
     CarA: [number, number];
@@ -44,6 +49,10 @@ export class CartFrame {
       cartB: math.Mat4;
     };
   }) {
+    this.dimensions = {
+      frameWidth: props.dimensions.frameWidth,
+      wheelbase: props.dimensions.wheelbase,
+    };
     this.initial = {
       locations: [],
       carNodeCount: 0,
@@ -189,11 +198,11 @@ export class CartFrame {
       new PlaneField(new Set(), math.vec3(0, 1, 0), {
         stiffness: 15000,
         damping: 10,
-        // friction: {
-        //   kinetic: 0.5,
-        //   static: 0.7,
-        //   threshold: 1e-3,
-        // },
+        friction: {
+          kinetic: 0.9,
+          static: 1,
+          threshold: 1e-3,
+        },
         restitution: {
           coefficient: 0.2,
         },
@@ -268,6 +277,8 @@ export class CartFrame {
       CarA: [0, carNodeCount - 1],
       CarB: [carNodeCount, carNodeCount * 2 - 1],
     };
+
+    this.updateTireVectors(0, 0);
   }
 
   resetState() {
@@ -424,4 +435,90 @@ export class CartFrame {
     };
   }
 
+  updateTireVectors(steerAngle: number, thrust: number) {
+    // TODO: WTF? the same angle for both cars? Make sure to fix this
+    // later
+    const pc = this.msdSystem.particles.container;
+
+    const out: {
+      leftAngle: number;
+      rightAngle: number;
+    }[] = [];
+
+    for (const sh of [0, this.initial.carNodeCount]) {
+      const [i0, i1, i2, i3, i4] = [0 + sh, 1 + sh, 2 + sh, 3 + sh, 8 + sh];
+      const upVec = pc[i0].location.minus(pc[i4].location).normalized();
+      const fwdVec = pc[i1].location.minus(pc[i2].location).normalized();
+      const innerAngle = steerAngle;
+      const outerAngle =
+        Math.sign(innerAngle) *
+        Math.atan(
+          this.dimensions.wheelbase /
+            (this.dimensions.frameWidth +
+              this.dimensions.wheelbase / Math.tan(innerAngle)),
+        );
+      let leftAngle;
+      let rightAngle;
+      if (Math.abs(innerAngle) < 1e-6) {
+        leftAngle = 0;
+        rightAngle = 0;
+      } else {
+        leftAngle = innerAngle < 0 ? innerAngle : outerAngle;
+        rightAngle = innerAngle < 0 ? outerAngle : innerAngle;
+      }
+      out.push({
+        leftAngle,
+        rightAngle,
+      });
+
+      // rear tires
+      pc[i2].tireForward = fwdVec;
+      pc[i2].tireThrust = thrust;
+      pc[i3].tireForward = fwdVec;
+      pc[i3].tireThrust = thrust;
+
+      // front tires
+      pc[i0].tireForward = rotateAboutAxis(
+        fwdVec,
+        upVec,
+        leftAngle,
+      ).normalized();
+      pc[i0].tireThrust = thrust;
+      pc[i1].tireForward = rotateAboutAxis(
+        fwdVec,
+        upVec,
+        rightAngle,
+      ).normalized();
+      pc[i1].tireThrust = thrust;
+    }
+
+    return {
+      CarA: out[0],
+      CarB: out[1],
+    };
+  }
+
+  getTireGroundSpeed() {
+    const pc = this.msdSystem.particles.container;
+    const sh = this.initial.carNodeCount;
+    const [i0, i1, i2, i3] = [0, 1, 2, 3];
+    const [j0, j1, j2, j3] = [i0 + sh, i1 + sh, i2 + sh, i3 + sh];
+    const fwdA = pc[i1].location.minus(pc[i2].location).normalized();
+    const fwdB = pc[j1].location.minus(pc[j2].location).normalized();
+    // TODO: compute alternative forward vectors for the front tires (steering)
+    return {
+      CarA: {
+        frontRight: pc[i0].velocity.dot(fwdA),
+        frontLeft: pc[i1].velocity.dot(fwdA),
+        rearLeft: pc[i2].velocity.dot(fwdA),
+        rearRight: pc[i3].velocity.dot(fwdA),
+      },
+      CarB: {
+        frontRight: pc[j0].velocity.dot(fwdB),
+        frontLeft: pc[j1].velocity.dot(fwdB),
+        rearLeft: pc[j2].velocity.dot(fwdB),
+        rearRight: pc[j3].velocity.dot(fwdB),
+      },
+    };
+  }
 }

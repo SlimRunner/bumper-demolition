@@ -26,6 +26,8 @@ export class MSDParticle {
   location: math.Vector3;
   velocity: math.Vector3;
   prevLocation?: math.Vector3;
+  tireForward?: math.Vector3;
+  tireThrust?: number;
 
   tags: Set<ParticleTags>;
   group?: string;
