@@ -1,6 +1,7 @@
 import { ArcJoint, NodeLink } from "../rigging/kinematics";
 import { math } from "../../tiny-graphics-math";
 import { tiny } from "../../tiny-graphics";
+import { clamp, lerp, smoothstep } from "../utils/math";
 
 export type CartNodeNames =
   | "chassis"
@@ -21,6 +22,8 @@ export type CartArcNames =
   | "sawArmJoint1"
   | "sawArmJoint2"
   | "sawHub";
+
+const PI2 = 2 * Math.PI;
 
 export class CartArmature {
   nodes: {
@@ -43,6 +46,34 @@ export class CartArmature {
     sawArmJoint2: ArcJoint;
     sawHub: ArcJoint;
   };
+
+  private _props = {
+    armBlade: {
+      timing: 0,
+      animRate: 2, // units per second
+      bladeAngle: 0,
+      bladeAngSpeed: PI2 * 3,
+      enabled: false,
+      swinging: false,
+    },
+    control: {
+      steer: {
+        maxAngle: (Math.PI * 40) / 180,
+        animRate: 2, // units per second ??
+        direction: 0,
+        angle: 0,
+      },
+      thrust: {
+        target: 0,
+        force: 0,
+      },
+    },
+    spinRR: 0,
+    spinRL: 0,
+    spinFR: 0,
+    spinFL: 0,
+  };
+  private _tireRadius: number;
 
   constructor(props: {
     meshes: {
@@ -86,6 +117,7 @@ export class CartArmature {
     } = props;
 
     const wheelDiameter = tireWallSize + rimSize;
+    this._tireRadius = wheelDiameter / 2;
     const wheelToGroundDist =
       floorClearance + (chassisHeight - wheelDiameter) / 2;
 
@@ -209,7 +241,9 @@ export class CartArmature {
       sawArmJoint2Matrix,
       { rz: { angle: 0.1, limit: [-Math.PI, Math.PI] } },
     );
-    const sawHub = new ArcJoint("sawHub", sawArmLink2, saw, sawHubMatrix, {});
+    const sawHub = new ArcJoint("sawHub", sawArmLink2, saw, sawHubMatrix, {
+      rz: { angle: 0, limit: [-1e100, 1e100] },
+    });
 
     chassis.arcs.push(
       wheelHubFL,
@@ -241,5 +275,140 @@ export class CartArmature {
       sawArmJoint2,
       sawHub,
     };
+  }
+
+  resetState() {
+    this._props = {
+      armBlade: {
+        timing: 0,
+        animRate: 2,
+        bladeAngle: 0,
+        bladeAngSpeed: PI2 * 3,
+        enabled: false,
+        swinging: false,
+      },
+      control: {
+        steer: {
+          maxAngle: (Math.PI * 40) / 180,
+          animRate: 2, // units per second
+          direction: 0,
+          angle: 0,
+        },
+        thrust: {
+          target: 0,
+          force: 0,
+        },
+      },
+      spinRR: 0,
+      spinRL: 0,
+      spinFR: 0,
+      spinFL: 0,
+    };
+    this.arcs.sawArmJoint1.setAngle("rz", -0.1);
+    this.arcs.sawArmJoint2.setAngle("rz", 0.1);
+    this.arcs.sawHub.setAngle("rz", 0);
+    this.arcs.wheelHubFL.setAngle("rz", 0);
+    this.arcs.wheelHubFR.setAngle("rz", 0);
+    this.arcs.wheelHubRL.setAngle("rz", 0);
+    this.arcs.wheelHubRR.setAngle("rz", 0);
+    this.arcs.wheelHubFL.setAngle("ry", 0);
+    this.arcs.wheelHubFR.setAngle("ry", 0);
+  }
+
+  updateTires(
+    velocity: {
+      rearLeft: number;
+      rearRight: number;
+      frontLeft: number;
+      frontRight: number;
+    },
+    time: number,
+  ) {
+    // negated so that < 0 means car is backing up
+    this._props.spinFL -= (velocity.frontLeft / this._tireRadius) * time;
+    this._props.spinFR -= (velocity.frontRight / this._tireRadius) * time;
+    this._props.spinRL -= (velocity.rearLeft / this._tireRadius) * time;
+    this._props.spinRR -= (velocity.rearRight / this._tireRadius) * time;
+
+    this.arcs.wheelHubFL.setAngle("rz", this._props.spinFL % PI2);
+    this.arcs.wheelHubFR.setAngle("rz", this._props.spinFR % PI2);
+    this.arcs.wheelHubRL.setAngle("rz", this._props.spinRL % PI2);
+    this.arcs.wheelHubRR.setAngle("rz", this._props.spinRR % PI2);
+  }
+
+  setBladeStatus(enable: boolean) {
+    this._props.armBlade.enabled = enable;
+  }
+
+  swingArm() {
+    const anim = this._props.armBlade;
+    if (anim.enabled && !anim.swinging) {
+      anim.timing = 0;
+      anim.swinging = true;
+    }
+  }
+
+  updateArm(timeDelta: number) {
+    const anim = this._props.armBlade;
+    if (anim.swinging) {
+      anim.timing = anim.timing + timeDelta * anim.animRate;
+      // reference: https://www.desmos.com/calculator/jaagh3jawk
+      let t = smoothstep(
+        clamp(anim.timing, 0, 1) + clamp(9 - anim.timing, 4, 5) - 5,
+      );
+
+      this.arcs.sawArmJoint1.setAngle("rz", lerp(-0.1, -Math.PI * 0.9, t));
+      this.arcs.sawArmJoint2.setAngle("rz", lerp(0.1, Math.PI * 0.6, t));
+      if (anim.timing > 5) {
+        anim.swinging = false;
+      }
+    }
+    if (anim.enabled) {
+      anim.bladeAngle =
+        (anim.bladeAngle + anim.bladeAngSpeed * timeDelta) % PI2;
+      this.arcs.sawHub.setAngle("rz", -anim.bladeAngle);
+    }
+  }
+
+  updateControls(timeDelta: number) {
+    const {
+      control: { steer, thrust },
+    } = this._props;
+
+    if (steer.angle < steer.direction) {
+      steer.angle = Math.min(
+        steer.direction,
+        steer.angle + steer.animRate * timeDelta,
+      );
+    } else {
+      steer.angle = Math.max(
+        steer.direction,
+        steer.angle - steer.animRate * timeDelta,
+      );
+    }
+    // add animation if need smooth thrust
+    thrust.force = thrust.target;
+  }
+
+  get steerAngle() {
+    return this._props.control.steer.angle * this._props.control.steer.maxAngle;
+  }
+
+  get thrustForce() {
+    return this._props.control.thrust.force;
+  }
+
+  set steerTarget(unit: number) {
+    this._props.control.steer.direction = unit;
+  }
+
+  set thrustForce(thrust: number) {
+    this._props.control.thrust.target = thrust;
+  }
+
+  updateFrontWheels(angleLeft: number, angleRight: number) {
+    // negated so that < 0 means left and vice-versa
+    this.arcs.wheelHubFL.setAngle("ry", -angleLeft);
+    this.arcs.wheelHubFR.setAngle("ry", -angleRight);
   }
 }

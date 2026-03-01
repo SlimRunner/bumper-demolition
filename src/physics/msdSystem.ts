@@ -2,6 +2,7 @@ import { range } from "../utils/iterators";
 import { math } from "../../tiny-graphics-math";
 import { getOrInsertCond } from "../utils/polyfills";
 import { ContactField } from "./contactFields";
+import { clamp } from "../utils/math";
 
 type ParticleProperties = {
   mass: number;
@@ -15,14 +16,7 @@ type SpringProperties = {
   length: number;
 };
 
-type GroundPlaneProperties = {
-  kSpring: number;
-  kDamper: number;
-};
-
-type Triangle = [math.Vector3, math.Vector3, math.Vector3];
-
-export type ParticleTags = "tire" | "structural" | "collidable" | "kinematic";
+export type ParticleTags = "tire" | "structural" | "kinematic";
 
 export interface Collection<T> {
   container: T[];
@@ -33,6 +27,8 @@ export class MSDParticle {
   location: math.Vector3;
   velocity: math.Vector3;
   prevLocation?: math.Vector3;
+  tireForward?: math.Vector3;
+  tireThrust?: number;
 
   tags: Set<ParticleTags>;
   group?: string;
@@ -175,36 +171,87 @@ export class SpringDamperSystem {
         if (field.affects(p)) {
           const dist = field.sdf(p.location);
           const normal = field.normal(p.location);
-          const normalForce = normal.times(normal.dot(FNet));
 
           if (dist < 0) {
             const normSpeed = p.velocity.dot(normal);
             const normVelocity = normal.times(normSpeed);
-            const tangVelocity = p.velocity.minus(normVelocity);
-            // penetration happened
-            // if (field.friction) {
-            //   // compute tangential friction forces
-            //   if (tangVelocity.norm() < field.friction.threshold) {
-            //     // static
-            //     const muS = field.friction.static;
-            //     const fmax = normalForce.norm() * muS;
 
-            //     p.velocity = normVelocity;
-            //   } else {
-            //     // kinetic
-            //   }
-            // }
+            const msdForceMag =
+              -field.stiffness * dist - field.damping * normSpeed;
+            const msdForce = normal.times(msdForceMag);
+            FNet = FNet.plus(msdForce);
+
+            if (field.friction) {
+              if (field.role === "ground" && p.tags.has("tire")) {
+                // traction force
+                const forward = p.tireForward!.normalized();
+                const forwardProj = forward
+                  .minus(normal.times(forward.dot(normal)))
+                  .normalized();
+                const lateral = normal.cross(forwardProj).normalized();
+                // const lateral = normal.cross(forward).normalized();
+                const velFwd = p.velocity.dot(forward);
+                const velLat = p.velocity.dot(lateral);
+
+                const normalLoad = Math.max(0, msdForceMag);
+                // corneringStiffness 20-80
+                const cAlpha = 40;
+                const eps = 0.5; // prevents explosion at low speed
+                const slipAngle = Math.atan2(velLat, Math.abs(velFwd) + eps);
+
+                let forceLatMag = -cAlpha * slipAngle;
+                const mu = 1.2; //field.friction.kinetic;
+                const maxForce = mu * normalLoad;
+
+                forceLatMag = clamp(forceLatMag, -maxForce, maxForce);
+                const forceLat = lateral.times(forceLatMag);
+
+                let forceFwdMag = p.tireThrust ?? 0;
+                // longitudinalStiffness 10-40
+                const cFwd = 3;
+                forceFwdMag -= cFwd * velFwd;
+
+                let forceFwd = forward.times(forceFwdMag);
+                let forceTotal = forceFwd.plus(forceLat);
+
+                const mag = forceTotal.norm();
+                if (mag > maxForce) {
+                  forceTotal.scale_by(maxForce / mag);
+                }
+
+                FNet = FNet.plus(forceTotal);
+              } else {
+                // disabled for now
+                // // compute regular tangential friction forces
+                // const tangVelocity = p.velocity.minus(normVelocity);
+                // if (tangVelocity.norm() < field.friction.threshold) {
+                //   // static
+                //   const muS = field.friction.static;
+                //   const fmax = msdForce.norm() * muS;
+                //   // p.velocity = normVelocity;
+                //   if (tangForce.norm() <= fmax) {
+                //     // zero out tangential force
+                //     FNet = FNet.minus(tangForce);
+                //   } else {
+                //     // subtract fmax along tangent
+                //     FNet = FNet.minus(tangForce.normalized().times(fmax));
+                //   }
+                // } else {
+                //   // kinetic
+                //   const muK = field.friction.kinetic;
+                //   FNet = FNet.minus(
+                //     tangVelocity.normalized().times(normalForce.norm() * muK),
+                //   );
+                // }
+              }
+            }
+
             if (field.restitution && normSpeed < 0) {
               const restitution = normal.times(
                 normSpeed * (1 + field.restitution.coefficient),
               );
               p.velocity = p.velocity.minus(restitution);
             }
-
-            const msdForce = normal.times(
-              field.stiffness * dist + field.damping * normSpeed,
-            );
-            FNet = FNet.minus(msdForce);
           }
         }
       }
@@ -220,6 +267,30 @@ export interface Integrator {
   step(system: SpringDamperSystem, dt: number): void;
 }
 
+export class SymplecticEuler implements Integrator {
+  step(system: SpringDamperSystem, dt: number) {
+    const forces = system.computeForces();
+
+    for (const p of system.particles.container) {
+      if (p.tags.has("kinematic")) continue;
+      const a = forces.get(p)!.times(1 / p.mass);
+
+      const newVel = p.velocity.plus(a.times(dt));
+      if (newVel.every((n) => !Number.isNaN(n))) {
+        p.velocity = newVel;
+      } else {
+        console.warn(["NAN vel in integrator", newVel]);
+      }
+      const newLoc = p.location.plus(p.velocity.times(dt));
+      if (newLoc.every((n) => !Number.isNaN(n))) {
+        p.location = newLoc;
+      } else {
+        console.warn(["NAN loc in integrator", newLoc]);
+      }
+    }
+  }
+}
+
 export class ForwardEuler implements Integrator {
   step(system: SpringDamperSystem, dt: number): void {
     const forces = system.computeForces();
@@ -230,30 +301,6 @@ export class ForwardEuler implements Integrator {
 
       p.location = p.location.plus(p.velocity.times(dt));
       p.velocity = p.velocity.plus(acc.times(dt));
-    }
-  }
-}
-
-export class SymplecticEuler implements Integrator {
-  step(system: SpringDamperSystem, dt: number) {
-    const forces = system.computeForces();
-
-    for (const p of system.particles.container) {
-      if (p.tags.has("kinematic")) continue;
-      const a = forces.get(p)!.times(1 / p.mass);
-
-      const newVel = p.velocity.plus(a.times(dt));
-      if (newVel.every(n => !Number.isNaN(n))) {
-        p.velocity = newVel;
-      } else {
-        console.warn(["NAN vel in integrator", newVel])
-      }
-      const newLoc = p.location.plus(p.velocity.times(dt));
-      if (newLoc.every(n => !Number.isNaN(n))) {
-        p.location = newLoc;
-      } else {
-        console.warn(["NAN loc in integrator", newLoc])
-      }
     }
   }
 }

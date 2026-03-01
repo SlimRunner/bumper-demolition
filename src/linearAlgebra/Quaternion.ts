@@ -23,7 +23,7 @@ export class Quaternion
       this.real + rhs.real,
       this.imag_i + rhs.imag_i,
       this.imag_j + rhs.imag_j,
-      this.imag_k + rhs.imag_k
+      this.imag_k + rhs.imag_k,
     );
   }
 
@@ -32,7 +32,7 @@ export class Quaternion
       this.real - rhs.real,
       this.imag_i - rhs.imag_i,
       this.imag_j - rhs.imag_j,
-      this.imag_k - rhs.imag_k
+      this.imag_k - rhs.imag_k,
     );
   }
 
@@ -41,7 +41,7 @@ export class Quaternion
       factor * this.real,
       factor * this.imag_i,
       factor * this.imag_j,
-      factor * this.imag_k
+      factor * this.imag_k,
     );
   }
 
@@ -62,7 +62,7 @@ export class Quaternion
       this.real * rhs.imag_k +
         this.imag_i * rhs.imag_j -
         this.imag_j * rhs.imag_i +
-        this.imag_k * rhs.real
+        this.imag_k * rhs.real,
     );
   }
 
@@ -98,7 +98,6 @@ export class Quaternion
   }
 
   normSq() {
-    // TODO: hard code
     return (
       this.real * this.real +
       this.imag_i * this.imag_i +
@@ -113,7 +112,7 @@ export class Quaternion
       this.real * this.real +
         this.imag_i * this.imag_i +
         this.imag_j * this.imag_j +
-        this.imag_k * this.imag_k
+        this.imag_k * this.imag_k,
     );
   }
 

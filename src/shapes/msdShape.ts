@@ -1,4 +1,4 @@
-import { SpringDamperSystem } from "src/physics/msdSystem";
+import { SpringDamperSystem } from "../physics/msdSystem";
 import { tiny, Uniforms, MaterialRecord } from "../../tiny-graphics";
 import { math } from "../../tiny-graphics-math";
 import type { DrawableShape } from "./types";

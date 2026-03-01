@@ -98,13 +98,13 @@ export function matrixMult(lhs: number[][], rhs: number[][]) {
 }
 
 export function basisChange(
-  p1: math.Vector3,
-  p2: math.Vector3,
-  p3: math.Vector3,
+  forward: math.Vector3,
+  center: math.Vector3,
+  right: math.Vector3,
   loc: math.Vector3,
 ) {
-  const w = p1.minus(p2).normalized();
-  const v = w.cross(p3.minus(p2)).normalized();
+  const w = forward.minus(center).normalized();
+  const v = w.cross(right.minus(center)).normalized();
   const u = v.cross(w);
 
   return new math.Mat4(
@@ -134,6 +134,53 @@ export function affineTransform(
       mtx[2][2] * tup3[2] +
       mtx[2][3] * affine,
   ];
+}
+
+export function rotateAboutAxis(
+  v: math.Vector3,
+  axis: math.Vector3,
+  angle: number,
+) {
+  // implements Rodrigues' rotation formula
+  const k = axis.normalized();
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+
+  const term1 = v.times(cos);
+  const term2 = k.cross(v).times(sin);
+  const term3 = k.times(k.dot(v) * (1 - cos));
+
+  return term1.plus(term2).plus(term3);
+}
+
+export class Vec3Ext {
+  static max(a: math.Vector3, b: math.Vector3 | number) {
+    if (b instanceof math.Vector3) {
+      return math.vec3(
+        Math.max(a[0], b[0]),
+        Math.max(a[1], b[1]),
+        Math.max(a[2], b[2]),
+      );
+    } else {
+      return math.vec3(Math.max(a[0], b), Math.max(a[1], b), Math.max(a[2], b));
+    }
+  }
+
+  static min(a: math.Vector3, b: math.Vector3 | number) {
+    if (b instanceof math.Vector3) {
+      return math.vec3(
+        Math.min(a[0], b[0]),
+        Math.min(a[1], b[1]),
+        Math.min(a[2], b[2]),
+      );
+    } else {
+      return math.vec3(Math.min(a[0], b), Math.min(a[1], b), Math.min(a[2], b));
+    }
+  }
+
+  static abs(a: math.Vector3) {
+    return math.vec3(Math.abs(a[0]), Math.abs(a[1]), Math.abs(a[2]));
+  }
 }
 
 export class Vector2 extends Float32Array {

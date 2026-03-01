@@ -8,8 +8,16 @@ export function createError(name: string) {
     readonly name: string;
 
     constructor(msg: string);
-    constructor(msg: string, expected: StringParsable, received: StringParsable);
-    constructor(msg: string, expected?: StringParsable, received?: StringParsable) {
+    constructor(
+      msg: string,
+      expected: StringParsable,
+      received: StringParsable,
+    );
+    constructor(
+      msg: string,
+      expected?: StringParsable,
+      received?: StringParsable,
+    ) {
       // Pass remaining arguments (including vendor specific ones) to parent constructor
       super(msg);
 

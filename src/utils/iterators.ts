@@ -28,3 +28,13 @@ export function* range(
     }
   }
 }
+
+export function* enumerate<T>(
+  iter: Iterable<T>,
+): Generator<[number, T], void, unknown> {
+  let i = 0;
+  for (const item of iter) {
+    yield [i++, item];
+  }
+  return;
+}

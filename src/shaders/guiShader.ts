@@ -6,36 +6,33 @@ import {
   MaterialRecord,
 } from "../../tiny-graphics";
 
-export type uvMats = MaterialRecord & {
-  color: math.Vector4;
+export type guiMats = MaterialRecord & {
+  color1: math.Vector4;
+  color2: math.Vector4;
+  hp1: number;
+  hp2: number;
 };
 
-export class SolidColor extends tiny.Shader {
+export class ScreenGUIShader extends tiny.Shader {
   constructor() {
     super();
   }
 
   private shared_glsl_code() {
-    return `precision mediump float;`;
+    return `
+      precision mediump float;
+    `;
   }
 
   vertex_glsl_code() {
     return `
       ${this.shared_glsl_code()}
+
+      attribute vec2 texture_coord;
       attribute vec3 position;
 
-      uniform mat4 projection;
-      uniform mat4 view;
-      uniform mat4 model;
-
       void main() {
-        vec4 p4 = vec4(position, 1.0);
-        // determine view space p4
-        mat4 modelViewMatrix = view * model;
-        vec4 viewModelPosition = modelViewMatrix * p4;
-
-        // determine final 3D position
-        gl_Position = projection * viewModelPosition;
+        gl_Position = vec4(position.xy, 0.0, 1.0);
       }
     `;
   }
@@ -43,10 +40,23 @@ export class SolidColor extends tiny.Shader {
   fragment_glsl_code() {
     return `
       ${this.shared_glsl_code()}
-      uniform vec4 color;
+
+      uniform vec2 resolution;
+      uniform vec4 color1;
+      uniform vec4 color2;
+      uniform float hp1;
+      uniform float hp2;
 
       void main() {
-        gl_FragColor = color;
+        // gl_FragCoord contains the 
+        vec2 uv = (gl_FragCoord.xy - 0.5) / resolution;
+        // vec2 pix = vec2(uv.x, uv.y)
+        // float cross_threshold = cross_hair(uv, 2.0, 10.0);
+        if (gl_FragCoord.x < 500.0) {
+          gl_FragColor = color1;
+        } else {
+          discard;
+        }
       }
     `;
   }
@@ -79,15 +89,12 @@ export class SolidColor extends tiny.Shader {
   private send_material(
     gl: WebGL2RenderingContext,
     gpu: GPUAddresses,
-    material: uvMats,
+    material: guiMats,
   ) {
-    gl.uniform4f(
-      gpu.color,
-      material.color[0],
-      material.color[1],
-      material.color[2],
-      material.color[3],
-    );
+    gl.uniform4fv(gpu.color1, material.color1);
+    gl.uniform4fv(gpu.color2, material.color2);
+    gl.uniform1f(gpu.hp1, material.hp1);
+    gl.uniform1f(gpu.hp2, material.hp2);
   }
 
   update_GPU(
@@ -95,13 +102,17 @@ export class SolidColor extends tiny.Shader {
     gpu_addresses: GPUAddresses,
     uniforms: Uniforms,
     model_transform: math.Mat4,
-    material: uvMats,
+    material: guiMats,
   ): void {
-    // it does not need defaults but here you would add them
     const defaults = {
-      color: math.color(0, 0, 0, 1),
+      fg_color: math.color(1, 1, 1, 1),
+      bg_color: math.color(0, 0, 0, 1),
     };
     material = Object.assign({}, defaults, material);
+    context.uniform2fv(gpu_addresses.resolution, [
+      context.canvas.width,
+      context.canvas.height,
+    ]);
 
     this.send_material(context, gpu_addresses, material);
     this.send_uniforms(context, gpu_addresses, uniforms, model_transform);

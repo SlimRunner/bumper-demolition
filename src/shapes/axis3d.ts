@@ -54,10 +54,16 @@ class AxisArrow extends tiny.Shape {
     material: MaterialRecord,
     type?: keyof WebGL2RenderingContext,
   ): void {
-    super.draw(webgl_manager, uniforms, model_transform, {
-      ...material,
-      color: this.color,
-    }, type);
+    super.draw(
+      webgl_manager,
+      uniforms,
+      model_transform,
+      {
+        ...material,
+        color: this.color,
+      },
+      type,
+    );
   }
 }
 

@@ -28,10 +28,7 @@ export interface Comparable<T> extends Equatable<T> {
 }
 
 export interface Arithmetic<T>
-  extends Additive<T>,
-    Multiplicative<T>,
-    Divisible<T>,
-    Scalable<T> {}
+  extends Additive<T>, Multiplicative<T>, Divisible<T>, Scalable<T> {}
 
 export interface ArithmeticIdentities<T> {
   ZERO: T;

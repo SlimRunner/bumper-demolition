@@ -7,6 +7,8 @@ import {
 import { math } from "../../tiny-graphics-math";
 import { MSDParticle } from "./msdSystem";
 
+export type FieldRole = "ground" | "static boundary" | "dynamic boundary";
+
 /**
  * defines the shared interface for a contact field. These are driven by
  * signed distance function which are very flexible. Penetration is
@@ -18,6 +20,7 @@ export interface ContactField {
   sdf(pos: math.Vector3): number;
   normal(pos: math.Vector3): math.Vector3;
 
+  readonly role: FieldRole;
   stiffness: number;
   damping: number;
   friction?: {
@@ -58,12 +61,14 @@ export class PlaneField implements ContactField {
   };
   private sdfFunc: FunctorSDF<math.Vector3, number>;
   private _normal: math.Vector3;
+  readonly role: FieldRole;
 
   constructor(
     private groupSet: Set<string>,
     normal: math.Vector3,
     props: ContactProps,
   ) {
+    this.role = "ground";
     this.damping = props.damping;
     this.stiffness = props.stiffness;
     this.friction = props.friction;
@@ -97,12 +102,14 @@ export class CartField implements ContactField {
   restitution?: {
     coefficient: number;
   };
+  readonly role: FieldRole;
 
   constructor(
     private groupSet: Set<string>,
     private sdfFunc: FunctorSDF<math.Vector3, number>,
     props: ContactProps,
   ) {
+    this.role = "dynamic boundary";
     this.damping = props.damping;
     this.stiffness = props.stiffness;
     this.friction = props.friction;

@@ -2,7 +2,7 @@
 // - https://iquilezles.org/articles/distfunctions/
 // - https://iquilezles.org/articles/distfunctions2d/
 
-import { clamp, PlaneChoice, vec2, Vector2 } from "../utils/math";
+import { clamp, PlaneChoice, vec2, Vec3Ext, Vector2 } from "../utils/math";
 import { math } from "../../tiny-graphics-math";
 
 // reference: https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-0.html
@@ -68,7 +68,7 @@ export function sdPlane(
   return pt.dot(normal) + height;
 }
 
-export function sdOrientedBoxExt(
+export function sdOrientedRect(
   pt3: math.Vector3,
   a: Vector2,
   b: Vector2,
@@ -97,7 +97,7 @@ export function sdOrientedBoxExt(
  * @param onto plane onto which project the shape
  * @returns distance to pt3
  */
-export function sdOrientedPillExt(
+export function sdOrientedCapsule2D(
   pt3: math.Vector3,
   a: Vector2,
   b: Vector2,
@@ -110,8 +110,30 @@ export function sdOrientedPillExt(
   // modified to make a "directed pill"
 
   const pt = Vector2.from3d(pt3, onto);
-  const pa = pt.minus(a);
-  const ba = b.minus(a);
+  let ba = b.minus(a);
+  let baN2 = b.normalized().times(r);
+  let baN1 = baN2.times(1 / 2);
+  const pa = pt.minus(a).minus(baN1);
+  ba = ba.minus(baN2);
   const h = clamp(pa.dot(ba) / ba.dot(ba), 0, 1);
   return pa.minus(ba.times(h)).norm() - r / 2;
+}
+
+export function sdBox(pt: math.Vector3, b: math.Vector3, c: math.Vector3) {
+  const q = Vec3Ext.abs(pt.minus(c)).minus(b);
+  return (
+    Vec3Ext.max(q, 0).norm() + Math.min(Math.max(q[0], Math.max(q[1], q[2])), 0)
+  );
+}
+
+export function sdRoundBox(pt: math.Vector3, b: math.Vector3, r: number) {
+  const q = Vec3Ext.abs(pt).minus(b);
+  q[0] += r;
+  q[1] += r;
+  q[2] += r;
+  return (
+    Vec3Ext.max(q, 0).norm() +
+    Math.min(Math.max(q[0], Math.max(q[1], q[2])), 0) -
+    r
+  );
 }

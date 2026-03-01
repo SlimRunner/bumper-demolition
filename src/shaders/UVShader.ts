@@ -76,7 +76,9 @@ export class UVShader extends tiny.Shader {
     gl.uniformMatrix4fv(
       gpu.projection,
       false,
-      math.Matrix.flatten_2D_to_1D(uniforms.projection_transform?.transposed()!),
+      math.Matrix.flatten_2D_to_1D(
+        uniforms.projection_transform?.transposed()!,
+      ),
     );
     gl.uniformMatrix4fv(
       gpu.view,
