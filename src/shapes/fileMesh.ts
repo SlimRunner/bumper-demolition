@@ -36,6 +36,8 @@ export class FileMesh extends tiny.Shape {
     let errors = 0;
     const expressions = normalizeLines(objFile);
     const lines = expressions.split("\n");
+    const at = <T>(arr: Array<T>, n: number) =>
+      n > 0 ? arr[n - 1] : arr[arr.length + n];
 
     const vertices: math.Vector3[] = [];
     const vertNormals: math.Vector3[] = [];
@@ -110,17 +112,15 @@ export class FileMesh extends tiny.Shape {
     // here is where all the data is pushed into the tiny-graphics Shape
     for (const tri of faces) {
       for (const idx of tri) {
-        if (this._transform) {
-          this.arrays.position!.push(vertices[idx.vertex - 1]);
-          this.arrays.normal!.push(vertNormals[idx.normal - 1]);
-        } else {
-          this.arrays.position!.push(vertices[idx.vertex - 1]);
-          this.arrays.normal!.push(vertNormals[idx.normal - 1]);
+        this.arrays.position!.push(at(vertices, idx.vertex));
+        if (idx.ident === "V-T" || idx.ident === "V-T-N") {
+          this.arrays.texture_coord!.push(at(textures, idx.texture));
         }
-        this.arrays.texture_coord!.push(textures[idx.texture - 1]);
+        if (idx.ident === "V-N" || idx.ident === "V-T-N") {
+          this.arrays.normal!.push(at(vertNormals, idx.normal));
+        }
       }
     }
-
     this._ready = true;
   }
 
@@ -178,11 +178,31 @@ type VertexExpr = {
   };
 };
 
-type FaceIndexPack = {
+type FacePack_V = {
+  ident: "V";
+  vertex: number;
+};
+
+type FacePack_VT = {
+  ident: "V-T";
+  vertex: number;
+  texture: number;
+};
+
+type FacePack_VTN = {
+  ident: "V-T-N";
   vertex: number;
   texture: number;
   normal: number;
 };
+
+type FacePack_VN = {
+  ident: "V-N";
+  vertex: number;
+  normal: number;
+};
+
+type FaceIndexPack = FacePack_V | FacePack_VT | FacePack_VTN | FacePack_VN;
 
 type FaceExpr = {
   ident: "f";
@@ -352,29 +372,72 @@ function tokenVtTexture(tokens: TokenStream): VTexExpr {
 function tokenFace(tokens: TokenStream): FaceExpr {
   assertToken(
     tokens.remaining === 3,
-    `'f' expects 3 parameters, ${tokens.remaining} found`,
+    `this parser only supports triangles, ${tokens.remaining} tokens were found.`,
   );
 
   const params: FaceIndexPack[] = [];
 
   for (let i = 0; i < 3; ++i) {
     const vInfo = new TokenStream(tokens.next().split("/"));
-    assertToken(vInfo.remaining === 3, `only 'v/vt/vn' is supported`);
-    const vertex = isNumeric(vInfo.next());
-    assertToken(vertex != null && vertex >= 0 && Number.isInteger(vertex), "");
-    const texture = isNumeric(vInfo.next());
-    assertToken(
-      texture != null && texture >= 0 && Number.isInteger(texture),
-      "",
-    );
-    const normal = isNumeric(vInfo.next());
-    assertToken(normal != null && normal >= 0 && Number.isInteger(normal), "");
 
-    params.push({
-      normal,
-      texture,
-      vertex,
-    });
+    switch (vInfo.remaining) {
+      case 1:
+        {
+          const vertex = isNumeric(vInfo.next());
+          assertToken(
+            vertex != null && vertex !== 0 && Number.isInteger(vertex),
+            "vertex index must be a non-zero integer",
+          );
+          params.push({ ident: "V", vertex });
+        }
+        break;
+      case 2:
+        {
+          const vertex = isNumeric(vInfo.next());
+          assertToken(
+            vertex != null && vertex !== 0 && Number.isInteger(vertex),
+            "vertex index must be a non-zero integer",
+          );
+          const texture = isNumeric(vInfo.next());
+          assertToken(
+            texture != null && texture !== 0 && Number.isInteger(texture),
+            "texture index must be a non-zero integer",
+          );
+          params.push({ ident: "V-T", vertex, texture });
+        }
+        break;
+      case 3:
+        {
+          const vertex = isNumeric(vInfo.next());
+          assertToken(
+            vertex != null && vertex !== 0 && Number.isInteger(vertex),
+            "vertex index must be a non-zero integer",
+          );
+          // empty one must be consumed anyway
+          const textureOpt = vInfo.next();
+          const normal = isNumeric(vInfo.next());
+          assertToken(
+            normal != null && normal !== 0 && Number.isInteger(normal),
+            "normal index must be a non-zero integer",
+          );
+          if (textureOpt === "") {
+            params.push({ ident: "V-N", vertex, normal });
+          } else {
+            const texture = isNumeric(textureOpt);
+            assertToken(
+              texture != null && texture !== 0 && Number.isInteger(texture),
+              "texture index must be a non-zero integer",
+            );
+            params.push({ ident: "V-T-N", vertex, texture, normal });
+          }
+        }
+        break;
+      default:
+        assertToken(
+          false,
+          `incorrect face element syntax found. Items are at most 3, ${vInfo.remaining} found`,
+        );
+    }
   }
 
   return {
