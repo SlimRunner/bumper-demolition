@@ -68,7 +68,7 @@ export function sdPlane(
   return pt.dot(normal) + height;
 }
 
-export function sdOrientedBoxExt(
+export function sdOrientedRect(
   pt3: math.Vector3,
   a: Vector2,
   b: Vector2,
@@ -97,7 +97,7 @@ export function sdOrientedBoxExt(
  * @param onto plane onto which project the shape
  * @returns distance to pt3
  */
-export function sdOrientedPillExt(
+export function sdOrientedCapsule2D(
   pt3: math.Vector3,
   a: Vector2,
   b: Vector2,

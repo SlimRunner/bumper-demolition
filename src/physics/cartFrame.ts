@@ -8,9 +8,14 @@ import {
   SpringDamperSystem,
   SymplecticEuler,
 } from "./msdSystem";
-import { affineTransform, basisChange, PlaneChoice } from "../utils/math";
+import {
+  affineTransform,
+  basisChange,
+  PlaneChoice,
+  Vector2,
+} from "../utils/math";
 import { CartField, PlaneField } from "./contactFields";
-import { curryDyn, sdBox } from "../linearAlgebra/sdfs";
+import { curryDyn, sdOrientedRect } from "../linearAlgebra/sdfs";
 import { range } from "../utils/iterators";
 
 export class CartFrame {
@@ -58,6 +63,7 @@ export class CartFrame {
     const wy3 = wy2 * Math.SQRT1_2;
     const wz = props.dimensions.frameWidth / 2;
     const wz2 = wz * Math.SQRT1_2;
+
     // prettier-ignore
     const pArr: Array<[number, number, number, number, ParticleTags[]]> = [
       // floor nodes
@@ -99,89 +105,30 @@ export class CartFrame {
       return p;
     });
 
+    // refer to expression 33 and 47 of this graph for springs
+    // https://www.desmos.com/3d/yuzllbjcyx
+
+    // prettier-ignore
     const pairs: Array<[number, number]> = [
-      [0, 1],
-      [1, 2],
-      [2, 3],
-      [3, 0],
-      [0, 2],
-      [1, 3],
-      [0, 4],
-      [0, 7],
-      [0, 8],
-      [1, 4],
-      [1, 5],
-      [1, 9],
-      [2, 5],
-      [2, 6],
-      [2, 10],
-      [3, 6],
-      [3, 7],
-      [3, 11],
-      [8, 4],
-      [8, 7],
-      [9, 4],
-      [9, 5],
-      [10, 5],
-      [10, 6],
-      [11, 6],
-      [11, 7],
-      [8, 9],
-      [9, 10],
-      [10, 11],
-      [11, 8],
-      [8, 10],
-      [9, 11],
-      [4, 5],
-      [5, 6],
-      [6, 7],
-      [7, 4],
-      [4, 6],
-      [5, 7],
-      [0, 10],
-      [1, 11],
-      [2, 8],
-      [3, 9],
-      [4, 12],
-      [4, 13],
-      [4, 14],
-      [4, 15],
-      [6, 16],
-      [6, 17],
-      [6, 18],
-      [6, 19],
-      [12, 13],
-      [13, 14],
-      [14, 15],
-      [15, 12],
-      [16, 17],
-      [17, 18],
-      [18, 19],
-      [19, 16],
-      [12, 0],
-      [12, 8],
-      [12, 9],
-      [13, 1],
-      [13, 8],
-      [13, 9],
-      [14, 0],
-      [14, 1],
-      [14, 9],
-      [15, 1],
-      [15, 0],
-      [15, 8],
-      [16, 3],
-      [16, 10],
-      [16, 11],
-      [17, 2],
-      [17, 10],
-      [17, 11],
-      [18, 2],
-      [18, 3],
-      [18, 10],
-      [19, 3],
-      [19, 2],
-      [19, 11],
+      [0, 1], [1, 2], [2, 3], [3, 0], [0, 2], [1, 3],
+      [0, 4], [0, 7], [0, 8], [1, 4], [1, 5], [1, 9],
+      [2, 5], [2, 6], [2, 10], [3, 6], [3, 7], [3, 11],
+      [8, 4], [8, 7], [9, 4], [9, 5], [10, 5], [10, 6],
+      [11, 6], [11, 7], [8, 9], [9, 10], [10, 11], [11, 8],
+      [8, 10], [9, 11], [4, 5], [5, 6], [6, 7], [7, 4],
+      [4, 6], [5, 7], [0, 10], [1, 11], [2, 8], [3, 9],
+      [4, 12], [4, 13], [4, 14], [4, 15], [6, 16], [6, 17],
+      [6, 18], [6, 19], [12, 13], [13, 14], [14, 15], [15, 12],
+      [16, 17], [17, 18], [18, 19], [19, 16], [12, 0], [12, 8],
+      [12, 9], [13, 1], [13, 8], [13, 9], [14, 0], [14, 1],
+      [14, 9], [15, 1], [15, 0], [15, 8], [16, 3], [16, 10],
+      [16, 11], [17, 2], [17, 10], [17, 11], [18, 2], [18, 3],
+      [18, 10], [19, 3], [19, 2], [19, 11], [12, 2], [12, 3],
+      [12, 10], [12, 11], [13, 2], [13, 3], [13, 10], [13, 11],
+      [14, 2], [14, 3], [14, 10], [14, 11], [15, 2], [15, 3],
+      [15, 10], [15, 11], [16, 0], [16, 1], [16, 8], [16, 9],
+      [17, 0], [17, 1], [17, 8], [17, 9], [18, 0], [18, 1],
+      [18, 8], [18, 9], [19, 0], [19, 1], [19, 8], [19, 9],
     ];
     pairs.push(
       ...pairs.map(
@@ -254,14 +201,18 @@ export class CartFrame {
       }),
       new CartField(
         new Set(["CarB"]),
-        curryDyn(sdBox, () => {
-          const { min: A, max: B } = this.getBoundingBox([0, carNodeCount - 1]);
-          const center = B.plus(A);
-          center.scale_by(0.5);
-          const symmMax = B.minus(A);
-          symmMax.scale_by(0.5);
+        curryDyn(sdOrientedRect, () => {
+          const dir = this.getOrientation();
+          const rear = Vector2.from3d(
+            dir.mid.minus(dir.fwd.times(wx2)),
+            plChoice,
+          );
+          const front = Vector2.from3d(
+            dir.mid.plus(dir.fwd.times(wx2)),
+            plChoice,
+          );
 
-          return [symmMax, center];
+          return [rear, front, wz, plChoice];
         }),
         {
           stiffness: 15000,
@@ -279,17 +230,18 @@ export class CartFrame {
       ),
       new CartField(
         new Set(["CarA"]),
-        curryDyn(sdBox, () => {
-          const { min: A, max: B } = this.getBoundingBox([
-            carNodeCount,
-            carNodeCount * 2 - 1,
-          ]);
-          const center = B.plus(A);
-          center.scale_by(0.5);
-          const symmMax = B.minus(A);
-          symmMax.scale_by(0.5);
+        curryDyn(sdOrientedRect, () => {
+          const dir = this.getOrientation(carNodeCount);
+          const rear = Vector2.from3d(
+            dir.mid.minus(dir.fwd.times(wx2)),
+            plChoice,
+          );
+          const front = Vector2.from3d(
+            dir.mid.plus(dir.fwd.times(wx2)),
+            plChoice,
+          );
 
-          return [symmMax, center];
+          return [rear, front, wz, plChoice];
         }),
         {
           stiffness: 15000,
@@ -332,53 +284,55 @@ export class CartFrame {
 
   private averageBumperFront(sh: number = 0) {
     //0 1 8 9 12 13 14 15
+    const [i0, i1, i2, i3] = [12, 13, 14, 15];
     const pc = this.msdSystem.particles.container;
     const x =
-      (pc[0 + sh].location[0] +
-        pc[1 + sh].location[0] +
-        pc[8 + sh].location[0] +
-        pc[9 + sh].location[0]) /
+      (pc[i0 + sh].location[0] +
+        pc[i1 + sh].location[0] +
+        pc[i2 + sh].location[0] +
+        pc[i3 + sh].location[0]) /
       4;
     const y =
-      (pc[0 + sh].location[1] +
-        pc[1 + sh].location[1] +
-        pc[8 + sh].location[1] +
-        pc[9 + sh].location[1]) /
+      (pc[i0 + sh].location[1] +
+        pc[i1 + sh].location[1] +
+        pc[i2 + sh].location[1] +
+        pc[i3 + sh].location[1]) /
       4;
     const z =
-      (pc[0 + sh].location[2] +
-        pc[1 + sh].location[2] +
-        pc[8 + sh].location[2] +
-        pc[9 + sh].location[2]) /
+      (pc[i0 + sh].location[2] +
+        pc[i1 + sh].location[2] +
+        pc[i2 + sh].location[2] +
+        pc[i3 + sh].location[2]) /
       4;
     return math.vec3(x, y, z);
   }
 
   private averageBumperRear(sh: number = 0) {
     // 2 3 10 11 16 17 18 19
+    const [i0, i1, i2, i3] = [16, 17, 18, 19];
     const pc = this.msdSystem.particles.container;
     const x =
-      (pc[2 + sh].location[0] +
-        pc[3 + sh].location[0] +
-        pc[10 + sh].location[0] +
-        pc[11 + sh].location[0]) /
+      (pc[i0 + sh].location[0] +
+        pc[i1 + sh].location[0] +
+        pc[i2 + sh].location[0] +
+        pc[i3 + sh].location[0]) /
       4;
     const y =
-      (pc[2 + sh].location[1] +
-        pc[3 + sh].location[1] +
-        pc[10 + sh].location[1] +
-        pc[11 + sh].location[1]) /
+      (pc[i0 + sh].location[1] +
+        pc[i1 + sh].location[1] +
+        pc[i2 + sh].location[1] +
+        pc[i3 + sh].location[1]) /
       4;
     const z =
-      (pc[2 + sh].location[2] +
-        pc[3 + sh].location[2] +
-        pc[10 + sh].location[2] +
-        pc[11 + sh].location[2]) /
+      (pc[i0 + sh].location[2] +
+        pc[i1 + sh].location[2] +
+        pc[i2 + sh].location[2] +
+        pc[i3 + sh].location[2]) /
       4;
     return math.vec3(x, y, z);
   }
 
-  getBoundingBoxCenter(nodeRange: [number, number]) {
+  getAverage(nodeRange: [number, number]) {
     const [a, b] = nodeRange;
     let x = 0;
     let y = 0;
@@ -392,7 +346,7 @@ export class CartFrame {
     x /= b - a + 1;
     y /= b - a + 1;
     z /= b - a + 1;
-    return;
+    return math.vec3(x, y, z);
   }
 
   getBoundingBox(nodeRange: [number, number]) {
@@ -459,4 +413,15 @@ export class CartFrame {
       mtxCarB: Mb,
     };
   }
+
+  getOrientation(sh: number = 0) {
+    const pc = this.msdSystem.particles.container;
+    const [i0, i1, i2, i3] = [0 + sh, 1 + sh, 2 + sh, 3 + sh];
+    return {
+      fwd: pc[i1].location.minus(pc[i2].location).normalized(),
+      side: pc[i3].location.minus(pc[i2].location).normalized(),
+      mid: this.getAverage([i0, i3 + 1]),
+    };
+  }
+
 }
