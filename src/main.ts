@@ -10,7 +10,7 @@ import { CartArmature, CartNodeNames } from "./rigging/cartArmature";
 import { CartFrame } from "./physics/cartFrame";
 import { MSDFrameShape } from "./shapes/msdShape";
 import { range } from "./utils/iterators";
-import { basisChange } from "./utils/math";
+import { basisChange, clamp, lerp, smoothstep } from "./utils/math";
 import { FileMesh } from "./shapes/fileMesh";
 
 export class BumperCarsBase extends tiny.Component {
@@ -98,8 +98,8 @@ export class BumperCarsBase extends tiny.Component {
       },
     };
 
-    const grid = new SimpleGrid(11, 11, { x: [-5, 5], z: [-5, 5] });
-    const discShape = new defs.Regular_2D_Polygon(1, 16);
+    const grid = new SimpleGrid(51, 51, { x: [-25, 25], z: [-25, 25] });
+    const discShape = new defs.Regular_2D_Polygon(1, 5);
     const cubeShape = new defs.Cube();
     const sphereShape = new defs.Subdivision_Sphere(4);
     const closedTube = new defs.Capped_Cylinder(1, 24, [
@@ -170,7 +170,7 @@ export class BumperCarsBase extends tiny.Component {
         cartA: math.Mat4.translation(0, 0, 6).times(
           math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
         ),
-        cartB: math.Mat4.translation(1, 0, -2).times(
+        cartB: math.Mat4.translation(-5, 0, -2).times(
           math.Mat4.rotation(0, 0, 1, 0),
         ),
       },
@@ -291,6 +291,8 @@ export class BumperCars extends BumperCarsBase {
       const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
       const timeMult = this.globalProps.timeMultiplier;
 
+      const carAngles = cartMSD.updateTireVectors(Math.PI * 20/180, 30);
+
       if (timeDelta > 0) {
         const timeStep = cartMSD.timeStep;
         // may miss the last target (do it manually after the loop)
@@ -305,6 +307,14 @@ export class BumperCars extends BumperCarsBase {
           cartMSD.integrator.step(cartMSD.msdSystem, remainder * timeMult);
         }
       }
+
+      const groundSpeeds = this.physics.cartMSD.getTireGroundSpeed();
+      this.armatures.cartA.updateTires(groundSpeeds.CarA, timeDelta * timeMult);
+      this.armatures.cartB.updateTires(groundSpeeds.CarB, timeDelta * timeMult);
+      this.armatures.cartA.setSteer(carAngles.CarA.leftAngle, carAngles.CarA.rightAngle);
+      this.armatures.cartB.setSteer(carAngles.CarB.leftAngle, carAngles.CarB.rightAngle);
+      this.armatures.cartA.updateArm(timeDelta * timeMult);
+      this.armatures.cartB.updateArm(timeDelta * timeMult);
     }
 
     // this pattern can be used to create a sky texture later
@@ -359,7 +369,44 @@ export class BumperCars extends BumperCarsBase {
   }
 
   render_controls(): void {
-    // minimal working example
+    this.live_string((elem) => {
+      elem.textContent = "Car A";
+    });
+    this.key_triggered_button("accelerate", ["w"], () => {
+      // TODO;
+    });
+    this.key_triggered_button("brake", ["s"], () => {
+      // TODO;
+    });
+    this.key_triggered_button("steer left", ["a"], () => {
+      // TODO;
+    });
+    this.key_triggered_button("steer right", ["d"], () => {
+      // TODO;
+    });
+    this.key_triggered_button("swing blade", ["e"], () => {
+      this.armatures.cartA.setBladeStatus(true);
+      this.armatures.cartA.swingArm();
+    });
+    this.live_string((elem) => {
+      elem.textContent = "Car B";
+    });
+    this.key_triggered_button("accelerate", ["8"], () => {
+      // TODO;
+    });
+    this.key_triggered_button("brake", ["5"], () => {
+      // TODO;
+    });
+    this.key_triggered_button("steer left", ["4"], () => {
+      // TODO;
+    });
+    this.key_triggered_button("steer right", ["6"], () => {
+      // TODO;
+    });
+    this.key_triggered_button("swing blade", ["7"], () => {
+      this.armatures.cartB.setBladeStatus(true);
+      this.armatures.cartB.swingArm();
+    });
     this.key_triggered_button("toggle physics", ["p"], () => {
       this.physics.cartMSD.enable = !this.physics.cartMSD.enable;
     });
