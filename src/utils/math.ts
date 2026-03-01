@@ -136,6 +136,19 @@ export function affineTransform(
   ];
 }
 
+export function rotateAboutAxis(v: math.Vector3, axis: math.Vector3, angle: number) {
+  // implements Rodrigues' rotation formula
+  const k = axis.normalized();
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+
+  const term1 = v.times(cos);
+  const term2 = k.cross(v).times(sin);
+  const term3 = k.times(k.dot(v) * (1 - cos));
+
+  return term1.plus(term2).plus(term3);
+}
+
 export class Vec3Ext {
   static max(a: math.Vector3, b: math.Vector3 | number) {
     if (b instanceof math.Vector3) {
