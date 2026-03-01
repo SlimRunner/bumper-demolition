@@ -234,7 +234,11 @@ export class BumperCarsBase extends tiny.Component {
 
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
     super.render_layout(div, options);
+
+    // even if you remove the camera leave this in. We can leverage it
+    // to add a gui with CSS.
     const canvas = this.canvas ?? document.getElementById("canvas")!;
+
     this.globalProps.gcam = new GimbalCamera(canvas, {
       distance: 8,
       pitchAngle: Math.PI / 8,
@@ -288,6 +292,7 @@ export class BumperCars extends BumperCarsBase {
     const cartMSD = this.physics.cartMSD;
     const { cartA, cartB } = this.armatures;
 
+    // do all time related operations inside this if statement
     if (cartMSD.enable && !this.globalProps.isIdling) {
       const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
       const timeMult = this.globalProps.timeMultiplier;
@@ -303,7 +308,7 @@ export class BumperCars extends BumperCarsBase {
 
       if (timeDelta > 0) {
         const timeStep = cartMSD.timeStep;
-        // may miss the last target (do it manually after the loop)
+        // may miss the last target (done manually after the loop)
         const steps = Math.floor(timeDelta / timeStep);
 
         for (const _ of range(steps)) {
@@ -338,6 +343,7 @@ export class BumperCars extends BumperCarsBase {
     const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
     const carAPos = math.vec3(mtxCarA[0][3], mtxCarA[1][3], mtxCarA[2][3]);
     const carBPos = math.vec3(mtxCarB[0][3], mtxCarB[1][3], mtxCarB[2][3]);
+
     switch (this.globalProps.cameraPin) {
       case "detached":
         break;
@@ -350,23 +356,27 @@ export class BumperCars extends BumperCarsBase {
     }
 
     cartA.arcs.root.traverse((joint, node, matrix) => {
-      // discriminate material based on name
+      // can discriminate material based on name
       const name = node.name as CartNodeNames;
       node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
     }, mtxCarA);
     cartB.arcs.root.traverse((joint, node, matrix) => {
-      // discriminate material based on name
+      // can discriminate material based on name
       const name = node.name as CartNodeNames;
       node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
     }, mtxCarB);
 
+    // TODO: remove grid when arena is added
     this.shapes.grid.draw(
       context,
       this.uniforms,
       math.Mat4.identity(),
       this.materials.solid,
     );
+
+    // TODO: remove axis when arena is added
     this.drawables.axes3d.draw(context, this.uniforms, math.Mat4.identity());
+    // TODO: remove frame rending on finished game
     this.drawables.cartFrame.draw(context, this.uniforms, math.Mat4.identity());
   }
 
