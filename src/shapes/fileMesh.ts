@@ -36,6 +36,15 @@ export class FileMesh extends tiny.Shape {
     let errors = 0;
     const expressions = normalizeLines(objFile);
     const lines = expressions.split("\n");
+    const at = <T>(arr: Array<T>, i: number) => {
+      i = i > 0 ? i - 1 : arr.length + i;
+      if (i < 0 || i >= arr.length) {
+        throw new OBJParserError(
+          "Face contains reference to undefined element",
+        );
+      }
+      return arr[i];
+    };
 
     const vertices: math.Vector3[] = [];
     const vertNormals: math.Vector3[] = [];
@@ -49,12 +58,14 @@ export class FileMesh extends tiny.Shape {
     // appropriate token dispatcher below in `parseOBJLine`
     for (const line of lines) {
       ++lineNumber;
+      if (line === "") continue;
+
       try {
         const expr: exprPayload = parseOBJLine(line);
 
         switch (expr.ident) {
           case "mtllib":
-            throw new OBJParserError("not implemented");
+            throw new OBJParserError(`'${expr.ident}' not implemented`);
           case "v":
             if (this._transform) {
               const v = affineTransform(
@@ -86,13 +97,16 @@ export class FileMesh extends tiny.Shape {
             }
             break;
           case "usemtl":
-            throw new OBJParserError("not implemented");
+            throw new OBJParserError(`'${expr.ident}' not implemented`);
           case "s":
-            throw new OBJParserError("not implemented");
+            throw new OBJParserError(`'${expr.ident}' not implemented`);
           case "o":
-            throw new OBJParserError("not implemented");
+            throw new OBJParserError(`'${expr.ident}' not implemented`);
           case "g":
-            throw new OBJParserError("not implemented");
+            throw new OBJParserError(`'${expr.ident}' not implemented`);
+          case "#":
+            // ignore comments
+            break;
           default: // just in case this code is modified in JS
             throw new Error("Parser type safety violated");
         }
@@ -105,22 +119,21 @@ export class FileMesh extends tiny.Shape {
           throw error;
         }
       }
+    }
 
-      // here is where all the data is pushed into the tiny-graphics Shape
-      for (const tri of faces) {
-        for (const idx of tri) {
-          if (this._transform) {
-            this.arrays.position!.push(vertices[idx.vertex - 1]);
-            this.arrays.normal!.push(vertNormals[idx.normal - 1]);
-          } else {
-            this.arrays.position!.push(vertices[idx.vertex - 1]);
-            this.arrays.normal!.push(vertNormals[idx.normal - 1]);
-          }
-          this.arrays.texture_coord!.push(textures[idx.texture - 1]);
+    // here is where all the data is pushed into the tiny-graphics Shape
+    for (const tri of faces) {
+      for (const idx of tri) {
+        this.arrays.position!.push(at(vertices, idx.vertex));
+        if (idx.ident === "V-T" || idx.ident === "V-T-N") {
+          this.arrays.texture_coord!.push(at(textures, idx.texture));
+        }
+        if (idx.ident === "V-N" || idx.ident === "V-T-N") {
+          this.arrays.normal!.push(at(vertNormals, idx.normal));
         }
       }
-      this._ready = true;
     }
+    this._ready = true;
   }
 
   draw(
@@ -163,6 +176,13 @@ class TokenStream {
 type _2tuple = [number, number];
 type _3tuple<T> = [T, T, T];
 
+type CommentExpr = {
+  ident: "#";
+  params: {
+    message: string;
+  };
+};
+
 type MTLExpr = {
   ident: "mtllib";
   params: {
@@ -177,11 +197,31 @@ type VertexExpr = {
   };
 };
 
-type FaceIndexPack = {
+type FacePack_V = {
+  ident: "V";
+  vertex: number;
+};
+
+type FacePack_VT = {
+  ident: "V-T";
+  vertex: number;
+  texture: number;
+};
+
+type FacePack_VTN = {
+  ident: "V-T-N";
   vertex: number;
   texture: number;
   normal: number;
 };
+
+type FacePack_VN = {
+  ident: "V-N";
+  vertex: number;
+  normal: number;
+};
+
+type FaceIndexPack = FacePack_V | FacePack_VT | FacePack_VTN | FacePack_VN;
 
 type FaceExpr = {
   ident: "f";
@@ -233,6 +273,7 @@ type groupExpr = {
 };
 
 export type exprPayload =
+  | CommentExpr
   | MTLExpr
   | VertexExpr
   | FaceExpr
@@ -264,8 +305,10 @@ function parseOBJLine(expression: string): exprPayload {
   assertToken(head != null, "expression is empty");
 
   switch (head) {
+    case "#":
+      return tokenComment(tokens);
     case "mtllib":
-      return tokenDummy(tokens);
+      assertToken(false, `Implementation pending: '${head}'`);
     case "v":
       return tokenVertex(tokens);
     case "f":
@@ -275,16 +318,25 @@ function parseOBJLine(expression: string): exprPayload {
     case "vn":
       return tokenVNormal(tokens);
     case "usemtl":
-      return tokenDummy(tokens);
+      assertToken(false, `Implementation pending: '${head}'`);
     case "s":
-      return tokenDummy(tokens);
+      assertToken(false, `Implementation pending: '${head}'`);
     case "o":
-      return tokenDummy(tokens);
+      assertToken(false, `Implementation pending: '${head}'`);
     case "g":
-      return tokenDummy(tokens);
+      assertToken(false, `Implementation pending: '${head}'`);
     default:
-      assertToken(false, `Unrecognized function found ${head}`);
+      assertToken(false, `Unrecognized function found: '${head}'`);
   }
+}
+
+function tokenComment(tokens: TokenStream): CommentExpr {
+  return {
+    ident: "#",
+    params: {
+      message: tokens.next(),
+    },
+  };
 }
 
 function tokenVertex(tokens: TokenStream): VertexExpr {
@@ -294,11 +346,11 @@ function tokenVertex(tokens: TokenStream): VertexExpr {
   );
 
   const x = isNumeric(tokens.next());
-  assertToken(x != null, "");
+  assertToken(x != null, "x-coord in vertex not numeric");
   const y = isNumeric(tokens.next());
-  assertToken(y != null, "");
+  assertToken(y != null, "y-coord in vertex not numeric");
   const z = isNumeric(tokens.next());
-  assertToken(z != null, "");
+  assertToken(z != null, "z-coord in vertex not numeric");
 
   return {
     ident: "v",
@@ -315,11 +367,11 @@ function tokenVNormal(tokens: TokenStream): VNormExpr {
   );
 
   const x = isNumeric(tokens.next());
-  assertToken(x != null, "");
+  assertToken(x != null, "x-coord in normal not numeric");
   const y = isNumeric(tokens.next());
-  assertToken(y != null, "");
+  assertToken(y != null, "y-coord in normal not numeric");
   const z = isNumeric(tokens.next());
-  assertToken(z != null, "");
+  assertToken(z != null, "z-coord in normal not numeric");
 
   return {
     ident: "vn",
@@ -336,9 +388,9 @@ function tokenVtTexture(tokens: TokenStream): VTexExpr {
   );
 
   const u = isNumeric(tokens.next());
-  assertToken(u != null, "");
+  assertToken(u != null, "u-coord in texture is not numeric");
   const v = isNumeric(tokens.next());
-  assertToken(v != null, "");
+  assertToken(v != null, "v-coord in texture is not numeric");
 
   return {
     ident: "vt",
@@ -351,29 +403,72 @@ function tokenVtTexture(tokens: TokenStream): VTexExpr {
 function tokenFace(tokens: TokenStream): FaceExpr {
   assertToken(
     tokens.remaining === 3,
-    `'f' expects 3 parameters, ${tokens.remaining} found`,
+    `this parser only supports triangles, ${tokens.remaining} tokens were found.`,
   );
 
   const params: FaceIndexPack[] = [];
 
   for (let i = 0; i < 3; ++i) {
     const vInfo = new TokenStream(tokens.next().split("/"));
-    assertToken(vInfo.remaining === 3, `only 'v/vt/vn' is supported`);
-    const vertex = isNumeric(vInfo.next());
-    assertToken(vertex != null && vertex >= 0 && Number.isInteger(vertex), "");
-    const texture = isNumeric(vInfo.next());
-    assertToken(
-      texture != null && texture >= 0 && Number.isInteger(texture),
-      "",
-    );
-    const normal = isNumeric(vInfo.next());
-    assertToken(normal != null && normal >= 0 && Number.isInteger(normal), "");
 
-    params.push({
-      normal,
-      texture,
-      vertex,
-    });
+    switch (vInfo.remaining) {
+      case 1:
+        {
+          const vertex = isNumeric(vInfo.next());
+          assertToken(
+            vertex != null && vertex !== 0 && Number.isInteger(vertex),
+            "vertex index must be a non-zero integer",
+          );
+          params.push({ ident: "V", vertex });
+        }
+        break;
+      case 2:
+        {
+          const vertex = isNumeric(vInfo.next());
+          assertToken(
+            vertex != null && vertex !== 0 && Number.isInteger(vertex),
+            "vertex index must be a non-zero integer",
+          );
+          const texture = isNumeric(vInfo.next());
+          assertToken(
+            texture != null && texture !== 0 && Number.isInteger(texture),
+            "texture index must be a non-zero integer",
+          );
+          params.push({ ident: "V-T", vertex, texture });
+        }
+        break;
+      case 3:
+        {
+          const vertex = isNumeric(vInfo.next());
+          assertToken(
+            vertex != null && vertex !== 0 && Number.isInteger(vertex),
+            "vertex index must be a non-zero integer",
+          );
+          // empty one must be consumed anyway
+          const textureOpt = vInfo.next();
+          const normal = isNumeric(vInfo.next());
+          assertToken(
+            normal != null && normal !== 0 && Number.isInteger(normal),
+            "normal index must be a non-zero integer",
+          );
+          if (textureOpt === "") {
+            params.push({ ident: "V-N", vertex, normal });
+          } else {
+            const texture = isNumeric(textureOpt);
+            assertToken(
+              texture != null && texture !== 0 && Number.isInteger(texture),
+              "texture index must be a non-zero integer",
+            );
+            params.push({ ident: "V-T-N", vertex, texture, normal });
+          }
+        }
+        break;
+      default:
+        assertToken(
+          false,
+          `incorrect face element syntax found: ${vInfo.remaining} > 3`,
+        );
+    }
   }
 
   return {
@@ -382,8 +477,4 @@ function tokenFace(tokens: TokenStream): FaceExpr {
       indices: [params[0], params[1], params[2]],
     },
   };
-}
-
-function tokenDummy(tokens: TokenStream): exprPayload {
-  assertToken(false, "not implemented yet");
 }
