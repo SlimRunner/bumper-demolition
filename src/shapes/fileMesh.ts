@@ -56,7 +56,7 @@ export class FileMesh extends tiny.Shape {
 
         switch (expr.ident) {
           case "mtllib":
-            throw new OBJParserError("not implemented");
+            throw new OBJParserError(`'${expr.ident}' not implemented`);
           case "v":
             if (this._transform) {
               const v = affineTransform(
@@ -88,13 +88,13 @@ export class FileMesh extends tiny.Shape {
             }
             break;
           case "usemtl":
-            throw new OBJParserError("not implemented");
+            throw new OBJParserError(`'${expr.ident}' not implemented`);
           case "s":
-            throw new OBJParserError("not implemented");
+            throw new OBJParserError(`'${expr.ident}' not implemented`);
           case "o":
-            throw new OBJParserError("not implemented");
+            throw new OBJParserError(`'${expr.ident}' not implemented`);
           case "g":
-            throw new OBJParserError("not implemented");
+            throw new OBJParserError(`'${expr.ident}' not implemented`);
           default: // just in case this code is modified in JS
             throw new Error("Parser type safety violated");
         }
@@ -286,7 +286,7 @@ function parseOBJLine(expression: string): exprPayload {
 
   switch (head) {
     case "mtllib":
-      return tokenDummy(tokens);
+      assertToken(false, `Implementation pending: '${head}'`);
     case "v":
       return tokenVertex(tokens);
     case "f":
@@ -296,15 +296,15 @@ function parseOBJLine(expression: string): exprPayload {
     case "vn":
       return tokenVNormal(tokens);
     case "usemtl":
-      return tokenDummy(tokens);
+      assertToken(false, `Implementation pending: '${head}'`);
     case "s":
-      return tokenDummy(tokens);
+      assertToken(false, `Implementation pending: '${head}'`);
     case "o":
-      return tokenDummy(tokens);
+      assertToken(false, `Implementation pending: '${head}'`);
     case "g":
-      return tokenDummy(tokens);
+      assertToken(false, `Implementation pending: '${head}'`);
     default:
-      assertToken(false, `Unrecognized function found ${head}`);
+      assertToken(false, `Unrecognized function found: '${head}'`);
   }
 }
 
@@ -315,11 +315,11 @@ function tokenVertex(tokens: TokenStream): VertexExpr {
   );
 
   const x = isNumeric(tokens.next());
-  assertToken(x != null, "");
+  assertToken(x != null, "x-coord in vertex not numeric");
   const y = isNumeric(tokens.next());
-  assertToken(y != null, "");
+  assertToken(y != null, "y-coord in vertex not numeric");
   const z = isNumeric(tokens.next());
-  assertToken(z != null, "");
+  assertToken(z != null, "z-coord in vertex not numeric");
 
   return {
     ident: "v",
@@ -336,11 +336,11 @@ function tokenVNormal(tokens: TokenStream): VNormExpr {
   );
 
   const x = isNumeric(tokens.next());
-  assertToken(x != null, "");
+  assertToken(x != null, "x-coord in normal not numeric");
   const y = isNumeric(tokens.next());
-  assertToken(y != null, "");
+  assertToken(y != null, "y-coord in normal not numeric");
   const z = isNumeric(tokens.next());
-  assertToken(z != null, "");
+  assertToken(z != null, "z-coord in normal not numeric");
 
   return {
     ident: "vn",
@@ -357,9 +357,9 @@ function tokenVtTexture(tokens: TokenStream): VTexExpr {
   );
 
   const u = isNumeric(tokens.next());
-  assertToken(u != null, "");
+  assertToken(u != null, "u-coord in texture is not numeric");
   const v = isNumeric(tokens.next());
-  assertToken(v != null, "");
+  assertToken(v != null, "v-coord in texture is not numeric");
 
   return {
     ident: "vt",
@@ -435,7 +435,7 @@ function tokenFace(tokens: TokenStream): FaceExpr {
       default:
         assertToken(
           false,
-          `incorrect face element syntax found. Items are at most 3, ${vInfo.remaining} found`,
+          `incorrect face element syntax found: ${vInfo.remaining} > 3`,
         );
     }
   }
@@ -446,8 +446,4 @@ function tokenFace(tokens: TokenStream): FaceExpr {
       indices: [params[0], params[1], params[2]],
     },
   };
-}
-
-function tokenDummy(tokens: TokenStream): exprPayload {
-  assertToken(false, "not implemented yet");
 }
