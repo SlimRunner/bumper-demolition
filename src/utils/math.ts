@@ -1,10 +1,10 @@
 import { math } from "../../tiny-graphics-math";
 
-type tuple4 = [number, number, number];
-type tuple3 = [number, number, number];
-type tuple2 = [number, number];
-type matrix3x3 = [tuple3, tuple3, tuple3];
-type matrix4x4 = [tuple4, tuple4, tuple4, tuple4];
+export type tuple4 = [number, number, number];
+export type tuple3 = [number, number, number];
+export type tuple2 = [number, number];
+export type matrix3x3 = [tuple3, tuple3, tuple3];
+export type matrix4x4 = [tuple4, tuple4, tuple4, tuple4];
 
 export enum VectorKind {
   vector = 0,
@@ -48,6 +48,14 @@ export function transposeMatrix<T>(src: T[][]) {
 
 export function clamp(num: number, min: number, max: number) {
   return Math.max(min, Math.min(max, num));
+}
+
+export function clampV3(num: math.Vector3, min: number, max: number) {
+  return math.vec3(
+    clamp(num[0], min, max),
+    clamp(num[1], min, max),
+    clamp(num[2], min, max),
+  );
 }
 
 export function vecTransform(lhs: number[][], vec: number[]) {
@@ -113,6 +121,17 @@ export function basisChange(
     [u[2], v[2], w[2], loc[2]],
     [0, 0, 0, 1],
   );
+}
+
+export function linearTransform(
+  mtx: math.Matrix<3, 3> | matrix3x3,
+  tup3: math.Vector3 | math.Vector<3> | tuple3,
+): tuple3 {
+  return [
+    mtx[0][0] * tup3[0] + mtx[0][1] * tup3[1] + mtx[0][2] * tup3[2],
+    mtx[1][0] * tup3[0] + mtx[1][1] * tup3[1] + mtx[1][2] * tup3[2],
+    mtx[2][0] * tup3[0] + mtx[2][1] * tup3[1] + mtx[2][2] * tup3[2],
+  ];
 }
 
 export function affineTransform(
