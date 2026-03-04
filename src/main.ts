@@ -12,8 +12,6 @@ import { MSDFrameShape } from "./shapes/msdShape";
 import { range } from "./utils/iterators";
 import { basisChange, clamp, lerp, smoothstep } from "./utils/math";
 import { FileMesh } from "./shapes/fileMesh";
-import { SkyboxWH } from "./shaders/skyboxShader";
-import { ComplexTextured, CplxMats } from "./shaders/complexTexture";
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -47,14 +45,6 @@ export class BumperCarsBase extends tiny.Component {
       shader: tiny.Shader;
       color: math.Vector4;
     };
-    skybox: {
-      shader: SkyboxWH;
-      sun_zenith: number;
-      sun_azimuth: number;
-    };
-    stoneMat: {
-      shader: ComplexTextured;
-    } & CplxMats;
   };
   armatures: {
     cartA: CartArmature;
@@ -105,31 +95,6 @@ export class BumperCarsBase extends tiny.Component {
       solid: {
         shader: solidColor,
         color: math.vec4(0.6, 0.6, 0.6, 1),
-      },
-      skybox: {
-        shader: new SkyboxWH(),
-        sun_azimuth: 0,
-        sun_zenith: Math.PI * 0.45,
-      },
-      stoneMat: {
-        shader: new ComplexTextured(),
-        ambient: 0.4,
-        diffusivity: 4,
-        specularity: 2,
-        bumpiness: 1,
-        texture: new tiny.Texture(
-          "../assets/textures/asphalt/color_map.jpg",
-          "LINEAR_MIPMAP_LINEAR",
-        ),
-        spec_map: new tiny.Texture(
-          "../assets/textures/asphalt/spec_map.jpg",
-          "LINEAR_MIPMAP_LINEAR",
-        ),
-        bump_map: new tiny.Texture(
-          "../assets/textures/asphalt/normal_map.jpg",
-          "LINEAR_MIPMAP_LINEAR",
-        ),
-        ambient_color: math.color(0.5, 0.5, 0.5, 1),
       },
     };
 
@@ -298,21 +263,13 @@ export class BumperCarsBase extends tiny.Component {
       100,
     );
 
-    const { sun_azimuth, sun_zenith } = this.materials.skybox;
-    const light_dir = math.vec4(
-      10 * Math.sin(sun_zenith) * Math.cos(sun_azimuth),
-      10 * Math.cos(sun_zenith),
-      10 * Math.sin(sun_zenith) * Math.sin(sun_azimuth),
-      0,
-    );
     const light_position = position.to4(1);
     this.uniforms.lights = [
-      // defs.Phong_Shader.light_source(
-      //   light_position,
-      //   math.color(1, 1, 1, 1),
-      //   1000000,
-      // ),
-      defs.Phong_Shader.light_source(light_dir, math.color(1, 1, 1, 1), 50),
+      defs.Phong_Shader.light_source(
+        light_position,
+        math.color(1, 1, 1, 1),
+        1000000,
+      ),
     ];
   }
 }
@@ -379,7 +336,7 @@ export class BumperCars extends BumperCarsBase {
       context,
       this.uniforms,
       math.Mat4.translation(cam_loc[0], cam_loc[1], cam_loc[2]),
-      this.materials.skybox,
+      this.materials.uvSimple,
     );
     GL.enable(GL.DEPTH_TEST);
 
@@ -409,7 +366,6 @@ export class BumperCars extends BumperCarsBase {
       node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
     }, mtxCarB);
 
-    this.shapes.box.draw(context, this.uniforms, math.Mat4.identity(), this.materials.stoneMat);
     // TODO: remove grid when arena is added
     this.shapes.grid.draw(
       context,
