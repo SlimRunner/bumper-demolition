@@ -59,7 +59,7 @@ export class CartArmature {
     control: {
       steer: {
         maxAngle: (Math.PI * 40) / 180,
-        animRate: 2, // units per second ??
+        animRate: 4, // units per second ??
         direction: 0,
         angle: 0,
       },
@@ -290,7 +290,7 @@ export class CartArmature {
       control: {
         steer: {
           maxAngle: (Math.PI * 40) / 180,
-          animRate: 2, // units per second
+          animRate: 4, // units per second
           direction: 0,
           angle: 0,
         },

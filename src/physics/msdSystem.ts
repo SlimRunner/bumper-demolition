@@ -191,24 +191,28 @@ export class SpringDamperSystem {
                 const lateral = normal.cross(forwardProj).normalized();
                 // const lateral = normal.cross(forward).normalized();
                 const velFwd = p.velocity.dot(forward);
+                const spdFwd = Math.abs(velFwd);
                 const velLat = p.velocity.dot(lateral);
 
                 const normalLoad = Math.max(0, msdForceMag);
                 // corneringStiffness 20-80
-                const cAlpha = 40;
+                const cAlpha = 120;
                 const eps = 0.5; // prevents explosion at low speed
-                const slipAngle = Math.atan2(velLat, Math.abs(velFwd) + eps);
+                const slipAngle = Math.atan2(velLat, spdFwd + eps);
 
                 let forceLatMag = -cAlpha * slipAngle;
-                const mu = 1.2; //field.friction.kinetic;
+                const mu = 1.8; //field.friction.kinetic;
                 const maxForce = mu * normalLoad;
 
                 forceLatMag = clamp(forceLatMag, -maxForce, maxForce);
                 const forceLat = lateral.times(forceLatMag);
 
-                let forceFwdMag = p.tireThrust ?? 0;
+                const eInit = Math.exp(-spdFwd);
+                const eEnd = Math.exp(3 * (10 - spdFwd));
+                const scaling = (eEnd - eInit) / (1 + eInit) / (1 + eEnd);
+                let forceFwdMag = scaling * (p.tireThrust ?? 0);
                 // longitudinalStiffness 10-40
-                const cFwd = 3;
+                const cFwd = 10;
                 forceFwdMag -= cFwd * velFwd;
 
                 let forceFwd = forward.times(forceFwdMag);
