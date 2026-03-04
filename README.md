@@ -6,6 +6,9 @@
   - [Development](#development)
   - [Game Specs](#game-specs)
     - [Car Dimensions](#car-dimensions)
+  - [Documentation](#documentation)
+    - [Textures](#textures)
+    - [Resources](#resources)
 
 # CS174C - Final Project
 
@@ -154,3 +157,79 @@ These are the **base** dimensions expected by `CartArmature`
 Use these as reference to prepare meshes and/or textures. For example, if you have a nice mesh/texture, make sure that the base shape you feed to the constructor is a tire bounded tightly by the cylinder above. There are two options to make this easy
 1. edit in blender before importing
 2. create a mesh loader that let's you pre-apply a transformation to the raw vertices.
+
+## Documentation
+
+### Textures
+
+I added a skybox and "complex" texture shader. The latter is a combination of diffuse texture mapping + normal mapping + specular mapping. Essentially you load three textures to define the shader. Here is a snippet of how to load it
+```ts
+export class BumperCarsBase extends tiny.Component {
+  // ...
+  skybox: {
+    shader: SkyboxWH;
+    sun_zenith: number;
+    sun_azimuth: number;
+  };
+  stoneMat: {
+    shader: ComplexTextured;
+  } & CplxMats;
+}
+
+  constructor() {
+    // ...
+
+    this.materials = {
+      // ...
+      skybox: {
+        shader: new SkyboxWH(),
+        sun_azimuth: 0,
+        sun_zenith: Math.PI * 0.45,
+      },
+      stoneMat: {
+        shader: new ComplexTextured(),
+        ambient: 0.4,
+        diffusivity: 4,
+        specularity: 2,
+        bumpiness: 1,
+        ambient_color: math.color(0.5, 0.5, 0.5, 1),
+        texture: new tiny.Texture(
+          "../assets/textures/asphalt/color_map.jpg",
+          "LINEAR_MIPMAP_LINEAR",
+        ),
+        spec_map: new tiny.Texture(
+          "../assets/textures/asphalt/spec_map.jpg",
+          "LINEAR_MIPMAP_LINEAR",
+        ),
+        bump_map: new tiny.Texture(
+          "../assets/textures/asphalt/normal_map.jpg",
+          "LINEAR_MIPMAP_LINEAR",
+        ),
+      },
+  }
+};
+```
+
+You use them the same you'd use any other shader. The skybox is off course recommended on a box with z-buffer disabled that follows the camera.
+
+For the skybox if you want to sync an sun-type light with it you can do
+```ts
+const { sun_azimuth, sun_zenith } = this.materials.skybox;
+const light_dir = math.vec4(
+  10 * Math.sin(sun_zenith) * Math.cos(sun_azimuth),
+  10 * Math.cos(sun_zenith),
+  10 * Math.sin(sun_zenith) * Math.sin(sun_azimuth),
+  0,
+);
+const light_position = position.to4(1);
+this.uniforms.lights = [
+  // other lights (remember to update Phong and ComplexTexture constructor for > 2 lights)
+  defs.Phong_Shader.light_source(light_dir, math.color(1, 1, 1, 1), 50),
+];
+```
+
+If you want to update the lighting dynamically you can sample colors of the sky using the TS port in [skyboxUtils.ts](./src/shaders/skyboxUtils.ts).
+
+### Resources
+
+To convert bump maps to normal maps I used this page https://cpetry.github.io/NormalMap-Online/

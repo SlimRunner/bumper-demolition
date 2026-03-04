@@ -122,6 +122,7 @@ export namespace math {
     minus(b: MatrixLike<R, C>): Matrix<R, C>;
     transposed(): Matrix<C, R>;
     times(b: number, pre_alloc?: MatrixLike<R, C>): Matrix<R, C>;
+    times(v: Vector3, pre_alloc?: MatrixLike<R, 3>): Matrix<R, 1>;
     times(v: Vector4, pre_alloc?: MatrixLike<R, 4>): Matrix<R, 1>;
     times<C2 extends number>( // R x C  *  C x C2  =  R x C2
       b: MatrixLike<C, C2>,
