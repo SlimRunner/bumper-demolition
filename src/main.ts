@@ -389,7 +389,7 @@ export class BumperCars extends BumperCarsBase {
       "accelerate",
       ["w"],
       () => {
-        this.armatures.cartA.thrustForce = 40;
+        this.armatures.cartA.thrustForce = 120;
       },
       undefined,
       () => {
@@ -400,7 +400,7 @@ export class BumperCars extends BumperCarsBase {
       "brake",
       ["s"],
       () => {
-        this.armatures.cartA.thrustForce = -40;
+        this.armatures.cartA.thrustForce = -120;
       },
       undefined,
       () => {
@@ -444,7 +444,7 @@ export class BumperCars extends BumperCarsBase {
       "accelerate",
       ["8"],
       () => {
-        this.armatures.cartB.thrustForce = 40;
+        this.armatures.cartB.thrustForce = 120;
       },
       undefined,
       () => {
@@ -455,7 +455,7 @@ export class BumperCars extends BumperCarsBase {
       "brake",
       ["5"],
       () => {
-        this.armatures.cartB.thrustForce = -40;
+        this.armatures.cartB.thrustForce = -120;
       },
       undefined,
       () => {
