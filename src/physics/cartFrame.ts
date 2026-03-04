@@ -514,19 +514,19 @@ export class CartFrame {
     const [j0, j1, j2, j3] = [i0 + sh, i1 + sh, i2 + sh, i3 + sh];
     const fwdA = pc[i1].location.minus(pc[i2].location).normalized();
     const fwdB = pc[j1].location.minus(pc[j2].location).normalized();
-    // TODO: compute alternative forward vectors for the front tires (steering)
+
     return {
       CarA: {
-        frontRight: pc[i0].velocity.dot(fwdA),
-        frontLeft: pc[i1].velocity.dot(fwdA),
-        rearLeft: pc[i2].velocity.dot(fwdA),
-        rearRight: pc[i3].velocity.dot(fwdA),
+        frontRight: pc[i0].velocity.dot(pc[i0].tireForward ?? fwdA),
+        frontLeft: pc[i1].velocity.dot(pc[i1].tireForward ?? fwdA),
+        rearLeft: pc[i2].velocity.dot(pc[i2].tireForward ?? fwdA),
+        rearRight: pc[i3].velocity.dot(pc[i3].tireForward ?? fwdA),
       },
       CarB: {
-        frontRight: pc[j0].velocity.dot(fwdB),
-        frontLeft: pc[j1].velocity.dot(fwdB),
-        rearLeft: pc[j2].velocity.dot(fwdB),
-        rearRight: pc[j3].velocity.dot(fwdB),
+        frontRight: pc[j0].velocity.dot(pc[j0].tireForward ?? fwdB),
+        frontLeft: pc[j1].velocity.dot(pc[j1].tireForward ?? fwdB),
+        rearLeft: pc[j2].velocity.dot(pc[j2].tireForward ?? fwdB),
+        rearRight: pc[j3].velocity.dot(pc[j3].tireForward ?? fwdB),
       },
     };
   }
