@@ -16,7 +16,11 @@ import {
   Vector2,
 } from "../utils/math";
 import { CartField, PlaneField } from "./contactFields";
-import { curryDyn, sdOrientedRect } from "../linearAlgebra/sdfs";
+import {
+  curryDyn,
+  sdOrientedCapsule2D,
+  sdOrientedRect,
+} from "../linearAlgebra/sdfs";
 import { range } from "../utils/iterators";
 
 export class CartFrame {
@@ -199,6 +203,9 @@ export class CartFrame {
     });
 
     const plChoice: PlaneChoice = "xz";
+    // adjust as needed to improve node enclosure
+    const pillLength = wx2 * 1.0;
+    const pillWidth = props.dimensions.frameWidth;
 
     // this pattern is a clusterfuck ngl, but it is a necessary evil. It
     // pushes the "contact fields" which are the colliders in the game,
@@ -224,15 +231,15 @@ export class CartFrame {
           // this line is implicitly getting orientation of CarA
           const dir = this.getOrientation();
           const rear = Vector2.from3d(
-            dir.mid.minus(dir.fwd.times(wx2)),
+            dir.mid.minus(dir.fwd.times(pillLength)),
             plChoice,
           );
           const front = Vector2.from3d(
-            dir.mid.plus(dir.fwd.times(wx2)),
+            dir.mid.plus(dir.fwd.times(pillLength)),
             plChoice,
           );
 
-          return [rear, front, 2 * wz, plChoice];
+          return [rear, front, pillWidth, plChoice];
         }),
         {
           stiffness: 15000,
@@ -249,15 +256,15 @@ export class CartFrame {
           // by carNodeCount)
           const dir = this.getOrientation(carNodeCount);
           const rear = Vector2.from3d(
-            dir.mid.minus(dir.fwd.times(wx2)),
+            dir.mid.minus(dir.fwd.times(pillLength)),
             plChoice,
           );
           const front = Vector2.from3d(
-            dir.mid.plus(dir.fwd.times(wx2)),
+            dir.mid.plus(dir.fwd.times(pillLength)),
             plChoice,
           );
 
-          return [rear, front, 2 * wz, plChoice];
+          return [rear, front, pillWidth, plChoice];
         }),
         {
           stiffness: 15000,
