@@ -232,7 +232,7 @@ export class CartFrame {
             plChoice,
           );
 
-          return [rear, front, wz, plChoice];
+          return [rear, front, 2 * wz, plChoice];
         }),
         {
           stiffness: 15000,
@@ -258,7 +258,7 @@ export class CartFrame {
             plChoice,
           );
 
-          return [rear, front, wz, plChoice];
+          return [rear, front, 2 * wz, plChoice];
         }),
         {
           stiffness: 15000,

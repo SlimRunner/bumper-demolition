@@ -111,7 +111,7 @@ export function sdOrientedCapsule2D(
 
   const pt = Vector2.from3d(pt3, onto);
   let ba = b.minus(a);
-  let baN2 = b.normalized().times(r);
+  let baN2 = ba.normalized().times(r);
   let baN1 = baN2.times(1 / 2);
   const pa = pt.minus(a).minus(baN1);
   ba = ba.minus(baN2);
