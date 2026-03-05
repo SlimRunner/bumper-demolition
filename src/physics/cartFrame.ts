@@ -16,7 +16,11 @@ import {
   Vector2,
 } from "../utils/math";
 import { CartField, PlaneField } from "./contactFields";
-import { curryDyn, sdOrientedRect } from "../linearAlgebra/sdfs";
+import {
+  curryDyn,
+  sdOrientedCapsule2D,
+  sdOrientedRect,
+} from "../linearAlgebra/sdfs";
 import { range } from "../utils/iterators";
 
 export class CartFrame {
@@ -199,6 +203,9 @@ export class CartFrame {
     });
 
     const plChoice: PlaneChoice = "xz";
+    // adjust as needed to improve node enclosure
+    const pillLength = wx2 * 1.0;
+    const pillWidth = props.dimensions.frameWidth;
 
     // this pattern is a clusterfuck ngl, but it is a necessary evil. It
     // pushes the "contact fields" which are the colliders in the game,
@@ -224,15 +231,15 @@ export class CartFrame {
           // this line is implicitly getting orientation of CarA
           const dir = this.getOrientation();
           const rear = Vector2.from3d(
-            dir.mid.minus(dir.fwd.times(wx2)),
+            dir.mid.minus(dir.fwd.times(pillLength)),
             plChoice,
           );
           const front = Vector2.from3d(
-            dir.mid.plus(dir.fwd.times(wx2)),
+            dir.mid.plus(dir.fwd.times(pillLength)),
             plChoice,
           );
 
-          return [rear, front, wz, plChoice];
+          return [rear, front, pillWidth, plChoice];
         }),
         {
           stiffness: 15000,
@@ -240,7 +247,6 @@ export class CartFrame {
           restitution: {
             coefficient: 0.8,
           },
-          height: 0,
         },
       ),
       new CartField(
@@ -250,15 +256,15 @@ export class CartFrame {
           // by carNodeCount)
           const dir = this.getOrientation(carNodeCount);
           const rear = Vector2.from3d(
-            dir.mid.minus(dir.fwd.times(wx2)),
+            dir.mid.minus(dir.fwd.times(pillLength)),
             plChoice,
           );
           const front = Vector2.from3d(
-            dir.mid.plus(dir.fwd.times(wx2)),
+            dir.mid.plus(dir.fwd.times(pillLength)),
             plChoice,
           );
 
-          return [rear, front, wz, plChoice];
+          return [rear, front, pillWidth, plChoice];
         }),
         {
           stiffness: 15000,
@@ -266,7 +272,6 @@ export class CartFrame {
           restitution: {
             coefficient: 0.8,
           },
-          height: 0,
         },
       ),
     );
@@ -514,19 +519,19 @@ export class CartFrame {
     const [j0, j1, j2, j3] = [i0 + sh, i1 + sh, i2 + sh, i3 + sh];
     const fwdA = pc[i1].location.minus(pc[i2].location).normalized();
     const fwdB = pc[j1].location.minus(pc[j2].location).normalized();
-    // TODO: compute alternative forward vectors for the front tires (steering)
+
     return {
       CarA: {
-        frontRight: pc[i0].velocity.dot(fwdA),
-        frontLeft: pc[i1].velocity.dot(fwdA),
-        rearLeft: pc[i2].velocity.dot(fwdA),
-        rearRight: pc[i3].velocity.dot(fwdA),
+        frontRight: pc[i0].velocity.dot(pc[i0].tireForward ?? fwdA),
+        frontLeft: pc[i1].velocity.dot(pc[i1].tireForward ?? fwdA),
+        rearLeft: pc[i2].velocity.dot(pc[i2].tireForward ?? fwdA),
+        rearRight: pc[i3].velocity.dot(pc[i3].tireForward ?? fwdA),
       },
       CarB: {
-        frontRight: pc[j0].velocity.dot(fwdB),
-        frontLeft: pc[j1].velocity.dot(fwdB),
-        rearLeft: pc[j2].velocity.dot(fwdB),
-        rearRight: pc[j3].velocity.dot(fwdB),
+        frontRight: pc[j0].velocity.dot(pc[j0].tireForward ?? fwdB),
+        frontLeft: pc[j1].velocity.dot(pc[j1].tireForward ?? fwdB),
+        rearLeft: pc[j2].velocity.dot(pc[j2].tireForward ?? fwdB),
+        rearRight: pc[j3].velocity.dot(pc[j3].tireForward ?? fwdB),
       },
     };
   }

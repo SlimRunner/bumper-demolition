@@ -35,7 +35,6 @@ export interface ContactField {
 }
 
 type ContactProps = {
-  height: number;
   damping: number;
   stiffness: number;
   friction?: {
@@ -66,7 +65,7 @@ export class PlaneField implements ContactField {
   constructor(
     private groupSet: Set<string>,
     normal: math.Vector3,
-    props: ContactProps,
+    props: ContactProps & {height: number;},
   ) {
     this.role = "ground";
     this.damping = props.damping;
