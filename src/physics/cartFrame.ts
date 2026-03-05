@@ -66,7 +66,7 @@ export class CartFrame {
       cartB: math.Mat4.identity(),
     };
 
-    const pMass = 3.6;
+    const pMass = 1.8;
     const y_disp = 0.1;
     const particles = new ParticleCollection(0);
     const wx = props.dimensions.wheelbase / 2;
