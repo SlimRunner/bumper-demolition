@@ -240,7 +240,6 @@ export class CartFrame {
           restitution: {
             coefficient: 0.8,
           },
-          height: 0,
         },
       ),
       new CartField(
@@ -266,7 +265,6 @@ export class CartFrame {
           restitution: {
             coefficient: 0.8,
           },
-          height: 0,
         },
       ),
     );
