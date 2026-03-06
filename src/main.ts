@@ -111,11 +111,32 @@ export class BumperCarsBase extends tiny.Component {
       [0, 2],
       [0, 1],
     ]);
-    const tireMesh = new FileMesh("../assets/meshes/TireMesh_1.obj");
-    const chasisMesh = new FileMesh("../assets/meshes/ChassisMesh.obj");
-    const sawMesh = new FileMesh("../assets/meshes/Sawblade_2.obj");
-    const saw_arm1_mesh = new FileMesh("../assets/meshes/SawArm1_1.obj");
-    const saw_arm2_mesh = new FileMesh("../assets/meshes/SawArm2_1.obj");
+    const tireMesh = new FileMesh(
+      "../assets/meshes/TireMesh_1.obj",
+      math.Mat4.scale(3.49, 3.49, 3.49),
+    ); //3.7 tires
+    const chasisMesh = new FileMesh(
+      "../assets/meshes/ChassisMesh.obj",
+      math.Mat4.translation(0.261, 0, 0).times(
+        math.Mat4.scale(0.559, 1.218, 1.152),
+      ),
+    );
+    const sawMesh = new FileMesh(
+      "../assets/meshes/Sawblade_2.obj",
+      math.Mat4.scale(0.62, 0.62, 0.62),
+    );
+    const saw_arm1_mesh = new FileMesh(
+      "../assets/meshes/SawArm1_1.obj",
+      math.Mat4.translation(0, 0, -0.495).times(
+        math.Mat4.scale(1.208, 1.208, 0.0789),
+      ),
+    );
+    const saw_arm2_mesh = new FileMesh(
+      "../assets/meshes/SawArm2_1.obj",
+      math.Mat4.translation(0, 0, -0.495).times(
+        math.Mat4.scale(1.208, 1.208, 0.0789),
+      ),
+    );
 
     this.shapes = {
       grid: grid,
@@ -126,8 +147,8 @@ export class BumperCarsBase extends tiny.Component {
       tire: tireMesh,
       chasis: chasisMesh,
       sawBlade: sawMesh,
-      saw_arm1: saw_arm1_mesh, // TODO: replace with actual arm mesh
-      saw_arm2: saw_arm2_mesh, // TODO: replace with actual arm mesh
+      saw_arm1: saw_arm1_mesh,
+      saw_arm2: saw_arm2_mesh,
     };
 
     this.globalProps = {
@@ -138,20 +159,20 @@ export class BumperCarsBase extends tiny.Component {
     };
 
     const cartDims = {
-      chassisWidth: 1,
-      chassisLength: 1,
-      chassisHeight: 1,
-      floorClearance: (0.13975 + 0.4064) / 3,
+      chassisWidth: 1.2,
+      chassisLength: 1.2 + (0.13975 + 0.4064) * 1.5,
+      chassisHeight: 0.8359,
+      floorClearance: 0.25,
 
-      wheelbase: 1.6,
-      axleTrack: 1.2,
+      wheelbase: 1.2,
+      axleTrack: 1.0,
 
-      rimSize: 0.73,
-      tireWallSize: 0.73,
-      tireWidth: 0.73,
+      rimSize: 0.3,
+      tireWallSize: 0.14,
+      tireWidth: 0.2,
 
-      armLinkLength: 0.1,
-      armLinkRadius: 0.1,
+      armLinkLength: 1.1,
+      armLinkRadius: 0.06,
       sawRadius: 0.3,
     };
     const cartMeshes = {
@@ -373,16 +394,30 @@ export class BumperCars extends BumperCarsBase {
       cartA.arcs.root.traverse((joint, node, matrix) => {
         // can discriminate material based on name
         const name = node.name as CartNodeNames;
-        node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
+        node.shape.draw(
+          context,
+          this.uniforms,
+          matrix,
+          this.materials.uvSimple,
+        );
       }, mtxCarA);
       cartB.arcs.root.traverse((joint, node, matrix) => {
         // can discriminate material based on name
         const name = node.name as CartNodeNames;
-        node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
+        node.shape.draw(
+          context,
+          this.uniforms,
+          matrix,
+          this.materials.uvSimple,
+        );
       }, mtxCarB);
     } else {
       // TODO: remove frame rending on finished game
-      this.drawables.cartFrame.draw(context, this.uniforms, math.Mat4.identity());
+      this.drawables.cartFrame.draw(
+        context,
+        this.uniforms,
+        math.Mat4.identity(),
+      );
     }
 
     // TODO: remove grid when arena is added
