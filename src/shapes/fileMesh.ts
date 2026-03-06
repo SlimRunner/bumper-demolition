@@ -5,6 +5,7 @@ import { normalizeLines } from "../utils/text";
 import { affineTransform, VectorKind } from "../utils/math";
 
 export const OBJParserError = createError("OBJParserError");
+export const OBJImplMissing = createError("OBJImplMissing");
 
 export class FileMesh extends tiny.Shape {
   private _ready = false;
@@ -65,7 +66,7 @@ export class FileMesh extends tiny.Shape {
 
         switch (expr.ident) {
           case "mtllib":
-            throw new OBJParserError(`'${expr.ident}' not implemented`);
+            throw new OBJImplMissing(`'${expr.ident}' not implemented`);
           case "v":
             if (this._transform) {
               const v = affineTransform(
@@ -97,13 +98,13 @@ export class FileMesh extends tiny.Shape {
             }
             break;
           case "usemtl":
-            throw new OBJParserError(`'${expr.ident}' not implemented`);
+            throw new OBJImplMissing(`'${expr.ident}' not implemented`);
           case "s":
-            throw new OBJParserError(`'${expr.ident}' not implemented`);
+            throw new OBJImplMissing(`'${expr.ident}' not implemented`);
           case "o":
-            throw new OBJParserError(`'${expr.ident}' not implemented`);
+            throw new OBJImplMissing(`'${expr.ident}' not implemented`);
           case "g":
-            throw new OBJParserError(`'${expr.ident}' not implemented`);
+            throw new OBJImplMissing(`'${expr.ident}' not implemented`);
           case "#":
             // ignore comments
             break;
@@ -114,6 +115,9 @@ export class FileMesh extends tiny.Shape {
         if (error instanceof OBJParserError) {
           ++errors;
           console.error(`${error.name}: line ${lineNumber}: ${error.message}`);
+          continue;
+        } else if (error instanceof OBJImplMissing) {
+          console.info(`${error.name}: line ${lineNumber}: ${error.message}`);
           continue;
         } else {
           throw error;
@@ -308,7 +312,7 @@ function parseOBJLine(expression: string): exprPayload {
     case "#":
       return tokenComment(tokens);
     case "mtllib":
-      assertToken(false, `Implementation pending: '${head}'`);
+      throw new OBJImplMissing(`Implementation pending: '${head}'`);
     case "v":
       return tokenVertex(tokens);
     case "f":
@@ -318,15 +322,15 @@ function parseOBJLine(expression: string): exprPayload {
     case "vn":
       return tokenVNormal(tokens);
     case "usemtl":
-      assertToken(false, `Implementation pending: '${head}'`);
+      throw new OBJImplMissing(`Implementation pending: '${head}'`);
     case "s":
-      assertToken(false, `Implementation pending: '${head}'`);
+      throw new OBJImplMissing(`Implementation pending: '${head}'`);
     case "o":
-      assertToken(false, `Implementation pending: '${head}'`);
+      throw new OBJImplMissing(`Implementation pending: '${head}'`);
     case "g":
-      assertToken(false, `Implementation pending: '${head}'`);
+      throw new OBJImplMissing(`Implementation pending: '${head}'`);
     default:
-      assertToken(false, `Unrecognized function found: '${head}'`);
+      throw new OBJImplMissing(`Unrecognized function found: '${head}'`);
   }
 }
 

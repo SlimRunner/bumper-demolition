@@ -12,6 +12,7 @@ import { MSDFrameShape } from "./shapes/msdShape";
 import { range } from "./utils/iterators";
 import { basisChange, clamp, lerp, smoothstep } from "./utils/math";
 import { FileMesh } from "./shapes/fileMesh";
+import { ActionCamera } from "./components/actionCamera";
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -62,11 +63,17 @@ export class BumperCarsBase extends tiny.Component {
     cartFrame: MSDFrameShape;
   };
 
+  gameView: {
+    gimbalCam?: GimbalCamera;
+    actionCam?: ActionCamera;
+    aspectRatio: number;
+    fov: number;
+    cameraPin: "detached" | "carA" | "carB" | "follow";
+  };
+
   globalProps: {
-    gcam?: GimbalCamera;
     isIdling: boolean;
     timeMultiplier: number;
-    cameraPin: "detached" | "carA" | "carB";
     showMeshes: boolean;
   };
 
@@ -151,10 +158,15 @@ export class BumperCarsBase extends tiny.Component {
       saw_arm2: saw_arm2_mesh,
     };
 
+    this.gameView = {
+      aspectRatio: 16 / 9,
+      fov: Math.PI / 4,
+      cameraPin: "follow",
+    };
+
     this.globalProps = {
       isIdling: false,
       timeMultiplier: 1,
-      cameraPin: "detached",
       showMeshes: true,
     };
 
@@ -274,12 +286,25 @@ export class BumperCarsBase extends tiny.Component {
     // to add a gui with CSS.
     const canvas = this.canvas ?? document.getElementById("canvas")!;
 
-    this.globalProps.gcam = new GimbalCamera(canvas, {
-      distance: 8,
-      pitchAngle: Math.PI / 8,
-      rollAngle: 0,
-      center: math.vec3(0, 0, 0),
-    });
+    const fov = Math.PI / 4;
+    const aspectRatio = this.width / this.height;
+    this.gameView = {
+      gimbalCam: new GimbalCamera(canvas, {
+        distance: 8,
+        pitchAngle: Math.PI / 8,
+        rollAngle: 0,
+        center: math.vec3(0, 0, 0),
+      }),
+      actionCam: new ActionCamera(
+        math.vec3(-1, -0.71, 0),
+        math.vec3(0, 1, 0),
+        fov,
+        aspectRatio,
+      ),
+      aspectRatio,
+      fov,
+      cameraPin: "follow",
+    };
   }
 
   render_animation(context: tiny.Component): void {
@@ -287,13 +312,15 @@ export class BumperCarsBase extends tiny.Component {
 
     // temporary camera for modeling
     const { cameraMatrix, position } =
-      this.globalProps.gcam!.getCameraTransform();
+      this.gameView.cameraPin === "follow"
+        ? this.gameView.actionCam!.getCameraTransform()
+        : this.gameView.gimbalCam!.getCameraTransform();
 
     tiny.Shader.assign_camera(cameraMatrix, this.uniforms);
 
     this.uniforms.projection_transform = math.Mat4.perspective(
-      Math.PI / 4,
-      context.width / context.height,
+      this.gameView.fov,
+      this.gameView.aspectRatio,
       0.2,
       100,
     );
@@ -317,6 +344,9 @@ export class BumperCars extends BumperCarsBase {
   render_animation(context: tiny.Component): void {
     super.render_animation(context);
 
+    // accumulates all the subjects that need to be inside the frame
+    const camSubjects: math.Vector3[] = [];
+
     const time = (this.uniforms.animation_time ?? 0) / 1000;
 
     const GL = context.context!;
@@ -332,6 +362,7 @@ export class BumperCars extends BumperCarsBase {
       const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
       const timeMult = this.globalProps.timeMultiplier;
 
+      this.gameView.actionCam!.updateCamera(timeDelta);
       cartA.updateControls(timeDelta * timeMult);
       cartB.updateControls(timeDelta * timeMult);
       const tires = cartMSD.updateTireVectors(
@@ -378,15 +409,17 @@ export class BumperCars extends BumperCarsBase {
     const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
     const carAPos = math.vec3(mtxCarA[0][3], mtxCarA[1][3], mtxCarA[2][3]);
     const carBPos = math.vec3(mtxCarB[0][3], mtxCarB[1][3], mtxCarB[2][3]);
+    camSubjects.push(carAPos, carBPos);
 
-    switch (this.globalProps.cameraPin) {
+    switch (this.gameView.cameraPin) {
+      case "follow":
       case "detached":
         break;
       case "carA":
-        this.globalProps.gcam?.setOrigin(carAPos);
+        this.gameView.gimbalCam?.setOrigin(carAPos);
         break;
       case "carB":
-        this.globalProps.gcam?.setOrigin(carBPos);
+        this.gameView.gimbalCam?.setOrigin(carBPos);
         break;
     }
 
@@ -430,6 +463,9 @@ export class BumperCars extends BumperCarsBase {
 
     // TODO: remove axis when arena is added
     this.drawables.axes3d.draw(context, this.uniforms, math.Mat4.identity());
+
+    // do this at the very end always
+    this.gameView.actionCam!.updateTargets(camSubjects);
   }
 
   render_controls(): void {
@@ -563,21 +599,24 @@ export class BumperCars extends BumperCarsBase {
     });
     this.new_line();
     this.key_triggered_button("toggle camera", ["c"], () => {
-      switch (this.globalProps.cameraPin) {
+      switch (this.gameView.cameraPin) {
+        case "follow":
+          this.gameView.cameraPin = "detached";
+          break;
         case "detached":
-          this.globalProps.cameraPin = "carA";
+          this.gameView.cameraPin = "carA";
           break;
         case "carA":
-          this.globalProps.cameraPin = "carB";
+          this.gameView.cameraPin = "carB";
           break;
         case "carB":
-          this.globalProps.cameraPin = "detached";
+          this.gameView.cameraPin = "follow";
           break;
       }
     });
     this.live_string((elem) => {
       elem.style.paddingLeft = "20px";
-      elem.textContent = `status: ${this.globalProps.cameraPin}`;
+      elem.textContent = `status: ${this.gameView.cameraPin}`;
     });
     this.new_line();
     this.key_triggered_button("toggle meshes", ["m"], () => {
