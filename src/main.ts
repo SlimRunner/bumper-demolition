@@ -12,6 +12,7 @@ import { MSDFrameShape } from "./shapes/msdShape";
 import { range } from "./utils/iterators";
 import { basisChange, clamp, lerp, smoothstep } from "./utils/math";
 import { FileMesh } from "./shapes/fileMesh";
+import { ActionCamera } from "./components/actionCamera";
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -60,6 +61,12 @@ export class BumperCarsBase extends tiny.Component {
   drawables: {
     axes3d: Axis3D;
     cartFrame: MSDFrameShape;
+  };
+
+  gameView?: {
+    actionCam: ActionCamera;
+    aspectRatio: number;
+    fov: number;
   };
 
   globalProps: {
@@ -280,6 +287,19 @@ export class BumperCarsBase extends tiny.Component {
       rollAngle: 0,
       center: math.vec3(0, 0, 0),
     });
+
+    const fov = Math.PI / 4;
+    const aspectRatio = this.width / this.height;
+    this.gameView = {
+      actionCam: new ActionCamera(
+        math.vec3(-1, -0.71, 0),
+        math.vec3(0, 1, 0),
+        fov,
+        aspectRatio,
+      ),
+      aspectRatio,
+      fov,
+    };
   }
 
   render_animation(context: tiny.Component): void {
@@ -287,13 +307,13 @@ export class BumperCarsBase extends tiny.Component {
 
     // temporary camera for modeling
     const { cameraMatrix, position } =
-      this.globalProps.gcam!.getCameraTransform();
+      this.gameView!.actionCam.getCameraTransform();
 
     tiny.Shader.assign_camera(cameraMatrix, this.uniforms);
 
     this.uniforms.projection_transform = math.Mat4.perspective(
-      Math.PI / 4,
-      context.width / context.height,
+      this.gameView!.fov,
+      this.gameView!.aspectRatio,
       0.2,
       100,
     );
@@ -317,6 +337,9 @@ export class BumperCars extends BumperCarsBase {
   render_animation(context: tiny.Component): void {
     super.render_animation(context);
 
+    // accumulates all the subjects that need to be inside the frame
+    const camSubjects: math.Vector3[] = [];
+
     const time = (this.uniforms.animation_time ?? 0) / 1000;
 
     const GL = context.context!;
@@ -332,6 +355,7 @@ export class BumperCars extends BumperCarsBase {
       const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
       const timeMult = this.globalProps.timeMultiplier;
 
+      this.gameView!.actionCam.updateCamera(timeDelta);
       cartA.updateControls(timeDelta * timeMult);
       cartB.updateControls(timeDelta * timeMult);
       const tires = cartMSD.updateTireVectors(
@@ -378,6 +402,7 @@ export class BumperCars extends BumperCarsBase {
     const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
     const carAPos = math.vec3(mtxCarA[0][3], mtxCarA[1][3], mtxCarA[2][3]);
     const carBPos = math.vec3(mtxCarB[0][3], mtxCarB[1][3], mtxCarB[2][3]);
+    camSubjects.push(carAPos, carBPos);
 
     switch (this.globalProps.cameraPin) {
       case "detached":
@@ -430,6 +455,9 @@ export class BumperCars extends BumperCarsBase {
 
     // TODO: remove axis when arena is added
     this.drawables.axes3d.draw(context, this.uniforms, math.Mat4.identity());
+
+    // do this at the very end always
+    this.gameView!.actionCam.updateTargets(camSubjects);
   }
 
   render_controls(): void {
