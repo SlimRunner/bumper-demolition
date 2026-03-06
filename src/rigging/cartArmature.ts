@@ -116,6 +116,7 @@ export class CartArmature {
       },
     } = props;
 
+    const sawJointOffset = -chassisLength * 0.05;
     const wheelDiameter = tireWallSize + rimSize;
     this._tireRadius = wheelDiameter / 2;
     const wheelToGroundDist =
@@ -188,7 +189,11 @@ export class CartArmature {
       -wheelToGroundDist,
       axleTrack / 2,
     );
-    const sawArmJoint1Matrix = math.Mat4.translation(0, chassisHeight / 2, 0);
+    const sawArmJoint1Matrix = math.Mat4.translation(
+      sawJointOffset,
+      chassisHeight / 2,
+      0,
+    );
     const sawArmJoint2Matrix = math.Mat4.translation(-armLinkLength, 0, 0);
     const sawHubMatrix = math.Mat4.translation(armLinkLength, 0, 0);
 
