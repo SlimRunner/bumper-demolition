@@ -169,26 +169,26 @@ export class CartArmature {
       0,
     );
     const wheelHubRLMatrix = math.Mat4.translation(
-      -wheelbase / 2,
-      -wheelToGroundDist,
-      -axleTrack / 2,
+      -wheelbase / 2 + 0.08,
+      -wheelToGroundDist - 0.5,
+      -axleTrack / 2 + 0.2,
     );
     const wheelHubRRMatrix = math.Mat4.translation(
-      -wheelbase / 2,
-      -wheelToGroundDist,
-      axleTrack / 2,
+      -wheelbase / 2 + 0.08,
+      -wheelToGroundDist - 0.5,
+      axleTrack / 2 - 0.2,
     );
     const wheelHubFLMatrix = math.Mat4.translation(
-      wheelbase / 2,
-      -wheelToGroundDist,
-      -axleTrack / 2,
+      wheelbase / 2 - 0.5,
+      -wheelToGroundDist - 0.5,
+      -axleTrack / 2 + 0.2,
     );
     const wheelHubFRMatrix = math.Mat4.translation(
-      wheelbase / 2,
-      -wheelToGroundDist,
-      axleTrack / 2,
+      wheelbase / 2 - 0.5,
+      -wheelToGroundDist - 0.5,
+      axleTrack / 2 - 0.2,
     );
-    const sawArmJoint1Matrix = math.Mat4.translation(0, chassisHeight / 2, 0);
+    const sawArmJoint1Matrix = math.Mat4.translation(0, (chassisHeight / 2) - 0.05 , 0);
     const sawArmJoint2Matrix = math.Mat4.translation(-armLinkLength, 0, 0);
     const sawHubMatrix = math.Mat4.translation(armLinkLength, 0, 0);
 
@@ -239,7 +239,7 @@ export class CartArmature {
       sawArmLink1,
       sawArmLink2,
       sawArmJoint2Matrix,
-      { rz: { angle: 0.1, limit: [-Math.PI, Math.PI] } },
+      { rz: { angle: 0.4, limit: [-Math.PI, Math.PI] } },
     );
     const sawHub = new ArcJoint("sawHub", sawArmLink2, saw, sawHubMatrix, {
       rz: { angle: 0, limit: [-1e100, 1e100] },
@@ -305,7 +305,7 @@ export class CartArmature {
       spinFL: 0,
     };
     this.arcs.sawArmJoint1.setAngle("rz", -0.1);
-    this.arcs.sawArmJoint2.setAngle("rz", 0.1);
+    this.arcs.sawArmJoint2.setAngle("rz", 0.4);
     this.arcs.sawHub.setAngle("rz", 0);
     this.arcs.wheelHubFL.setAngle("rz", 0);
     this.arcs.wheelHubFR.setAngle("rz", 0);
@@ -358,7 +358,7 @@ export class CartArmature {
       );
 
       this.arcs.sawArmJoint1.setAngle("rz", lerp(-0.1, -Math.PI * 0.9, t));
-      this.arcs.sawArmJoint2.setAngle("rz", lerp(0.1, Math.PI * 0.6, t));
+      this.arcs.sawArmJoint2.setAngle("rz", lerp(0.4, Math.PI * 0.6, t));
       if (anim.timing > 5) {
         anim.swinging = false;
       }

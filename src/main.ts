@@ -21,6 +21,10 @@ export class BumperCarsBase extends tiny.Component {
     ball: defs.Subdivision_Sphere;
     disc: defs.Regular_2D_Polygon;
     tire: tiny.Shape;
+    chasis: tiny.Shape;
+    sawBlade: tiny.Shape;
+    saw_arm1: tiny.Shape;
+    saw_arm2: tiny.Shape;
   };
   colors: {
     readonly red: math.Vector4;
@@ -63,6 +67,7 @@ export class BumperCarsBase extends tiny.Component {
     isIdling: boolean;
     timeMultiplier: number;
     cameraPin: "detached" | "carA" | "carB";
+    showMeshes: boolean;
   };
 
   constructor() {
@@ -106,7 +111,11 @@ export class BumperCarsBase extends tiny.Component {
       [0, 2],
       [0, 1],
     ]);
-    const tireMesh = new FileMesh("../assets/meshes/crappy-tire.obj");
+    const tireMesh = new FileMesh("../assets/meshes/TireMesh_1.obj");
+    const chasisMesh = new FileMesh("../assets/meshes/ChassisMesh.obj");
+    const sawMesh = new FileMesh("../assets/meshes/Sawblade_2.obj");
+    const saw_arm1_mesh = new FileMesh("../assets/meshes/SawArm1_1.obj");
+    const saw_arm2_mesh = new FileMesh("../assets/meshes/SawArm2_1.obj");
 
     this.shapes = {
       grid: grid,
@@ -115,36 +124,41 @@ export class BumperCarsBase extends tiny.Component {
       ball: sphereShape,
       disc: discShape,
       tire: tireMesh,
+      chasis: chasisMesh,
+      sawBlade: sawMesh,
+      saw_arm1: saw_arm1_mesh, // TODO: replace with actual arm mesh
+      saw_arm2: saw_arm2_mesh, // TODO: replace with actual arm mesh
     };
 
     this.globalProps = {
       isIdling: false,
       timeMultiplier: 1,
       cameraPin: "detached",
+      showMeshes: true,
     };
 
     const cartDims = {
-      chassisWidth: 1.2,
-      chassisLength: 1.6 + (0.13975 + 0.4064) * 1.5,
-      chassisHeight: 0.8359,
+      chassisWidth: 1,
+      chassisLength: 1,
+      chassisHeight: 1,
       floorClearance: (0.13975 + 0.4064) / 3,
 
       wheelbase: 1.6,
       axleTrack: 1.2,
 
-      rimSize: 0.4064,
-      tireWallSize: 0.13975,
-      tireWidth: 0.215,
+      rimSize: 0.73,
+      tireWallSize: 0.73,
+      tireWidth: 0.73,
 
-      armLinkLength: 1.25,
-      armLinkRadius: 0.05,
+      armLinkLength: 0.1,
+      armLinkRadius: 0.1,
       sawRadius: 0.3,
     };
     const cartMeshes = {
-      arm1: closedTube,
-      arm2: closedTube,
-      chassis: cubeShape,
-      saw: discShape,
+      arm1: saw_arm1_mesh,
+      arm2: saw_arm2_mesh,
+      chassis: chasisMesh,
+      saw: sawMesh,
       wheel: tireMesh,
     };
 
@@ -355,16 +369,21 @@ export class BumperCars extends BumperCarsBase {
         break;
     }
 
-    cartA.arcs.root.traverse((joint, node, matrix) => {
-      // can discriminate material based on name
-      const name = node.name as CartNodeNames;
-      node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
-    }, mtxCarA);
-    cartB.arcs.root.traverse((joint, node, matrix) => {
-      // can discriminate material based on name
-      const name = node.name as CartNodeNames;
-      node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
-    }, mtxCarB);
+    if (this.globalProps.showMeshes) {
+      cartA.arcs.root.traverse((joint, node, matrix) => {
+        // can discriminate material based on name
+        const name = node.name as CartNodeNames;
+        node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
+      }, mtxCarA);
+      cartB.arcs.root.traverse((joint, node, matrix) => {
+        // can discriminate material based on name
+        const name = node.name as CartNodeNames;
+        node.shape.draw(context, this.uniforms, matrix, this.materials.uvSimple);
+      }, mtxCarB);
+    } else {
+      // TODO: remove frame rending on finished game
+      this.drawables.cartFrame.draw(context, this.uniforms, math.Mat4.identity());
+    }
 
     // TODO: remove grid when arena is added
     this.shapes.grid.draw(
@@ -376,8 +395,6 @@ export class BumperCars extends BumperCarsBase {
 
     // TODO: remove axis when arena is added
     this.drawables.axes3d.draw(context, this.uniforms, math.Mat4.identity());
-    // TODO: remove frame rending on finished game
-    this.drawables.cartFrame.draw(context, this.uniforms, math.Mat4.identity());
   }
 
   render_controls(): void {
@@ -526,6 +543,14 @@ export class BumperCars extends BumperCarsBase {
     this.live_string((elem) => {
       elem.style.paddingLeft = "20px";
       elem.textContent = `status: ${this.globalProps.cameraPin}`;
+    });
+    this.new_line();
+    this.key_triggered_button("toggle meshes", ["m"], () => {
+      this.globalProps.showMeshes = !this.globalProps.showMeshes;
+    });
+    this.live_string((elem) => {
+      elem.style.paddingLeft = "20px";
+      elem.textContent = `meshes: ${this.globalProps.showMeshes ? "ON" : "OFF"}`;
     });
     this.new_line();
     this.key_triggered_button("reset", ["t"], () => {
