@@ -65,7 +65,7 @@ export class PlaneField implements ContactField {
   constructor(
     private groupSet: Set<string>,
     normal: math.Vector3,
-    props: ContactProps & {height: number;},
+    props: ContactProps & { height: number },
   ) {
     this.role = "ground";
     this.damping = props.damping;
@@ -77,8 +77,12 @@ export class PlaneField implements ContactField {
   }
 
   affects(p: MSDParticle): boolean {
-    // check if particle is within this group
-    return true;
+    for (const allowed of this.groupSet) {
+      if (p.group.has(allowed)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   sdf(pos: math.Vector3): number {
@@ -117,10 +121,11 @@ export class CartField implements ContactField {
   }
 
   affects(p: MSDParticle): boolean {
-    if (p.group) {
-      return this.groupSet.has(p.group);
+    for (const allowed of this.groupSet) {
+      if (p.group.has(allowed)) {
+        return true;
+      }
     }
-    // false or true as default?
     return false;
   }
 

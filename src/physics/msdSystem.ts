@@ -35,13 +35,14 @@ export class MSDParticle {
   tireThrust?: number;
 
   tags: Set<ParticleTags>;
-  group?: string;
+  group: Set<string>;
 
   constructor(props: Partial<ParticleProperties> = {}) {
     this.mass = props.mass ?? 0;
     this.location = props.location ?? math.vec3(0, 0, 0);
     this.velocity = props.velocity ?? math.vec3(0, 0, 0);
     this.tags = new Set();
+    this.group = new Set();
   }
 
   reset(props: ParticleProperties) {
@@ -119,7 +120,7 @@ export class SpringDamperSystem {
   }
 
   addParticleToGroup(p: MSDParticle, group: string) {
-    p.group = group;
+    p.group.add(group);
 
     if (!this.particleGroups.has(group)) {
       this.particleGroups.set(group, new Set());

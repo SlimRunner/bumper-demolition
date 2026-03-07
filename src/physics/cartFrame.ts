@@ -177,9 +177,11 @@ export class CartFrame {
     // add particles to their appropriate groups
     for (const i of range(carNodeCount)) {
       this.msdSystem.addParticleToGroup(particles.container[i], "CarA");
+      this.msdSystem.addParticleToGroup(particles.container[i], "grounded");
     }
     for (const i of range(carNodeCount, carNodeCount * 2)) {
       this.msdSystem.addParticleToGroup(particles.container[i], "CarB");
+      this.msdSystem.addParticleToGroup(particles.container[i], "grounded");
     }
 
     // apply initial transform to all particles.
@@ -212,7 +214,7 @@ export class CartFrame {
     // and allows them to manage an internal signed distance function
     // and it's derivative. Trust me... this could have been way uglier.
     this.msdSystem.contactFields.push(
-      new PlaneField(new Set(), math.vec3(0, 1, 0), {
+      new PlaneField(new Set(["grounded"]), math.vec3(0, 1, 0), {
         stiffness: 15000,
         damping: 10,
         friction: {
