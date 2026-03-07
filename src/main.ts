@@ -526,17 +526,6 @@ export class BumperCars extends BumperCarsBase {
       );
     }
 
-    // TODO: remove grid when arena is added
-    this.shapes.grid.draw(
-      context,
-      this.uniforms,
-      math.Mat4.identity(),
-      this.materials.solid,
-    );
-
-    // TODO: remove axis when arena is added
-    this.drawables.axes3d.draw(context, this.uniforms, math.Mat4.identity());
-
     // do this at the very end always
     this.gameView.actionCam!.updateTargets(camSubjects);
   }
