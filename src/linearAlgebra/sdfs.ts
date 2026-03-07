@@ -119,6 +119,28 @@ export function sdOrientedCapsule2D(
   return pa.minus(ba.times(h)).norm() - r / 2;
 }
 
+export function sdInvertedCapsule2D(
+  pt3: math.Vector3,
+  a: Vector2,
+  b: Vector2,
+  r: number,
+  onto: PlaneChoice,
+) {
+  // reference: https://www.desmos.com/calculator/qkh8fxkiiy
+
+  // this is technically the function of a line segment but it was
+  // modified to make a "directed pill"
+
+  const pt = Vector2.from3d(pt3, onto);
+  let ba = b.minus(a);
+  let baN2 = ba.normalized().times(r);
+  let baN1 = baN2.times(1 / 2);
+  const pa = pt.minus(a).minus(baN1);
+  ba = ba.minus(baN2);
+  const h = clamp(pa.dot(ba) / ba.dot(ba), 0, 1);
+  return r / 2 - pa.minus(ba.times(h)).norm();
+}
+
 export function sdBox(pt: math.Vector3, b: math.Vector3, c: math.Vector3) {
   const q = Vec3Ext.abs(pt.minus(c)).minus(b);
   return (
