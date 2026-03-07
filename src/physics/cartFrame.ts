@@ -323,56 +323,6 @@ export class CartFrame {
     }
   }
 
-  private averageBumperFront(sh: number = 0) {
-    //0 1 8 9 12 13 14 15
-    const [i0, i1, i2, i3] = [12, 13, 14, 15];
-    const pc = this.msdSystem.particles.container;
-    const x =
-      (pc[i0 + sh].location[0] +
-        pc[i1 + sh].location[0] +
-        pc[i2 + sh].location[0] +
-        pc[i3 + sh].location[0]) /
-      4;
-    const y =
-      (pc[i0 + sh].location[1] +
-        pc[i1 + sh].location[1] +
-        pc[i2 + sh].location[1] +
-        pc[i3 + sh].location[1]) /
-      4;
-    const z =
-      (pc[i0 + sh].location[2] +
-        pc[i1 + sh].location[2] +
-        pc[i2 + sh].location[2] +
-        pc[i3 + sh].location[2]) /
-      4;
-    return math.vec3(x, y, z);
-  }
-
-  private averageBumperRear(sh: number = 0) {
-    // 2 3 10 11 16 17 18 19
-    const [i0, i1, i2, i3] = [16, 17, 18, 19];
-    const pc = this.msdSystem.particles.container;
-    const x =
-      (pc[i0 + sh].location[0] +
-        pc[i1 + sh].location[0] +
-        pc[i2 + sh].location[0] +
-        pc[i3 + sh].location[0]) /
-      4;
-    const y =
-      (pc[i0 + sh].location[1] +
-        pc[i1 + sh].location[1] +
-        pc[i2 + sh].location[1] +
-        pc[i3 + sh].location[1]) /
-      4;
-    const z =
-      (pc[i0 + sh].location[2] +
-        pc[i1 + sh].location[2] +
-        pc[i2 + sh].location[2] +
-        pc[i3 + sh].location[2]) /
-      4;
-    return math.vec3(x, y, z);
-  }
-
   getAverage(nodeRange: [number, number]) {
     const [a, b] = nodeRange;
     let x = 0;
