@@ -10,11 +10,17 @@ export const OBJImplMissing = createError("OBJImplMissing");
 export class FileMesh extends tiny.Shape {
   private _ready = false;
   private _transform?: math.Mat4;
+  private _uvscale?: math.Vector<2>;
 
-  constructor(filename: string, preTransform?: math.Mat4) {
+  constructor(
+    filename: string,
+    preTransform?: math.Mat4,
+    uvScaling?: math.Vector<2>,
+  ) {
     super("position", "normal", "texture_coord");
 
     this._transform = preTransform;
+    this._uvscale = uvScaling;
     this.loadFile(filename);
   }
 
@@ -83,7 +89,14 @@ export class FileMesh extends tiny.Shape {
             faces.push(expr.params.indices);
             break;
           case "vt":
-            textures.push(math.Vector.create(...expr.params.coords));
+            if (this._uvscale) {
+              let [u, v] = expr.params.coords;
+              u *= this._uvscale[0];
+              v *= this._uvscale[1];
+              textures.push(math.Vector.create(u, v));
+            } else {
+              textures.push(math.Vector.create(...expr.params.coords));
+            }
             break;
           case "vn":
             if (this._transform) {
