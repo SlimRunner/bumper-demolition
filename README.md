@@ -166,15 +166,17 @@ I added a skybox and "complex" texture shader. The latter is a combination of di
 ```ts
 export class BumperCarsBase extends tiny.Component {
   // ...
-  skybox: {
-    shader: SkyboxWH;
-    sun_zenith: number;
-    sun_azimuth: number;
-  };
-  stoneMat: {
-    shader: ComplexTextured;
-  } & CplxMats;
-}
+  materials: {
+    // ...
+    skybox: {
+      shader: SkyboxWH;
+      sun_zenith: number;
+      sun_azimuth: number;
+    };
+    stoneMat: {
+      shader: ComplexTextured;
+    } & CplxMats;
+  }
 
   constructor() {
     // ...
@@ -206,6 +208,7 @@ export class BumperCarsBase extends tiny.Component {
           "LINEAR_MIPMAP_LINEAR",
         ),
       },
+    }
   }
 };
 ```
