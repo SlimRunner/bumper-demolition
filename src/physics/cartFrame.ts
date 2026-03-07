@@ -15,7 +15,7 @@ import {
   rotateAboutAxis,
   Vector2,
 } from "../utils/math";
-import { CartField, PlaneField } from "./contactFields";
+import { ArenaField, CartField, PlaneField } from "./contactFields";
 import {
   curryDyn,
   sdOrientedCapsule2D,
@@ -178,10 +178,12 @@ export class CartFrame {
     for (const i of range(carNodeCount)) {
       this.msdSystem.addParticleToGroup(particles.container[i], "CarA");
       this.msdSystem.addParticleToGroup(particles.container[i], "grounded");
+      this.msdSystem.addParticleToGroup(particles.container[i], "arenaBound");
     }
     for (const i of range(carNodeCount, carNodeCount * 2)) {
       this.msdSystem.addParticleToGroup(particles.container[i], "CarB");
       this.msdSystem.addParticleToGroup(particles.container[i], "grounded");
+      this.msdSystem.addParticleToGroup(particles.container[i], "arenaBound");
     }
 
     // apply initial transform to all particles.
@@ -226,6 +228,20 @@ export class CartFrame {
           coefficient: 0.2,
         },
         height: 0,
+      }),
+      new ArenaField(new Set(["arenaBound"]), {
+        bounds: [
+          math.vec3(0, 0, -22.5),
+          math.vec3(0, 0, 22.5),
+        ],
+        width: 15 * 2,
+        onto: "xz",
+      }, {
+        stiffness: 15000,
+        damping: 10,
+        restitution: {
+          coefficient: 0.2,
+        },
       }),
       new CartField(
         new Set(["CarB"]), // affects CarB but follows CarA
