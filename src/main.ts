@@ -13,6 +13,8 @@ import { range } from "./utils/iterators";
 import { basisChange, clamp, lerp, smoothstep } from "./utils/math";
 import { FileMesh } from "./shapes/fileMesh";
 import { ActionCamera } from "./components/actionCamera";
+import { ComplexTextured, CplxMats } from "./shaders/complexTexture";
+import { SkyboxWH } from "./shaders/skyboxShader";
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -26,6 +28,8 @@ export class BumperCarsBase extends tiny.Component {
     sawBlade: tiny.Shape;
     saw_arm1: tiny.Shape;
     saw_arm2: tiny.Shape;
+    arenaWalls: tiny.Shape;
+    arenaFloor: tiny.Shape;
   };
   colors: {
     readonly red: math.Vector4;
@@ -49,6 +53,14 @@ export class BumperCarsBase extends tiny.Component {
     solid: {
       shader: tiny.Shader;
       color: math.Vector4;
+    };
+    asphalt: {
+      shader: ComplexTextured;
+    } & CplxMats;
+    skybox: {
+      shader: SkyboxWH;
+      sun_zenith: number;
+      sun_azimuth: number;
     };
   };
   armatures: {
@@ -108,6 +120,31 @@ export class BumperCarsBase extends tiny.Component {
         shader: solidColor,
         color: math.vec4(0.6, 0.6, 0.6, 1),
       },
+      asphalt: {
+        shader: new ComplexTextured(),
+        ambient: 0.4,
+        diffusivity: 4,
+        specularity: 1,
+        bumpiness: 2,
+        ambient_color: math.color(0.5, 0.5, 0.5, 1),
+        texture: new tiny.Texture(
+          "../assets/textures/asphalt/color_map.jpg",
+          "LINEAR_MIPMAP_LINEAR",
+        ),
+        spec_map: new tiny.Texture(
+          "../assets/textures/asphalt/spec_map.jpg",
+          "LINEAR_MIPMAP_LINEAR",
+        ),
+        bump_map: new tiny.Texture(
+          "../assets/textures/asphalt/normal_map.jpg",
+          "LINEAR_MIPMAP_LINEAR",
+        ),
+      },
+      skybox: {
+        shader: new SkyboxWH(),
+        sun_azimuth: Math.PI * 0.4,
+        sun_zenith: Math.PI * 0.35,
+      },
     };
 
     const grid = new SimpleGrid(51, 51, { x: [-25, 25], z: [-25, 25] });
@@ -144,6 +181,15 @@ export class BumperCarsBase extends tiny.Component {
         math.Mat4.scale(1.208, 1.208, 0.0789),
       ),
     );
+    const arenaFloor = new FileMesh(
+      "../assets/meshes/capsule-shape-arena-floor.obj",
+      math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
+      math.Vector.create(2, 2),
+    );
+    const arenaWalls = new FileMesh(
+      "../assets/meshes/capsule-shape-arena-walls.obj",
+      math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
+    );
 
     this.shapes = {
       grid: grid,
@@ -156,6 +202,8 @@ export class BumperCarsBase extends tiny.Component {
       sawBlade: sawMesh,
       saw_arm1: saw_arm1_mesh,
       saw_arm2: saw_arm2_mesh,
+      arenaFloor,
+      arenaWalls,
     };
 
     this.gameView = {
@@ -286,7 +334,7 @@ export class BumperCarsBase extends tiny.Component {
     // to add a gui with CSS.
     const canvas = this.canvas ?? document.getElementById("canvas")!;
 
-    const fov = Math.PI / 4;
+    const fov = (Math.PI * 60) / 180;
     const aspectRatio = this.width / this.height;
     this.gameView = {
       gimbalCam: new GimbalCamera(canvas, {
@@ -325,14 +373,26 @@ export class BumperCarsBase extends tiny.Component {
       100,
     );
 
-    const light_position = position.to4(1);
+    const { sun_azimuth, sun_zenith } = this.materials.skybox;
+    const light_dir = math.vec4(
+      10 * Math.sin(sun_zenith) * Math.cos(sun_azimuth),
+      10 * Math.cos(sun_zenith),
+      10 * Math.sin(sun_zenith) * Math.sin(sun_azimuth),
+      0,
+    );
     this.uniforms.lights = [
-      defs.Phong_Shader.light_source(
-        light_position,
-        math.color(1, 1, 1, 1),
-        1000000,
-      ),
+      defs.Phong_Shader.light_source(light_dir, math.color(1, 1, 1, 1), 50),
     ];
+    if (this.gameView.cameraPin !== "follow") {
+      const light_position = position.to4(1);
+      this.uniforms.lights.push(
+        defs.Phong_Shader.light_source(
+          light_position,
+          math.color(1, 1, 1, 1),
+          100,
+        ),
+      );
+    }
   }
 }
 
@@ -402,9 +462,22 @@ export class BumperCars extends BumperCarsBase {
       context,
       this.uniforms,
       math.Mat4.translation(cam_loc[0], cam_loc[1], cam_loc[2]),
-      this.materials.uvSimple,
+      this.materials.skybox,
     );
     GL.enable(GL.DEPTH_TEST);
+
+    this.shapes.arenaFloor.draw(
+      context,
+      this.uniforms,
+      math.Mat4.identity(),
+      this.materials.asphalt,
+    );
+    this.shapes.arenaWalls.draw(
+      context,
+      this.uniforms,
+      math.Mat4.identity(),
+      this.materials.uvSimple,
+    );
 
     const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
     const carAPos = math.vec3(mtxCarA[0][3], mtxCarA[1][3], mtxCarA[2][3]);
