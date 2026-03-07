@@ -305,10 +305,10 @@ function parseOBJLine(expression: string): exprPayload {
   const words = expression.trim().replace(/ +/g, " ").split(" ");
   const tokens = new TokenStream(words);
 
-  const head = tokens.nextOpt() as Idents;
+  const head = tokens.nextOpt();
   assertToken(head != null, "expression is empty");
 
-  switch (head) {
+  switch (head as Idents) {
     case "#":
       return tokenComment(tokens);
     case "mtllib":
@@ -330,7 +330,7 @@ function parseOBJLine(expression: string): exprPayload {
     case "g":
       throw new OBJImplMissing(`Implementation pending: '${head}'`);
     default:
-      throw new OBJImplMissing(`Unrecognized function found: '${head}'`);
+      throw new OBJParserError(`Unrecognized function found: '${head}'`);
   }
 }
 
