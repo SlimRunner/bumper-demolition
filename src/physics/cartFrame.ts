@@ -122,10 +122,8 @@ export class CartFrame {
     const uniformMass = targetMass / carNodeCount;
 
     particles.container = pArr.map(([x, y, z, tags]) => {
-      // 1.25705 was numerically solved with Desmos
-      const topLightMass = dimensions.frameHeight - y + 1.25705;
       const p = new MSDParticle({
-        mass: topLightMass,
+        mass: uniformMass,
         location: math.vec3(x, y + y_disp, z),
         velocity: math.vec3(0, 0, 0),
       });
