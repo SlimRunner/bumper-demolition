@@ -335,10 +335,12 @@ function parseOBJLine(expression: string): exprPayload {
 }
 
 function tokenComment(tokens: TokenStream): CommentExpr {
+  let words = [];
+  for (; tokens.remaining > 0; words.push(tokens.next())) {}
   return {
     ident: "#",
     params: {
-      message: tokens.next(),
+      message: words.join(" "),
     },
   };
 }
