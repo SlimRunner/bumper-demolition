@@ -64,11 +64,12 @@ export class ActionCamera {
 
     let min = subjects[0].copy();
     let max = subjects[0].copy();
+    const offset = math.vec3(2, 0, 0);
 
     for (const p of subjects) {
       for (let i = 0; i < 3; i++) {
-        min[i] = Math.min(min[i], p[i]);
-        max[i] = Math.max(max[i], p[i]);
+        min[i] = Math.min(min[i], p[i] + offset[i]);
+        max[i] = Math.max(max[i], p[i] + offset[i]);
       }
     }
 
