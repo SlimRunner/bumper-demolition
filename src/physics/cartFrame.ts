@@ -53,28 +53,29 @@ export class CartFrame {
       cartB: math.Mat4;
     };
   }) {
+    props.transforms ??= {
+      cartA: math.Mat4.identity(),
+      cartB: math.Mat4.identity(),
+    };
+    const { dimensions, transforms } = props;
     this.dimensions = {
-      frameWidth: props.dimensions.frameWidth,
-      wheelbase: props.dimensions.wheelbase,
+      frameWidth: dimensions.frameWidth,
+      wheelbase: dimensions.wheelbase,
     };
     this.initial = {
       locations: [],
       carNodeCount: 0,
     };
-    props.transforms ??= {
-      cartA: math.Mat4.identity(),
-      cartB: math.Mat4.identity(),
-    };
 
     const pMass = 1.8;
     const y_disp = 0.1;
     const particles = new ParticleCollection(0);
-    const wx = props.dimensions.wheelbase / 2;
-    const wx2 = props.dimensions.frameLength / 2;
-    const wy = props.dimensions.frameHeight;
+    const wx = dimensions.wheelbase / 2;
+    const wx2 = dimensions.frameLength / 2;
+    const wy = dimensions.frameHeight;
     const wy2 = wy * 0.5;
     const wy3 = wy2 * Math.SQRT1_2;
-    const wz = props.dimensions.frameWidth / 2;
+    const wz = dimensions.frameWidth / 2;
     const wz2 = wz * Math.SQRT1_2;
 
     // NOTE: if you add any new point to the car template, do it at the
@@ -82,32 +83,32 @@ export class CartFrame {
     // tire forces and the change of basis for the mesh.
 
     // prettier-ignore
-    const pArr: Array<[number, number, number, number, ParticleTags[]]> = [
+    const pArr: Array<[number, number, number, ParticleTags[]]> = [
       // floor nodes
-      [ wx,    0,  wz, pMass, ["tire", "structural"]],
-      [ wx,    0, -wz, pMass, ["tire", "structural"]],
-      [-wx,    0, -wz, pMass, ["tire", "structural"]],
-      [-wx,    0,  wz, pMass, ["tire", "structural"]],
+      [ wx,    0,  wz, ["tire", "structural"]],
+      [ wx,    0, -wz, ["tire", "structural"]],
+      [-wx,    0, -wz, ["tire", "structural"]],
+      [-wx,    0,  wz, ["tire", "structural"]],
       // mid section
-      [ wx, wy/2,   0, pMass, ["structural"]],
-      [  0, wy/2, -wz, pMass, ["structural"]],
-      [-wx, wy/2,   0, pMass, ["structural"]],
-      [  0, wy/2,  wz, pMass, ["structural"]],
+      [ wx, wy/2,   0, ["structural"]],
+      [  0, wy/2, -wz, ["structural"]],
+      [-wx, wy/2,   0, ["structural"]],
+      [  0, wy/2,  wz, ["structural"]],
       // top section
-      [ wx,   wy,  wz, pMass, ["structural"]],
-      [ wx,   wy, -wz, pMass, ["structural"]],
-      [-wx,   wy, -wz, pMass, ["structural"]],
-      [-wx,   wy,  wz, pMass, ["structural"]],
+      [ wx,   wy,  wz, ["structural"]],
+      [ wx,   wy, -wz, ["structural"]],
+      [-wx,   wy, -wz, ["structural"]],
+      [-wx,   wy,  wz, ["structural"]],
       // front bumper
-      [ wx2, wy2 + wy3,  wz2, pMass, ["structural"]],
-      [ wx2, wy2 + wy3, -wz2, pMass, ["structural"]],
-      [ wx2, wy2 - wy3, -wz2, pMass, ["structural"]],
-      [ wx2, wy2 - wy3,  wz2, pMass, ["structural"]],
+      [ wx2, wy2 + wy3,  wz2, ["structural"]],
+      [ wx2, wy2 + wy3, -wz2, ["structural"]],
+      [ wx2, wy2 - wy3, -wz2, ["structural"]],
+      [ wx2, wy2 - wy3,  wz2, ["structural"]],
       // rear bumper
-      [-wx2, wy2 + wy3,  wz2, pMass, ["structural"]],
-      [-wx2, wy2 + wy3, -wz2, pMass, ["structural"]],
-      [-wx2, wy2 - wy3, -wz2, pMass, ["structural"]],
-      [-wx2, wy2 - wy3,  wz2, pMass, ["structural"]],
+      [-wx2, wy2 + wy3,  wz2, ["structural"]],
+      [-wx2, wy2 + wy3, -wz2, ["structural"]],
+      [-wx2, wy2 - wy3, -wz2, ["structural"]],
+      [-wx2, wy2 - wy3,  wz2, ["structural"]],
     ];
     const carNodeCount = pArr.length;
     pArr.push(...pArr); // car B is identical
@@ -117,9 +118,14 @@ export class CartFrame {
     // distance between cars which is assumed to be true throughout this
     // module.
 
-    particles.container = pArr.map(([x, y, z, m, tags]) => {
+    const targetMass = 36;
+    const uniformMass = targetMass / carNodeCount;
+
+    particles.container = pArr.map(([x, y, z, tags]) => {
+      // 1.25705 was numerically solved with Desmos
+      const topLightMass = dimensions.frameHeight - y + 1.25705;
       const p = new MSDParticle({
-        mass: m,
+        mass: topLightMass,
         location: math.vec3(x, y + y_disp, z),
         velocity: math.vec3(0, 0, 0),
       });
@@ -189,12 +195,12 @@ export class CartFrame {
     // apply initial transform to all particles.
     for (const p of this.msdSystem.getGroup("CarA")) {
       p.location = math.vec3(
-        ...affineTransform(props.transforms.cartA, p.location, 1),
+        ...affineTransform(transforms.cartA, p.location, 1),
       );
     }
     for (const p of this.msdSystem.getGroup("CarB")) {
       p.location = math.vec3(
-        ...affineTransform(props.transforms.cartB, p.location, 1),
+        ...affineTransform(transforms.cartB, p.location, 1),
       );
     }
 
@@ -209,7 +215,7 @@ export class CartFrame {
     const plChoice: PlaneChoice = "xz";
     // adjust as needed to improve node enclosure
     const pillLength = wx2 * 1.0;
-    const pillWidth = props.dimensions.frameWidth;
+    const pillWidth = dimensions.frameWidth;
 
     // this pattern is a clusterfuck ngl, but it is a necessary evil. It
     // pushes the "contact fields" which are the colliders in the game,
