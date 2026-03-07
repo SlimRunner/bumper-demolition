@@ -263,10 +263,10 @@ export class BumperCarsBase extends tiny.Component {
       },
       transforms: {
         cartA: math.Mat4.translation(0, 0, 6).times(
-          math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
+          math.Mat4.rotation(-Math.PI / 2, 0, 1, 0),
         ),
-        cartB: math.Mat4.translation(-5, 0, -2).times(
-          math.Mat4.rotation(0, 0, 1, 0),
+        cartB: math.Mat4.translation(0, 0, -6).times(
+          math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
         ),
       },
     });
