@@ -15,7 +15,7 @@ import {
   rotateAboutAxis,
   Vector2,
 } from "../utils/math";
-import { CartField, PlaneField } from "./contactFields";
+import { ArenaField, CartField, PlaneField } from "./contactFields";
 import {
   curryDyn,
   sdOrientedCapsule2D,
@@ -53,28 +53,29 @@ export class CartFrame {
       cartB: math.Mat4;
     };
   }) {
+    props.transforms ??= {
+      cartA: math.Mat4.identity(),
+      cartB: math.Mat4.identity(),
+    };
+    const { dimensions, transforms } = props;
     this.dimensions = {
-      frameWidth: props.dimensions.frameWidth,
-      wheelbase: props.dimensions.wheelbase,
+      frameWidth: dimensions.frameWidth,
+      wheelbase: dimensions.wheelbase,
     };
     this.initial = {
       locations: [],
       carNodeCount: 0,
     };
-    props.transforms ??= {
-      cartA: math.Mat4.identity(),
-      cartB: math.Mat4.identity(),
-    };
 
     const pMass = 1.8;
     const y_disp = 0.1;
     const particles = new ParticleCollection(0);
-    const wx = props.dimensions.wheelbase / 2;
-    const wx2 = props.dimensions.frameLength / 2;
-    const wy = props.dimensions.frameHeight;
+    const wx = dimensions.wheelbase / 2;
+    const wx2 = dimensions.frameLength / 2;
+    const wy = dimensions.frameHeight;
     const wy2 = wy * 0.5;
     const wy3 = wy2 * Math.SQRT1_2;
-    const wz = props.dimensions.frameWidth / 2;
+    const wz = dimensions.frameWidth / 2;
     const wz2 = wz * Math.SQRT1_2;
 
     // NOTE: if you add any new point to the car template, do it at the
@@ -82,32 +83,32 @@ export class CartFrame {
     // tire forces and the change of basis for the mesh.
 
     // prettier-ignore
-    const pArr: Array<[number, number, number, number, ParticleTags[]]> = [
+    const pArr: Array<[number, number, number, ParticleTags[]]> = [
       // floor nodes
-      [ wx,    0,  wz, pMass, ["tire", "structural"]],
-      [ wx,    0, -wz, pMass, ["tire", "structural"]],
-      [-wx,    0, -wz, pMass, ["tire", "structural"]],
-      [-wx,    0,  wz, pMass, ["tire", "structural"]],
+      [ wx,    0,  wz, ["tire", "structural"]],
+      [ wx,    0, -wz, ["tire", "structural"]],
+      [-wx,    0, -wz, ["tire", "structural"]],
+      [-wx,    0,  wz, ["tire", "structural"]],
       // mid section
-      [ wx, wy/2,   0, pMass, ["structural"]],
-      [  0, wy/2, -wz, pMass, ["structural"]],
-      [-wx, wy/2,   0, pMass, ["structural"]],
-      [  0, wy/2,  wz, pMass, ["structural"]],
+      [ wx, wy/2,   0, ["structural"]],
+      [  0, wy/2, -wz, ["structural"]],
+      [-wx, wy/2,   0, ["structural"]],
+      [  0, wy/2,  wz, ["structural"]],
       // top section
-      [ wx,   wy,  wz, pMass, ["structural"]],
-      [ wx,   wy, -wz, pMass, ["structural"]],
-      [-wx,   wy, -wz, pMass, ["structural"]],
-      [-wx,   wy,  wz, pMass, ["structural"]],
+      [ wx,   wy,  wz, ["structural"]],
+      [ wx,   wy, -wz, ["structural"]],
+      [-wx,   wy, -wz, ["structural"]],
+      [-wx,   wy,  wz, ["structural"]],
       // front bumper
-      [ wx2, wy2 + wy3,  wz2, pMass, ["structural"]],
-      [ wx2, wy2 + wy3, -wz2, pMass, ["structural"]],
-      [ wx2, wy2 - wy3, -wz2, pMass, ["structural"]],
-      [ wx2, wy2 - wy3,  wz2, pMass, ["structural"]],
+      [ wx2, wy2 + wy3,  wz2, ["structural"]],
+      [ wx2, wy2 + wy3, -wz2, ["structural"]],
+      [ wx2, wy2 - wy3, -wz2, ["structural"]],
+      [ wx2, wy2 - wy3,  wz2, ["structural"]],
       // rear bumper
-      [-wx2, wy2 + wy3,  wz2, pMass, ["structural"]],
-      [-wx2, wy2 + wy3, -wz2, pMass, ["structural"]],
-      [-wx2, wy2 - wy3, -wz2, pMass, ["structural"]],
-      [-wx2, wy2 - wy3,  wz2, pMass, ["structural"]],
+      [-wx2, wy2 + wy3,  wz2, ["structural"]],
+      [-wx2, wy2 + wy3, -wz2, ["structural"]],
+      [-wx2, wy2 - wy3, -wz2, ["structural"]],
+      [-wx2, wy2 - wy3,  wz2, ["structural"]],
     ];
     const carNodeCount = pArr.length;
     pArr.push(...pArr); // car B is identical
@@ -117,9 +118,12 @@ export class CartFrame {
     // distance between cars which is assumed to be true throughout this
     // module.
 
-    particles.container = pArr.map(([x, y, z, m, tags]) => {
+    const targetMass = 36;
+    const uniformMass = targetMass / carNodeCount;
+
+    particles.container = pArr.map(([x, y, z, tags]) => {
       const p = new MSDParticle({
-        mass: m,
+        mass: uniformMass,
         location: math.vec3(x, y + y_disp, z),
         velocity: math.vec3(0, 0, 0),
       });
@@ -177,20 +181,24 @@ export class CartFrame {
     // add particles to their appropriate groups
     for (const i of range(carNodeCount)) {
       this.msdSystem.addParticleToGroup(particles.container[i], "CarA");
+      this.msdSystem.addParticleToGroup(particles.container[i], "grounded");
+      this.msdSystem.addParticleToGroup(particles.container[i], "arenaBound");
     }
     for (const i of range(carNodeCount, carNodeCount * 2)) {
       this.msdSystem.addParticleToGroup(particles.container[i], "CarB");
+      this.msdSystem.addParticleToGroup(particles.container[i], "grounded");
+      this.msdSystem.addParticleToGroup(particles.container[i], "arenaBound");
     }
 
     // apply initial transform to all particles.
     for (const p of this.msdSystem.getGroup("CarA")) {
       p.location = math.vec3(
-        ...affineTransform(props.transforms.cartA, p.location, 1),
+        ...affineTransform(transforms.cartA, p.location, 1),
       );
     }
     for (const p of this.msdSystem.getGroup("CarB")) {
       p.location = math.vec3(
-        ...affineTransform(props.transforms.cartB, p.location, 1),
+        ...affineTransform(transforms.cartB, p.location, 1),
       );
     }
 
@@ -205,14 +213,14 @@ export class CartFrame {
     const plChoice: PlaneChoice = "xz";
     // adjust as needed to improve node enclosure
     const pillLength = wx2 * 1.0;
-    const pillWidth = props.dimensions.frameWidth;
+    const pillWidth = dimensions.frameWidth;
 
     // this pattern is a clusterfuck ngl, but it is a necessary evil. It
     // pushes the "contact fields" which are the colliders in the game,
     // and allows them to manage an internal signed distance function
     // and it's derivative. Trust me... this could have been way uglier.
     this.msdSystem.contactFields.push(
-      new PlaneField(new Set(), math.vec3(0, 1, 0), {
+      new PlaneField(new Set(["grounded"]), math.vec3(0, 1, 0), {
         stiffness: 15000,
         damping: 10,
         friction: {
@@ -224,6 +232,20 @@ export class CartFrame {
           coefficient: 0.2,
         },
         height: 0,
+      }),
+      new ArenaField(new Set(["arenaBound"]), {
+        bounds: [
+          math.vec3(0, 0, -22.5),
+          math.vec3(0, 0, 22.5),
+        ],
+        width: 15 * 2,
+        onto: "xz",
+      }, {
+        stiffness: 15000,
+        damping: 10,
+        restitution: {
+          coefficient: 0.2,
+        },
       }),
       new CartField(
         new Set(["CarB"]), // affects CarB but follows CarA
@@ -297,56 +319,6 @@ export class CartFrame {
       pcs[i].location = this.initial.locations[i].copy();
       pcs[i].velocity = math.vec3(0, 0, 0);
     }
-  }
-
-  private averageBumperFront(sh: number = 0) {
-    //0 1 8 9 12 13 14 15
-    const [i0, i1, i2, i3] = [12, 13, 14, 15];
-    const pc = this.msdSystem.particles.container;
-    const x =
-      (pc[i0 + sh].location[0] +
-        pc[i1 + sh].location[0] +
-        pc[i2 + sh].location[0] +
-        pc[i3 + sh].location[0]) /
-      4;
-    const y =
-      (pc[i0 + sh].location[1] +
-        pc[i1 + sh].location[1] +
-        pc[i2 + sh].location[1] +
-        pc[i3 + sh].location[1]) /
-      4;
-    const z =
-      (pc[i0 + sh].location[2] +
-        pc[i1 + sh].location[2] +
-        pc[i2 + sh].location[2] +
-        pc[i3 + sh].location[2]) /
-      4;
-    return math.vec3(x, y, z);
-  }
-
-  private averageBumperRear(sh: number = 0) {
-    // 2 3 10 11 16 17 18 19
-    const [i0, i1, i2, i3] = [16, 17, 18, 19];
-    const pc = this.msdSystem.particles.container;
-    const x =
-      (pc[i0 + sh].location[0] +
-        pc[i1 + sh].location[0] +
-        pc[i2 + sh].location[0] +
-        pc[i3 + sh].location[0]) /
-      4;
-    const y =
-      (pc[i0 + sh].location[1] +
-        pc[i1 + sh].location[1] +
-        pc[i2 + sh].location[1] +
-        pc[i3 + sh].location[1]) /
-      4;
-    const z =
-      (pc[i0 + sh].location[2] +
-        pc[i1 + sh].location[2] +
-        pc[i2 + sh].location[2] +
-        pc[i3 + sh].location[2]) /
-      4;
-    return math.vec3(x, y, z);
   }
 
   getAverage(nodeRange: [number, number]) {

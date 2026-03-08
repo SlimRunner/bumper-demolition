@@ -23,7 +23,7 @@ export class ActionCamera {
   zoomSmooth = 6;
 
   // prevent the camera going too close or too far
-  minDistance = 16;
+  minDistance = 10;
   maxDistance = 50;
 
   constructor(
@@ -44,8 +44,8 @@ export class ActionCamera {
     this.center = math.vec3(0, 0, 0);
     this.targetCenter = this.center;
 
-    this.distance = 10;
-    this.targetDistance = 10;
+    this.distance = 8;
+    this.targetDistance = 8;
   }
 
   setPadding(padding: number) {
@@ -64,11 +64,12 @@ export class ActionCamera {
 
     let min = subjects[0].copy();
     let max = subjects[0].copy();
+    const offset = math.vec3(2, 0, 0);
 
     for (const p of subjects) {
       for (let i = 0; i < 3; i++) {
-        min[i] = Math.min(min[i], p[i]);
-        max[i] = Math.max(max[i], p[i]);
+        min[i] = Math.min(min[i], p[i] + offset[i]);
+        max[i] = Math.max(max[i], p[i] + offset[i]);
       }
     }
 
