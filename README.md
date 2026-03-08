@@ -1,5 +1,5 @@
 - [CS174C - Final Project](#cs174c---final-project)
-  - [Name: TBD](#name-tbd)
+  - [Bumper Demolition](#bumper-demolition)
     - [TODOs](#todos)
     - [Game Description](#game-description)
   - [Setup](#setup)
@@ -12,7 +12,7 @@
 
 # CS174C - Final Project
 
-## Name: TBD
+## Bumper Demolition
 
 Members:
 - Adrian Pu
@@ -46,16 +46,35 @@ A tentative and non-exhaustive TODO list
     - [ ] show timer in between health bars
     - [ ] show WIN toast at the end
 - [ ] prettify game
-  - [ ] find nice meshes/textures (off the internet?)
+  - [ ] find nice meshes
+    - [x] arena floor
+    - [x] arena walls
+    - [x] wheels
+    - [x] arm-links
+    - [x] body
+    - [x] saw
+    - [ ] stadium light pole (optional)
+  - [ ] add texturing
+    - [x] arena floor
+    - [ ] arena walls
     - [ ] wheels
     - [ ] arm-links
     - [ ] body
     - [ ] saw
+    - [ ] stadium light pole (optional)
+  - [ ] add nice shaders
+    - [x] skybox
+    - [x] normal mapping
+    - [x] specular mapping
+    - [ ] orbiting particles (single vertex)
+    - [ ] aura like field (for mass power up)
 
 Proposals for implementation
-- particle beam collision detection
+- particle orbit cloud collision detection
   - add kinetic particles to the MSD system and use car SDF colliders (use tags)
   - implement a drawable for the subset of these particles (use tags)
+  - create a shader for single vertex geometry
+    - see `gl.POINTS` (similar to gaussian splatting)
 - For the GUI
   - preferably use CSS: shaders would be cleaner but that is making a GUI from scratch and other group already used CSS so probably we don't have to.
   - Make sure you make the elements children of canvas. This is loaded in the base constructor of main
