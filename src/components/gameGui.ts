@@ -123,6 +123,10 @@ export class GameGUI {
     this.resetState();
   }
 
+  get currentTime() {
+    return this.elapsedSeconds;
+  }
+
   updateHealth(carA: number, carB: number): void {
     const a = this.clampPercent(carA);
     const b = this.clampPercent(carB);

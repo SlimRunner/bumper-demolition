@@ -197,7 +197,7 @@ export class FileMesh extends tiny.Shape {
     // Kd is a diffuse COLOR (rgb), not a scalar — do not average it for diffusivity.
     // Ks is a specular COLOR (rgb) — average it to get a specularity scalar.
     const material: MaterialRecord = {
-      shader: new defs.Phong_Shader(),
+      shader: new defs.Phong_Shader(5),
       // Kd is the diffuse color; use it directly as the surface color
       color: mtlMat.Kd
         ? math.color(mtlMat.Kd[0], mtlMat.Kd[1], mtlMat.Kd[2], mtlMat.d ?? 1.0)
