@@ -67,7 +67,6 @@ export class CartFrame {
       carNodeCount: 0,
     };
 
-    const pMass = 1.8;
     const y_disp = 0.1;
     const particles = new ParticleCollection(0);
     const wx = dimensions.wheelbase / 2;

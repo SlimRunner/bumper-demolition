@@ -60,6 +60,42 @@ export function sdGradient3D(
     .normalized();
 }
 
+export function sdGradient3DMut(
+  pt: math.Vector3,
+  sdf: FunctorSDF<math.Vector3, number>,
+  delta: number,
+  out: math.Vector3,
+  tmp: math.Vector3
+) {
+  const px = pt[0];
+  const py = pt[1];
+  const pz = pt[2];
+
+  tmp[0] = px + delta; tmp[1] = py; tmp[2] = pz;
+  const dx1 = sdf(tmp);
+
+  tmp[0] = px - delta;
+  const dx2 = sdf(tmp);
+
+  tmp[0] = px; tmp[1] = py + delta;
+  const dy1 = sdf(tmp);
+
+  tmp[1] = py - delta;
+  const dy2 = sdf(tmp);
+
+  tmp[1] = py; tmp[2] = pz + delta;
+  const dz1 = sdf(tmp);
+
+  tmp[2] = pz - delta;
+  const dz2 = sdf(tmp);
+
+  const scale = 1 / (2 * delta);
+
+  out[0] = (dx1 - dx2) * scale;
+  out[1] = (dy1 - dy2) * scale;
+  out[2] = (dz1 - dz2) * scale;
+}
+
 export function sdPlane(
   pt: math.Vector3,
   normal: math.Vector3,

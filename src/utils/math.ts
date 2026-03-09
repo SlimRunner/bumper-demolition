@@ -155,6 +155,55 @@ export function affineTransform(
   ];
 }
 
+export function crossMut(
+  lhs: math.Vector3,
+  rhs: math.Vector3,
+  out: math.Vector3,
+) {
+  const lx = lhs[0],
+    ly = lhs[1],
+    lz = lhs[2];
+  const rx = rhs[0],
+    ry = rhs[1],
+    rz = rhs[2];
+  out[0] = ly * rz - lz * ry;
+  out[1] = lz * rx - lx * rz;
+  out[2] = lx * ry - ly * rx;
+}
+
+/**
+ * projects v onto u
+ * @param u vector to be projected into
+ * @param v vector being projected
+ * @param out vector projection
+ */
+export function projMut(u: math.Vector3, v: math.Vector3, out: math.Vector3) {
+  const ux = u[0],
+    uy = u[1],
+    uz = u[2];
+  const distSq = ux * ux + uy * uy + uz * uz;
+
+  if (distSq < 1e-9) {
+    out[0] = 0;
+    out[1] = 0;
+    out[2] = 0;
+    return;
+  }
+
+  const dUV = ux * v[0] + uy * v[1] + uz * v[2];
+  const scalar = dUV / distSq;
+
+  out[0] = scalar * ux;
+  out[1] = scalar * uy;
+  out[2] = scalar * uz;
+}
+
+export function setVector(vec: math.Vector3, other: math.Vector3) {
+  vec[0] = other[0];
+  vec[1] = other[1];
+  vec[2] = other[2];
+}
+
 export function rotateAboutAxis(
   v: math.Vector3,
   axis: math.Vector3,
