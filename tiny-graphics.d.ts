@@ -78,7 +78,7 @@ export namespace tiny {
 
     copy_onto_graphics_card(
       context: WebGL2RenderingContext,
-      selection_of_arrays?: ShapeArrayKeys,
+      selection_of_arrays?: ShapeArrayKeys[],
       write_to_indices?: boolean,
     ): ShapeGPUInstance;
     execute_shaders(

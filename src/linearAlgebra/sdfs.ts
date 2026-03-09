@@ -24,24 +24,6 @@ export function curryDyn<T, R, Args extends Arr>(
   return (p: T) => sdf(p, ...args());
 }
 
-export function sdGradient2D(
-  pt3: math.Vector3,
-  sdf: FunctorSDF<math.Vector3, number>,
-  delta: number,
-  onto: PlaneChoice,
-) {
-  const pt = Vector2.from3d(pt3, onto);
-  const xdt = vec2(delta, 0);
-  const ydt = vec2(0, delta);
-  return vec2(
-    sdf(pt.plus(xdt).to3(0, onto)) - sdf(pt.minus(xdt).to3(0, onto)),
-    sdf(pt.plus(ydt).to3(0, onto)) - sdf(pt.minus(ydt).to3(0, onto)),
-  )
-    .times(2 * delta)
-    .to3(0, onto)
-    .normalized();
-}
-
 export function sdGradient3D(
   pt: math.Vector3,
   sdf: FunctorSDF<math.Vector3, number>,
@@ -56,8 +38,43 @@ export function sdGradient3D(
       sdf(pt.plus(ydt)) - sdf(pt.minus(ydt)),
       sdf(pt.plus(zdt)) - sdf(pt.minus(zdt)),
     )
-    .times(2 * delta)
-    .normalized();
+    .times(2 * delta);
+}
+
+export function sdGradient3DMut(
+  pt: math.Vector3,
+  sdf: FunctorSDF<math.Vector3, number>,
+  delta: number,
+  out: math.Vector3,
+  tmp: math.Vector3
+) {
+  const px = pt[0];
+  const py = pt[1];
+  const pz = pt[2];
+
+  tmp[0] = px + delta; tmp[1] = py; tmp[2] = pz;
+  const dx1 = sdf(tmp);
+
+  tmp[0] = px - delta;
+  const dx2 = sdf(tmp);
+
+  tmp[0] = px; tmp[1] = py + delta;
+  const dy1 = sdf(tmp);
+
+  tmp[1] = py - delta;
+  const dy2 = sdf(tmp);
+
+  tmp[1] = py; tmp[2] = pz + delta;
+  const dz1 = sdf(tmp);
+
+  tmp[2] = pz - delta;
+  const dz2 = sdf(tmp);
+
+  const scale = 1 / (2 * delta);
+
+  out[0] = (dx1 - dx2) * scale;
+  out[1] = (dy1 - dy2) * scale;
+  out[2] = (dz1 - dz2) * scale;
 }
 
 export function sdPlane(
