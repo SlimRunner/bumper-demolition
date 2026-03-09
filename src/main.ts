@@ -385,9 +385,11 @@ export class BumperCarsBase extends tiny.Component {
   }
 
   render_animation(context: tiny.Component): void {
-    // const time = (this.uniforms.animation_time ?? 0) / 1000;
+    const time = (this.uniforms.animation_time ?? 0) / 1000;
+    const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
 
-    // temporary camera for modeling
+    this.gameView.actionCam!.updateCamera(timeDelta);
+
     const { cameraMatrix, position } =
       this.gameView.cameraPin === "follow"
         ? this.gameView.actionCam!.getCameraTransform()
@@ -469,7 +471,7 @@ export class BumperCars extends BumperCarsBase {
     const camSubjects: math.Vector3[] = [];
 
     const time = (this.uniforms.animation_time ?? 0) / 1000;
-    //const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
+    const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
 
     const GL = context.context!;
 
@@ -481,11 +483,9 @@ export class BumperCars extends BumperCarsBase {
 
     // do all time related oerations inside this if statement
     if (cartMSD.enable && !this.globalProps.isIdling) {
-      const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
       const timeMult = this.globalProps.timeMultiplier;
 
       this.gui?.updateTimer(timeDelta * timeMult);
-      this.gameView.actionCam!.updateCamera(timeDelta);
       cartA.updateControls(timeDelta * timeMult);
       cartB.updateControls(timeDelta * timeMult);
       const tires = cartMSD.updateTireVectors(
