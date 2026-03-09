@@ -2,6 +2,7 @@ import { ArcJoint, NodeLink } from "../rigging/kinematics";
 import { math } from "../../tiny-graphics-math";
 import { tiny } from "../../tiny-graphics";
 import { clamp, lerp, smoothstep } from "../utils/math";
+import { DrawableShape } from "src/shapes/types";
 
 const armJointInitAngle1 = -0.1;
 const armJointInitAngle2 = 0.45;
@@ -80,11 +81,11 @@ export class CartArmature {
 
   constructor(props: {
     meshes: {
-      chassis: tiny.Shape;
-      wheel: tiny.Shape;
-      arm1: tiny.Shape;
-      arm2: tiny.Shape;
-      saw: tiny.Shape;
+      chassis: tiny.Shape | DrawableShape;
+      wheel: tiny.Shape | DrawableShape;
+      arm1: tiny.Shape | DrawableShape;
+      arm2: tiny.Shape | DrawableShape;
+      saw: tiny.Shape | DrawableShape;
     };
     dimensions: {
       chassisWidth: number;
