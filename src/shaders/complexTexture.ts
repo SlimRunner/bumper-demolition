@@ -48,9 +48,9 @@ export class ComplexTextured extends tiny.Shader {
       // on to the next phase (fragment shader), then interpolated per-fragment, weighted by the
       // pixel fragment's proximity to each of the 3 vertices (barycentric interpolation).
       varying vec3 N, vertex_worldspace;
-      
+
       // might implement this later (Fresnel): https://stackoverflow.com/a/9901654
-      // ***** PHONG SHADING HAPPENS HERE: *****                                       
+      // ***** PHONG SHADING HAPPENS HERE: *****
       vec3 phong_model_lights( vec3 N, vec3 vertex_worldspace, vec3 diffuse_color, float specular_intensity ){
         // phong_model_lights():  Add up the lights' contributions.
         vec3 E = normalize( camera_center - vertex_worldspace );
@@ -60,10 +60,10 @@ export class ComplexTextured extends tiny.Shader {
           // light will appear directional (uniform direction from all points), and we
           // simply obtain a vector towards the light by directly using the stored value.
           // Otherwise if w is 1 it will appear as a point light -- compute the vector to
-          // the point light's location from the current surface point.  In either case, 
-          // fade (attenuate) the light as the vector needed to reach it gets longer.  
-          vec3 surface_to_light_vector = light_positions_or_vectors[i].xyz - 
-                                        light_positions_or_vectors[i].w * vertex_worldspace;                                             
+          // the point light's location from the current surface point.  In either case,
+          // fade (attenuate) the light as the vector needed to reach it gets longer.
+          vec3 surface_to_light_vector = light_positions_or_vectors[i].xyz -
+                                        light_positions_or_vectors[i].w * vertex_worldspace;
           float distance_to_light = length( surface_to_light_vector );
 
           vec3 L = normalize( surface_to_light_vector );
@@ -73,7 +73,7 @@ export class ComplexTextured extends tiny.Shader {
           float diffuse  =      max( dot( N, L ), 0.0 );
           float specular = pow( max( dot( N, H ), 0.0 ), smoothness );
           float attenuation = 1.0 / (1.0 + light_attenuation_factors[i] * distance_to_light * distance_to_light );
-          
+
           vec3 light_contribution =
             diffuse_color.xyz * light_colors[i].xyz * diffusivity * diffuse +
             light_colors[i].xyz * specular_intensity * specularity * specular;
@@ -90,16 +90,16 @@ export class ComplexTextured extends tiny.Shader {
     return `
       ${this.shared_glsl_code()}
       varying vec2 f_tex_coord;
-      attribute vec3 position, normal;                            
+      attribute vec3 position, normal;
       // Position is expressed in object coordinates.
       attribute vec2 texture_coord;
       attribute vec3 tangent;
       attribute vec3 bitangent;
-      
+
       uniform mat4 model_transform;
       uniform mat4 projection_camera_model_transform;
 
-      void main(){                                                                   
+      void main(){
         // The vertex's final resting place (in NDCS):
         gl_Position = projection_camera_model_transform * vec4( position, 1.0 );
         // The final normal vector in screen space.
@@ -125,7 +125,7 @@ export class ComplexTextured extends tiny.Shader {
       vec3 approximateTangent(vec3 N, vec3 V) {
         return normalize(cross(N, V));
       }
-      
+
       vec3 approximateBitangent(vec3 N, vec3 T) {
         return normalize(cross(T, N));
       }
@@ -134,19 +134,19 @@ export class ComplexTextured extends tiny.Shader {
         // Get the tangent and bitangent vectors
         vec3 T = normalize(approximateTangent(N, V));
         vec3 B = normalize(approximateBitangent(N, T));
-        
+
         // Calculate the tangent space matrix
         mat3 TBN = mat3(T, B, N);
-    
+
         // Transform the normal map values from [0,1] to [-1,1] range
         vec3 mapNormal = normalMap.xyz * 2.0 - 1.0;
-    
+
         // Transform the normal map from tangent space to world space
         vec3 worldNormal = normalize(TBN * mapNormal);
-    
+
         // Perturb the original normal using the world space normal
         vec3 perturbedNormal = normalize(N + worldNormal);
-    
+
         return perturbedNormal;
       }
 
@@ -164,8 +164,8 @@ export class ComplexTextured extends tiny.Shader {
         vec3 N_bumped = mix(N, perturbNormal(N, V, bump_color), bumpiness);
 
         // Compute an initial (ambient) color:
-        gl_FragColor = vec4( (ambient_color * tex_color).xyz * ambient, ambient_color.w * tex_color.w ); 
-        
+        gl_FragColor = vec4( (ambient_color * tex_color).xyz * ambient, ambient_color.w * tex_color.w );
+
         // Compute the final color with contributions from lights:
         gl_FragColor.xyz += phong_model_lights(
           normalize( N_bumped ),

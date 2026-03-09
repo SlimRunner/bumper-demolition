@@ -309,7 +309,7 @@ float eval_quintic_bezier(in float[6] control_points, float t) {
   float t3 = t2 * t;
   float t4 = t3 * t;
   float t5 = t4 * t;
-  
+
   float t_inv = 1.0 - t;
   float t_inv2 = t_inv * t_inv;
   float t_inv3 = t_inv2 * t_inv;
@@ -370,7 +370,7 @@ float F(float theta, float gamma, in float[9] coeffs) {
   float H = coeffs[8];
   float I = coeffs[7];
   float chi = (1.0 + pow(cos(gamma), 2.0)) / pow(1.0 + H*H - 2.0 * H * cos(gamma), 1.5);
-  
+
   return (
     (1.0 + A * exp(B / (cos(theta) + 0.01))) *
     (C + D * exp(E * gamma) + F * pow(cos(gamma), 2.0) + G * chi + I * sqrt(cos(theta)))
@@ -433,7 +433,7 @@ void main() {
   float sun_zenith_safe = clamp(sun_zenith, 0.0, H_PI);
   // starts at x-axis moves clockwise towards z at pi/2
   float sun_azimuth = sun_dir.y;
-  
+
   // same as sun zenith but for the sky
   float view_zenith = atan(length(fragCoord.xz), max(0.0, fragCoord.y));
   // same as sun azimuth but for the sky

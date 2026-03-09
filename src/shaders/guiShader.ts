@@ -48,7 +48,7 @@ export class ScreenGUIShader extends tiny.Shader {
       uniform float hp2;
 
       void main() {
-        // gl_FragCoord contains the 
+        // gl_FragCoord contains the
         vec2 uv = (gl_FragCoord.xy - 0.5) / resolution;
         // vec2 pix = vec2(uv.x, uv.y)
         // float cross_threshold = cross_hair(uv, 2.0, 10.0);

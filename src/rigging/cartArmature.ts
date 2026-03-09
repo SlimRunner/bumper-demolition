@@ -76,7 +76,7 @@ export class CartArmature {
     spinFR: 0,
     spinFL: 0,
   };
-  private _tireRadius: number;  
+  private _tireRadius: number;
 
   constructor(props: {
     meshes: {

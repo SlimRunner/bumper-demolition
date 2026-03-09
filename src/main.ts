@@ -433,7 +433,10 @@ export class BumperCars extends BumperCarsBase {
     carB: 100,
   };
 
-  private guiPower: { carA: "heavy" | "laser" | "none"; carB: "heavy" | "laser" | "none" } = {
+  private guiPower: {
+    carA: "heavy" | "laser" | "none";
+    carB: "heavy" | "laser" | "none";
+  } = {
     carA: "none",
     carB: "none",
   };
@@ -803,7 +806,5 @@ export class BumperCars extends BumperCarsBase {
     this.key_triggered_button("reset", ["t"], () => {
       this.resetGame();
     });
-
-    
   }
 }
