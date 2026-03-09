@@ -16,6 +16,12 @@ import { ActionCamera } from "./components/actionCamera";
 import { ComplexTextured, CplxMats } from "./shaders/complexTexture";
 import { SkyboxWH } from "./shaders/skyboxShader";
 import { GameGUI } from "./components/gameGui";
+import {
+  calculateSunPosition,
+  getAverageSkyColor,
+  getGrayscale,
+  getSunColor,
+} from "./shaders/skyboxUtils";
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -39,6 +45,7 @@ export class BumperCarsBase extends tiny.Component {
     readonly softBlue: math.Vector4;
     readonly yellow: math.Vector4;
     readonly white: math.Vector4;
+    sumAmbient: math.Vector4;
   };
   materials: {
     uvSimple: {
@@ -102,10 +109,11 @@ export class BumperCarsBase extends tiny.Component {
       softBlue: math.color(0.176, 0.439, 0.702, 1),
       yellow: math.color(1, 1, 0, 1),
       white: math.color(1, 1, 1, 1),
+      sumAmbient: math.color(0, 0, 0, 0),
     };
 
     const uvShader = new UVShader();
-    const phongShader = new defs.Phong_Shader();
+    const phongShader = new defs.Phong_Shader(5);
     const solidColor = new SolidColor();
 
     this.materials = {
@@ -124,7 +132,7 @@ export class BumperCarsBase extends tiny.Component {
         color: math.vec4(0.6, 0.6, 0.6, 1),
       },
       asphalt: {
-        shader: new ComplexTextured(),
+        shader: new ComplexTextured(5),
         ambient: 0.4,
         diffusivity: 4,
         specularity: 1,
@@ -385,9 +393,11 @@ export class BumperCarsBase extends tiny.Component {
   }
 
   render_animation(context: tiny.Component): void {
-    // const time = (this.uniforms.animation_time ?? 0) / 1000;
+    const time = (this.uniforms.animation_time ?? 0) / 1000;
+    const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
 
-    // temporary camera for modeling
+    this.gameView.actionCam!.updateCamera(timeDelta);
+
     const { cameraMatrix, position } =
       this.gameView.cameraPin === "follow"
         ? this.gameView.actionCam!.getCameraTransform()
@@ -402,7 +412,19 @@ export class BumperCarsBase extends tiny.Component {
       100,
     );
 
-    const { sun_azimuth, sun_zenith } = this.materials.skybox;
+    const { sun_azimuth, sun_zenith } = calculateSunPosition(
+      lerp(4, 18, clamp(this.gui!.currentTime / 360, 0, 1)),
+      0.3,
+      6,
+    );
+    const sunColor = getSunColor({ sun_azimuth, sun_zenith });
+    this.colors.sumAmbient = getAverageSkyColor({ sun_azimuth, sun_zenith });
+
+    this.materials.asphalt.ambient_color = this.colors.sumAmbient;
+
+    const sunLuminance = getGrayscale(sunColor);
+    this.materials.skybox.sun_azimuth = sun_azimuth;
+    this.materials.skybox.sun_zenith = sun_zenith;
     const light_dir = math.vec4(
       10 * Math.sin(sun_zenith) * Math.cos(sun_azimuth),
       10 * Math.cos(sun_zenith),
@@ -410,15 +432,20 @@ export class BumperCarsBase extends tiny.Component {
       0,
     );
     this.uniforms.lights = [
-      defs.Phong_Shader.light_source(light_dir, math.color(1, 1, 1, 1), 50),
+      defs.Phong_Shader.light_source(light_dir, sunColor, 50),
     ];
-    if (this.gameView.cameraPin !== "follow") {
-      const light_position = position.to4(1);
+    console.log(sunLuminance);
+    for (const [x, z] of [
+      [-1, -1],
+      [-1, 1],
+      [1, 1],
+      [1, -1],
+    ]) {
       this.uniforms.lights.push(
         defs.Phong_Shader.light_source(
-          light_position,
+          math.vec4(x * 15, 10, z * 15, 1),
           math.color(1, 1, 1, 1),
-          100,
+          70 * (1 - sunLuminance),
         ),
       );
     }
@@ -431,7 +458,10 @@ export class BumperCars extends BumperCarsBase {
     carB: 100,
   };
 
-  private guiPower: { carA: "heavy" | "laser" | "none"; carB: "heavy" | "laser" | "none" } = {
+  private guiPower: {
+    carA: "heavy" | "laser" | "none";
+    carB: "heavy" | "laser" | "none";
+  } = {
     carA: "none",
     carB: "none",
   };
@@ -469,7 +499,7 @@ export class BumperCars extends BumperCarsBase {
     const camSubjects: math.Vector3[] = [];
 
     const time = (this.uniforms.animation_time ?? 0) / 1000;
-    //const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
+    const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
 
     const GL = context.context!;
 
@@ -481,11 +511,9 @@ export class BumperCars extends BumperCarsBase {
 
     // do all time related oerations inside this if statement
     if (cartMSD.enable && !this.globalProps.isIdling) {
-      const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
       const timeMult = this.globalProps.timeMultiplier;
 
       this.gui?.updateTimer(timeDelta * timeMult);
-      this.gameView.actionCam!.updateCamera(timeDelta);
       cartA.updateControls(timeDelta * timeMult);
       cartB.updateControls(timeDelta * timeMult);
       const tires = cartMSD.updateTireVectors(
@@ -563,12 +591,10 @@ export class BumperCars extends BumperCarsBase {
       cartA.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
         if (name === "chassis") {
-          (node.shape as FileMesh).drawAll(
-            context,
-            this.uniforms,
-            matrix,
-            this.materials.uvSimple,
-          );
+          (node.shape as FileMesh).drawAll(context, this.uniforms, matrix, {
+            ...this.materials.plastic,
+            color: this.colors.red,
+          });
         } else {
           (node.shape as FileMesh).drawAll(
             context,
@@ -581,12 +607,10 @@ export class BumperCars extends BumperCarsBase {
       cartB.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
         if (name === "chassis") {
-          (node.shape as FileMesh).drawAll(
-            context,
-            this.uniforms,
-            matrix,
-            this.materials.uvSimple,
-          );
+          (node.shape as FileMesh).drawAll(context, this.uniforms, matrix, {
+            ...this.materials.plastic,
+            color: this.colors.red,
+          });
         } else {
           (node.shape as FileMesh).drawAll(
             context,
@@ -748,7 +772,12 @@ export class BumperCars extends BumperCarsBase {
       this.guiHealth.carA = clamp(this.guiHealth.carA + 10, 0, 100);
       this.guiHealth.carB = clamp(this.guiHealth.carB + 10, 0, 100);
       this.gui?.updateHealth(this.guiHealth.carA, this.guiHealth.carB);
-      console.log("Car A health:", this.guiHealth.carA, "Car B health:", this.guiHealth.carB);
+      console.log(
+        "Car A health:",
+        this.guiHealth.carA,
+        "Car B health:",
+        this.guiHealth.carB,
+      );
     });
     this.new_line();
 
@@ -803,7 +832,5 @@ export class BumperCars extends BumperCarsBase {
     this.key_triggered_button("reset", ["t"], () => {
       this.resetGame();
     });
-
-    
   }
 }
