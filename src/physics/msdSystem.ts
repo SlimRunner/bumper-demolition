@@ -55,12 +55,7 @@ export class MSDParticle {
 
   tags: Set<ParticleTags>;
   group: Set<string>;
-  _force: math.Vector3 = math.vec3(0, 0, 0);
-
-  get force() {
-    console.assert(!Number.isNaN(this._force));
-    return this._force;
-  }
+  force: math.Vector3 = math.vec3(0, 0, 0);
 
   constructor(props: Partial<ParticleProperties> = {}) {
     this.mass = props.mass ?? 0;
