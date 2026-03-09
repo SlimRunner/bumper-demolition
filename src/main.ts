@@ -18,6 +18,7 @@ import { SkyboxWH } from "./shaders/skyboxShader";
 import { GameGUI } from "./components/gameGui";
 import {
   calculateSunPosition,
+  getAverageSkyColor,
   getGrayscale,
   getSunColor,
 } from "./shaders/skyboxUtils";
@@ -44,6 +45,7 @@ export class BumperCarsBase extends tiny.Component {
     readonly softBlue: math.Vector4;
     readonly yellow: math.Vector4;
     readonly white: math.Vector4;
+    sumAmbient: math.Vector4;
   };
   materials: {
     uvSimple: {
@@ -107,6 +109,7 @@ export class BumperCarsBase extends tiny.Component {
       softBlue: math.color(0.176, 0.439, 0.702, 1),
       yellow: math.color(1, 1, 0, 1),
       white: math.color(1, 1, 1, 1),
+      sumAmbient: math.color(0, 0, 0, 0),
     };
 
     const uvShader = new UVShader();
@@ -415,6 +418,10 @@ export class BumperCarsBase extends tiny.Component {
       6,
     );
     const sunColor = getSunColor({ sun_azimuth, sun_zenith });
+    this.colors.sumAmbient = getAverageSkyColor({ sun_azimuth, sun_zenith });
+
+    this.materials.asphalt.ambient_color = this.colors.sumAmbient;
+
     const sunLuminance = getGrayscale(sunColor);
     this.materials.skybox.sun_azimuth = sun_azimuth;
     this.materials.skybox.sun_zenith = sun_zenith;
