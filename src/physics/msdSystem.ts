@@ -292,95 +292,104 @@ export class SpringDamperSystem {
         p.force[1] += normal[1] * msdForceMag;
         p.force[2] += normal[2] * msdForceMag;
 
-        if (field.friction) {
+        if (field.traction && p.tags.has("tire")) {
           // cache aliases
           const forward = this.cache.tempVec[1];
           const forwardProj = this.cache.tempVec[2];
           const lateral = this.cache.tempVec[3];
 
-          if (field.role === "ground" && p.tags.has("tire")) {
-            // slip angle friction
+          // NOTE: these are too many checks, but I don't really want to
+          // mess with this at the moment. It needs fixing. Why does it
+          // have to be ground? Why does the field have to define the
+          // traction? Feels like it should be the particle, but then
+          // that is yet more data per particle.
 
-            // const forward = p.tireForward!.normalized();
+          // slip angle friction
 
-            // this is the tire forward (may not be planar to surface)
-            setVector(forward, p.tireForward!);
-            forward.normalize();
+          // this is the tire forward (may not be planar to surface)
+          setVector(forward, p.tireForward!);
+          forward.normalize();
 
-            // project forward onto normal (zero most of the time)
-            projMut(normal, forward, forwardProj);
-            forward.subtract_by(forwardProj);
-            forward.normalize();
+          // project forward onto normal (zero most of the time)
+          projMut(normal, forward, forwardProj);
+          forward.subtract_by(forwardProj);
+          forward.normalize();
 
-            // get lateral vector
-            crossMut(normal, forward, lateral);
-            lateral.normalize();
+          // get lateral vector
+          crossMut(normal, forward, lateral);
+          lateral.normalize();
 
-            const velFwd = p.velocity.dot(forward);
-            const spdFwd = Math.abs(velFwd);
-            const velLat = p.velocity.dot(lateral);
+          const velFwd = p.velocity.dot(forward);
+          const spdFwd = Math.abs(velFwd);
+          const velLat = p.velocity.dot(lateral);
 
-            const normalLoad = Math.max(0, msdForceMag);
-            // corneringStiffness
-            const cAlpha = 120;
-            const eps = 0.5; // prevents explosion at low speed
-            const slipAngle = Math.atan2(velLat, spdFwd + eps);
+          const normalLoad = Math.max(0, msdForceMag);
+          const cAlpha = field.traction.stiffness.cornering;
+          const eps = 0.5; // prevents explosion at low speed
+          const slipAngle = Math.atan2(velLat, spdFwd + eps);
 
-            let forceLatMag = -cAlpha * slipAngle;
-            const mu = 1.8; //field.friction.kinetic;
-            const maxForce = mu * normalLoad;
-            forceLatMag = clamp(forceLatMag, -maxForce, maxForce);
+          let forceLatMag = -cAlpha * slipAngle;
+          const mu = field.traction.coeff;
+          const maxForce = mu * normalLoad;
+          forceLatMag = clamp(forceLatMag, -maxForce, maxForce);
 
-            const forceLat = lateral;
-            // INVALIDATED: lateral
-            forceLat.scale_by(forceLatMag);
+          const forceLat = lateral;
+          // INVALIDATED: lateral
+          forceLat.scale_by(forceLatMag);
 
-            const eInit = Math.exp(-spdFwd);
-            const eEnd = Math.exp(3 * (10 - spdFwd));
-            const scaling = (eEnd - eInit) / (1 + eInit) / (1 + eEnd);
-            // longitudinalStiffness
-            const cFwd = 10;
-            const forceFwdMag = scaling * (p.tireThrust ?? 0) - cFwd * velFwd;
+          const eInit = Math.exp(-spdFwd);
+          const eEnd = Math.exp(3 * (10 - spdFwd));
+          const scaling = (eEnd - eInit) / (1 + eInit) / (1 + eEnd);
+          const cFwd = field.traction.stiffness.longitudinal;
+          const forceFwdMag = scaling * (p.tireThrust ?? 0) - cFwd * velFwd;
 
-            const forceFwd = forward;
-            forceFwd.scale_by(forceFwdMag);
-            // INVALIDATED: forward
-            const forceTotal = forceFwd;
-            forceTotal.add_by(forceLat);
-            // INVALIDATED: forceFwd
+          const forceFwd = forward;
+          forceFwd.scale_by(forceFwdMag);
+          // INVALIDATED: forward
+          const forceTotal = forceFwd;
+          forceTotal.add_by(forceLat);
+          // INVALIDATED: forceFwd
 
-            const mag = forceTotal.norm();
-            if (mag > maxForce) {
-              forceTotal.scale_by(maxForce / mag);
-            }
-
-            p.force.add_by(forceTotal);
-          } else {
-            // tangential friction pending. Add only if needed
-            // // compute regular tangential friction forces
-            // const normVelocity = normal.times(normSpeed);
-            // const tangVelocity = p.velocity.minus(normVelocity);
-            // if (tangVelocity.norm() < field.friction.threshold) {
-            //   // static
-            //   const muS = field.friction.static;
-            //   const fmax = msdForce.norm() * muS;
-            //   // p.velocity = normVelocity;
-            //   if (tangForce.norm() <= fmax) {
-            //     // zero out tangential force
-            //     FNet = FNet.minus(tangForce);
-            //   } else {
-            //     // subtract fmax along tangent
-            //     FNet = FNet.minus(tangForce.normalized().times(fmax));
-            //   }
-            // } else {
-            //   // kinetic
-            //   const muK = field.friction.kinetic;
-            //   FNet = FNet.minus(
-            //     tangVelocity.normalized().times(normalForce.norm() * muK),
-            //   );
-            // }
+          const mag = forceTotal.norm();
+          if (mag > maxForce) {
+            forceTotal.scale_by(maxForce / mag);
           }
-        }
+
+          p.force.add_by(forceTotal);
+        } else if (field.friction) {
+          // // tangential friction pending. Add only if needed
+          // // compute regular tangential friction forces
+          // const tangVel = this.cache.tempVec[4];
+          // setVector(tangVel, normal);
+          // tangVel.scale_by(-normSpeed);
+          // tangVel.add_by(p.velocity);
+          // const tangSpeed = tangVel.norm();
+
+          // if (tangSpeed < field.friction.threshold) {
+          //   // static
+          //   const fMax = Math.max(0, msdForceMag * field.friction.static);
+          //   const tangForce = this.cache.tempVec[5];
+          //   setVector(tangForce, p.force);
+          //   tangForce.subtract_by(tangForce.dot(normal))
+          //   const tangFormceMag = tangForce.dot(normal);
+          //   const frictionForce = Math.min();
+
+          //   if (tangForce.norm() <= fMax) {
+          //     // zero out tangential force
+          //     FNet = FNet.minus(tangForce);
+          //   } else {
+          //     // subtract fmax along tangent
+          //     FNet = FNet.minus(tangForce.normalized().times(fMax));
+          //   }
+          // } else {
+          //   // kinetic
+          //   const normalLoad = Math.max(0, msdForceMag * field.friction.kinetic);
+          //   tangVel.scale_by(1 / tangSpeed);
+          //   p.force[0] -= tangVel[0] * normalLoad;
+          //   p.force[1] -= tangVel[1] * normalLoad;
+          //   p.force[2] -= tangVel[2] * normalLoad;
+          // }
+          }
 
         if (field.restitution && normSpeed < 0) {
           const eScaled = normSpeed * (1 + field.restitution.coefficient);
@@ -389,11 +398,7 @@ export class SpringDamperSystem {
           p.velocity[2] -= normal[2] * eScaled;
         }
       }
-
-      // forces.set(p, FNet);
     }
-
-    // return forces;
   }
 }
 

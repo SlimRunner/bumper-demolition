@@ -222,11 +222,18 @@ export class CartFrame {
       new PlaneField(new Set(["grounded"]), math.vec3(0, 1, 0), {
         stiffness: 15000,
         damping: 10,
-        friction: {
-          kinetic: 0.9,
-          static: 1,
-          threshold: 1e-3,
+        traction: {
+          coeff: 1.8,
+          stiffness: {
+            cornering: 120,
+            longitudinal: 10,
+          },
         },
+        // friction: {
+        //   kinetic: 0.9,
+        //   static: 1,
+        //   threshold: 1e-3,
+        // },
         restitution: {
           coefficient: 0.2,
         },
