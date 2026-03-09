@@ -3,6 +3,9 @@ import { math } from "../../tiny-graphics-math";
 import { tiny } from "../../tiny-graphics";
 import { clamp, lerp, smoothstep } from "../utils/math";
 
+const armJointInitAngle1 = -0.1;
+const armJointInitAngle2 = 0.45;
+
 export type CartNodeNames =
   | "chassis"
   | "saw"
@@ -73,7 +76,7 @@ export class CartArmature {
     spinFR: 0,
     spinFL: 0,
   };
-  private _tireRadius: number;
+  private _tireRadius: number;  
 
   constructor(props: {
     meshes: {
@@ -237,14 +240,14 @@ export class CartArmature {
       chassis,
       sawArmLink1,
       sawArmJoint1Matrix,
-      { rz: { angle: -0.1, limit: [-Math.PI, 0] } },
+      { rz: { angle: armJointInitAngle1, limit: [-Math.PI, 0] } },
     );
     const sawArmJoint2 = new ArcJoint(
       "sawArmJoint2",
       sawArmLink1,
       sawArmLink2,
       sawArmJoint2Matrix,
-      { rz: { angle: 0.1, limit: [-Math.PI, Math.PI] } },
+      { rz: { angle: armJointInitAngle2, limit: [-Math.PI, Math.PI] } },
     );
     const sawHub = new ArcJoint("sawHub", sawArmLink2, saw, sawHubMatrix, {
       rz: { angle: 0, limit: [-1e100, 1e100] },
@@ -309,8 +312,8 @@ export class CartArmature {
       spinFR: 0,
       spinFL: 0,
     };
-    this.arcs.sawArmJoint1.setAngle("rz", -0.1);
-    this.arcs.sawArmJoint2.setAngle("rz", 0.1);
+    this.arcs.sawArmJoint1.setAngle("rz", armJointInitAngle1);
+    this.arcs.sawArmJoint2.setAngle("rz", armJointInitAngle2);
     this.arcs.sawHub.setAngle("rz", 0);
     this.arcs.wheelHubFL.setAngle("rz", 0);
     this.arcs.wheelHubFR.setAngle("rz", 0);
@@ -362,8 +365,8 @@ export class CartArmature {
         clamp(anim.timing, 0, 1) + clamp(9 - anim.timing, 4, 5) - 5,
       );
 
-      this.arcs.sawArmJoint1.setAngle("rz", lerp(-0.1, -Math.PI * 0.9, t));
-      this.arcs.sawArmJoint2.setAngle("rz", lerp(0.1, Math.PI * 0.6, t));
+      this.arcs.sawArmJoint1.setAngle("rz", lerp(armJointInitAngle1, -Math.PI * 0.9, t));
+      this.arcs.sawArmJoint2.setAngle("rz", lerp(armJointInitAngle2, Math.PI * 0.6, t));
       if (anim.timing > 5) {
         anim.swinging = false;
       }
