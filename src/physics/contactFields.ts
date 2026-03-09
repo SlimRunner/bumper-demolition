@@ -25,41 +25,64 @@ export interface ContactField {
   readonly role: FieldRole;
   stiffness: number;
   damping: number;
-  friction?: {
+  traction: {
+    coeff: number;
+    stiffness: {
+      cornering: number;
+      longitudinal: number;
+    };
+  } | null;
+  friction: {
     // tangential
     static: number;
     kinetic: number;
     threshold: number;
-  };
-  restitution?: {
+  } | null;
+  restitution: {
     coefficient: number;
-  };
+  } | null;
 }
 
 type ContactProps = {
   damping: number;
   stiffness: number;
-  friction?: {
+} & Partial<{
+  traction: {
+    coeff: number;
+    stiffness: {
+      cornering: number;
+      longitudinal: number;
+    };
+  };
+  friction: {
     static: number;
     kinetic: number;
     threshold: number;
   };
-  restitution?: {
+  restitution: {
     coefficient: number;
   };
-};
+}>;
 
 export class PlaneField implements ContactField {
   damping: number;
   stiffness: number;
-  friction?: {
+  traction: {
+    coeff: number;
+    stiffness: {
+      cornering: number;
+      longitudinal: number;
+    };
+  } | null;
+  friction: {
     static: number;
     kinetic: number;
     threshold: number;
-  };
-  restitution?: {
+  } | null;
+  restitution: {
     coefficient: number;
-  };
+  } | null;
+
   private sdfFunc: FunctorSDF<math.Vector3, number>;
   private _normal: math.Vector3;
   readonly role: FieldRole;
@@ -72,8 +95,9 @@ export class PlaneField implements ContactField {
     this.role = "ground";
     this.damping = props.damping;
     this.stiffness = props.stiffness;
-    this.friction = props.friction;
-    this.restitution = props.restitution;
+    this.traction = props.traction ?? null;
+    this.friction = props.friction ?? null;
+    this.restitution = props.restitution ?? null;
     this._normal = normal.copy();
     this.sdfFunc = curry(sdPlane, normal, props.height);
   }
@@ -101,14 +125,22 @@ export class PlaneField implements ContactField {
 export class CartField implements ContactField {
   damping: number;
   stiffness: number;
-  friction?: {
+  traction: {
+    coeff: number;
+    stiffness: {
+      cornering: number;
+      longitudinal: number;
+    };
+  } | null;
+  friction: {
     static: number;
     kinetic: number;
     threshold: number;
-  };
-  restitution?: {
+  } | null;
+  restitution: {
     coefficient: number;
-  };
+  } | null;
+
   readonly role: FieldRole;
   private tempCache: math.Vector3 = math.vec3(0, 0, 0);
 
@@ -120,8 +152,9 @@ export class CartField implements ContactField {
     this.role = "dynamic boundary";
     this.damping = props.damping;
     this.stiffness = props.stiffness;
-    this.friction = props.friction;
-    this.restitution = props.restitution;
+    this.traction = props.traction ?? null;
+    this.friction = props.friction ?? null;
+    this.restitution = props.restitution ?? null;
     this.sdfFunc = sdfFunc;
   }
 
@@ -146,14 +179,22 @@ export class CartField implements ContactField {
 export class ArenaField implements ContactField {
   damping: number;
   stiffness: number;
-  friction?: {
+  traction: {
+    coeff: number;
+    stiffness: {
+      cornering: number;
+      longitudinal: number;
+    };
+  } | null;
+  friction: {
     static: number;
     kinetic: number;
     threshold: number;
-  };
-  restitution?: {
+  } | null;
+  restitution: {
     coefficient: number;
-  };
+  } | null;
+
   readonly role: FieldRole;
   private tempCache: math.Vector3 = math.vec3(0, 0, 0);
   private sdfFunc: FunctorSDF<math.Vector3, number>;
@@ -170,8 +211,9 @@ export class ArenaField implements ContactField {
     this.role = "static boundary";
     this.damping = props.damping;
     this.stiffness = props.stiffness;
-    this.friction = props.friction;
-    this.restitution = props.restitution;
+    this.traction = props.traction ?? null;
+    this.friction = props.friction ?? null;
+    this.restitution = props.restitution ?? null;
 
     this.sdfFunc = curry(
       sdInvertedCapsule2D,
