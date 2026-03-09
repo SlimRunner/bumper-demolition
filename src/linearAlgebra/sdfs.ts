@@ -24,24 +24,6 @@ export function curryDyn<T, R, Args extends Arr>(
   return (p: T) => sdf(p, ...args());
 }
 
-export function sdGradient2D(
-  pt3: math.Vector3,
-  sdf: FunctorSDF<math.Vector3, number>,
-  delta: number,
-  onto: PlaneChoice,
-) {
-  const pt = Vector2.from3d(pt3, onto);
-  const xdt = vec2(delta, 0);
-  const ydt = vec2(0, delta);
-  return vec2(
-    sdf(pt.plus(xdt).to3(0, onto)) - sdf(pt.minus(xdt).to3(0, onto)),
-    sdf(pt.plus(ydt).to3(0, onto)) - sdf(pt.minus(ydt).to3(0, onto)),
-  )
-    .times(2 * delta)
-    .to3(0, onto)
-    .normalized();
-}
-
 export function sdGradient3D(
   pt: math.Vector3,
   sdf: FunctorSDF<math.Vector3, number>,
@@ -56,8 +38,7 @@ export function sdGradient3D(
       sdf(pt.plus(ydt)) - sdf(pt.minus(ydt)),
       sdf(pt.plus(zdt)) - sdf(pt.minus(zdt)),
     )
-    .times(2 * delta)
-    .normalized();
+    .times(2 * delta);
 }
 
 export function sdGradient3DMut(
