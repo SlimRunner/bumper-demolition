@@ -22,6 +22,7 @@ import {
   getGrayscale,
   getSunColor,
 } from "./shaders/skyboxUtils";
+import { DrawableShape, ShapeCollection } from "./shapes/types";
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -30,13 +31,6 @@ export class BumperCarsBase extends tiny.Component {
     cyl: defs.Cylindrical_Tube;
     ball: defs.Subdivision_Sphere;
     disc: defs.Regular_2D_Polygon;
-    tire: tiny.Shape;
-    chasis: tiny.Shape;
-    sawBlade: tiny.Shape;
-    saw_arm1: tiny.Shape;
-    saw_arm2: tiny.Shape;
-    arenaWalls: tiny.Shape;
-    arenaFloor: tiny.Shape;
   };
   colors: {
     readonly red: math.Vector4;
@@ -81,6 +75,12 @@ export class BumperCarsBase extends tiny.Component {
   drawables: {
     axes3d: Axis3D;
     cartFrame: MSDFrameShape;
+    tire: ShapeCollection;
+    sawBlade: ShapeCollection;
+    saw_arm1: ShapeCollection;
+    saw_arm2: ShapeCollection;
+    arenaWalls: ShapeCollection;
+    arenaFloor: ShapeCollection;
   };
 
   gameView: {
@@ -170,12 +170,6 @@ export class BumperCarsBase extends tiny.Component {
       "../assets/meshes/TireMesh_1.obj",
       math.Mat4.scale(3.49, 3.49, 3.49),
     ); //3.7 tires
-    const chasisMesh = new FileMesh(
-      "../assets/meshes/ChassisMesh.obj",
-      math.Mat4.translation(0.261, 0, 0).times(
-        math.Mat4.scale(0.559, 1.218, 1.152),
-      ),
-    );
     const chasisMeshRed = new FileMesh(
       "../assets/meshes/CarChasis_Red.obj",
       math.Mat4.translation(0.261, 0, 0).times(
@@ -220,13 +214,6 @@ export class BumperCarsBase extends tiny.Component {
       cyl: closedTube,
       ball: sphereShape,
       disc: discShape,
-      tire: tireMesh,
-      chasis: chasisMesh,
-      sawBlade: sawMesh,
-      saw_arm1: saw_arm1_mesh,
-      saw_arm2: saw_arm2_mesh,
-      arenaFloor,
-      arenaWalls,
     };
 
     this.gameView = {
@@ -334,6 +321,12 @@ export class BumperCarsBase extends tiny.Component {
     this.drawables = {
       axes3d,
       cartFrame,
+      tire: tireMesh,
+      sawBlade: sawMesh,
+      saw_arm1: saw_arm1_mesh,
+      saw_arm2: saw_arm2_mesh,
+      arenaFloor,
+      arenaWalls,
     };
     this.physics = {
       cartMSD,
@@ -434,7 +427,6 @@ export class BumperCarsBase extends tiny.Component {
     this.uniforms.lights = [
       defs.Phong_Shader.light_source(light_dir, sunColor, 50),
     ];
-    console.log(sunLuminance);
     for (const [x, z] of [
       [-1, -1],
       [-1, 1],
@@ -557,13 +549,13 @@ export class BumperCars extends BumperCarsBase {
     );
     GL.enable(GL.DEPTH_TEST);
 
-    this.shapes.arenaFloor.draw(
+    this.drawables.arenaFloor.draw(
       context,
       this.uniforms,
       math.Mat4.identity(),
       this.materials.asphalt,
     );
-    this.shapes.arenaWalls.draw(
+    this.drawables.arenaWalls.draw(
       context,
       this.uniforms,
       math.Mat4.identity(),
@@ -590,35 +582,25 @@ export class BumperCars extends BumperCarsBase {
     if (this.globalProps.showMeshes) {
       cartA.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
-        if (name === "chassis") {
-          (node.shape as FileMesh).drawAll(context, this.uniforms, matrix, {
-            ...this.materials.plastic,
-            color: this.colors.red,
-          });
-        } else {
-          (node.shape as FileMesh).drawAll(
+        (node.shape as FileMesh).foreach((shape, mat, name) => {
+          shape.draw(
             context,
             this.uniforms,
             matrix,
-            this.materials.uvSimple,
+            mat ?? this.materials.uvSimple,
           );
-        }
+        });
       }, mtxCarA);
       cartB.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
-        if (name === "chassis") {
-          (node.shape as FileMesh).drawAll(context, this.uniforms, matrix, {
-            ...this.materials.plastic,
-            color: this.colors.red,
-          });
-        } else {
-          (node.shape as FileMesh).drawAll(
+        (node.shape as FileMesh).foreach((shape, mat, name) => {
+          shape.draw(
             context,
             this.uniforms,
             matrix,
-            this.materials.uvSimple,
+            mat ?? this.materials.uvSimple,
           );
-        }
+        });
       }, mtxCarB);
     } else {
       // TODO: remove frame rending on finished game
