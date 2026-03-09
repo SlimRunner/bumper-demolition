@@ -21,7 +21,7 @@ import {
   sdOrientedCapsule2D,
   sdOrientedRect,
 } from "../linearAlgebra/sdfs";
-import { range } from "../utils/iterators";
+import { enumerate, range } from "../utils/iterators";
 
 export class CartFrame {
   msdSystem: SpringDamperSystem;
@@ -40,6 +40,7 @@ export class CartFrame {
     CarA: [number, number];
     CarB: [number, number];
   };
+  private orbitRandom: Array<[number, number, number, number]>;
 
   constructor(props: {
     dimensions: {
@@ -177,6 +178,49 @@ export class CartFrame {
       math.vec3(0, -9.8, 0),
     );
 
+    // initialize orbit particles and its randomizers
+    this.orbitRandom = [];
+    for (const i of range(25)) {
+      const p = new MSDParticle({
+        location: math.vec3(0, 0, 0),
+      });
+      p.tags.add("free");
+      p.disabled = true;
+      particles.container.push(p);
+      this.msdSystem.addParticleToGroup(p, "CarA");
+      this.msdSystem.addParticleToGroup(p, "orbit");
+      this.orbitRandom.push([
+        Math.random(),
+        Math.random(),
+        Math.random(),
+        Math.random(),
+      ]);
+    }
+    for (const i of range(25)) {
+      const p = new MSDParticle({
+        location: math.vec3(0, 0, 0),
+      });
+      p.tags.add("free");
+      p.disabled = true;
+      particles.container.push(p);
+      this.msdSystem.addParticleToGroup(p, "CarB");
+      this.msdSystem.addParticleToGroup(p, "orbit");
+      this.orbitRandom.push([
+        Math.random(),
+        Math.random(),
+        Math.random(),
+        Math.random(),
+      ]);
+    }
+    const cartDiag = Math.hypot(dimensions.frameLength, dimensions.frameWidth);
+    this.orbitRandom = this.orbitRandom.map(([w, phi, rd, h]) => {
+      phi = phi * Math.PI * 2;
+      w = 1.5 * (3 + w);
+      rd = 0.5 * cartDiag * (1.1 + rd * 0.35);
+      h *= dimensions.frameHeight;
+      return [w, phi, rd, h];
+    });
+
     // add particles to their appropriate groups
     for (const i of range(carNodeCount)) {
       this.msdSystem.addParticleToGroup(particles.container[i], "CarA");
@@ -191,11 +235,13 @@ export class CartFrame {
 
     // apply initial transform to all particles.
     for (const p of this.msdSystem.getGroup("CarA")) {
+      if (p.tags.has("free")) continue;
       p.location = math.vec3(
         ...affineTransform(transforms.cartA, p.location, 1),
       );
     }
     for (const p of this.msdSystem.getGroup("CarB")) {
+      if (p.tags.has("free")) continue;
       p.location = math.vec3(
         ...affineTransform(transforms.cartB, p.location, 1),
       );
@@ -239,20 +285,21 @@ export class CartFrame {
         },
         height: 0,
       }),
-      new ArenaField(new Set(["arenaBound"]), {
-        bounds: [
-          math.vec3(0, 0, -22.5),
-          math.vec3(0, 0, 22.5),
-        ],
-        width: 15 * 2,
-        onto: "xz",
-      }, {
-        stiffness: 15000,
-        damping: 10,
-        restitution: {
-          coefficient: 0.2,
+      new ArenaField(
+        new Set(["arenaBound"]),
+        {
+          bounds: [math.vec3(0, 0, -22.5), math.vec3(0, 0, 22.5)],
+          width: 15 * 2,
+          onto: "xz",
         },
-      }),
+        {
+          stiffness: 15000,
+          damping: 10,
+          restitution: {
+            coefficient: 0.2,
+          },
+        },
+      ),
       new CartField(
         new Set(["CarB"]), // affects CarB but follows CarA
         curryDyn(sdOrientedRect, () => {
@@ -419,6 +466,21 @@ export class CartFrame {
     };
   }
 
+  updateCarOrbits(time: number) {
+    const sh = this.initial.carNodeCount;
+    const centerA = this.getAverage([0, 3 + 1]);
+    const centerB = this.getAverage([0 + sh, 3 + sh + 1]);
+    for (const [i, p] of enumerate(this.msdSystem.getGroup("orbit"))) {
+      let center = p.group.has("CarA") ? centerA : centerB;
+      if (p.disabled) continue;
+      const [w, phi, rd, h] = this.orbitRandom[i];
+      const theta = w * time + phi;
+      p.location[0] = center[0] + Math.cos(theta) * rd;
+      p.location[2] = center[2] + Math.sin(theta) * rd;
+      p.location[1] = center[1] + h;
+    }
+  }
+
   updateTireVectors(
     angleA: number,
     thrustA: number,
@@ -432,12 +494,12 @@ export class CartFrame {
       frontRight: number;
     }[] = [];
 
-    const foo: Array<[number, number, number]> = [
+    const props: Array<[number, number, number]> = [
       [0, angleA, thrustA],
       [this.initial.carNodeCount, angleB, thrustB],
     ];
 
-    for (const [sh, angle, thrust] of foo) {
+    for (const [sh, angle, thrust] of props) {
       const [i0, i1, i2, i3, i4] = [0 + sh, 1 + sh, 2 + sh, 3 + sh, 8 + sh];
       const upVec = pc[i0].location.minus(pc[i4].location).normalized();
       const fwdVec = pc[i1].location.minus(pc[i2].location).normalized();
