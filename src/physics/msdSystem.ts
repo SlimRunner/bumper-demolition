@@ -2,7 +2,25 @@ import { range } from "../utils/iterators";
 import { math } from "../../tiny-graphics-math";
 import { getOrInsertCond } from "../utils/polyfills";
 import { ContactField } from "./contactFields";
-import { clamp } from "../utils/math";
+import { clamp, crossMut, projMut, setVector } from "../utils/math";
+
+// function helpers to speed up the physics loop. They are way to
+// specific to be put in utils.
+
+// reference: https://stackoverflow.com/a/59906630
+type ArrayLengthMutationKeys =
+  | "splice"
+  | "push"
+  | "pop"
+  | "shift"
+  | "unshift"
+  | number;
+type ArrayItems<T extends Array<any>> =
+  T extends Array<infer TItems> ? TItems : never;
+type FixedLengthArray<T extends any[]> = Pick<
+  T,
+  Exclude<keyof T, ArrayLengthMutationKeys>
+> & { [Symbol.iterator]: () => IterableIterator<ArrayItems<T>> };
 
 type ParticleProperties = {
   mass: number;
@@ -33,9 +51,16 @@ export class MSDParticle {
   prevLocation?: math.Vector3;
   tireForward?: math.Vector3;
   tireThrust?: number;
+  disabled: boolean = false;
 
   tags: Set<ParticleTags>;
   group: Set<string>;
+  _force: math.Vector3 = math.vec3(0, 0, 0);
+
+  get force() {
+    console.assert(!Number.isNaN(this._force));
+    return this._force;
+  }
 
   constructor(props: Partial<ParticleProperties> = {}) {
     this.mass = props.mass ?? 0;
@@ -94,6 +119,26 @@ export class SpringDamperSystem {
   contactFields: ContactField[];
 
   particleGroups: Map<string, Set<MSDParticle>>;
+  trespassCB: (p: MSDParticle) => void = () => {};
+
+  cache: {
+    // this pattern makes size and accesses static (i.e. you cannot use
+    // an index of type number). Arbitrarily 10
+    tempVec: FixedLengthArray<
+      [
+        math.Vector3,
+        math.Vector3,
+        math.Vector3,
+        math.Vector3,
+        math.Vector3,
+        math.Vector3,
+        math.Vector3,
+        math.Vector3,
+        math.Vector3,
+        math.Vector3,
+      ]
+    >;
+  };
 
   constructor(
     springs: SpringCollection,
@@ -106,6 +151,20 @@ export class SpringDamperSystem {
     this.constAccel = constAccel;
     this.particleGroups = new Map();
     this.contactFields = [];
+    this.cache = {
+      tempVec: [
+        math.vec3(0, 0, 0),
+        math.vec3(0, 0, 0),
+        math.vec3(0, 0, 0),
+        math.vec3(0, 0, 0),
+        math.vec3(0, 0, 0),
+        math.vec3(0, 0, 0),
+        math.vec3(0, 0, 0),
+        math.vec3(0, 0, 0),
+        math.vec3(0, 0, 0),
+        math.vec3(0, 0, 0),
+      ],
+    };
   }
 
   resetLinks() {
@@ -142,133 +201,204 @@ export class SpringDamperSystem {
   }
 
   computeForces() {
-    const forces = new Map<MSDParticle, math.Vector3>();
-    // const velThreshold = this.params.kFrictionThres;
+    // const forces = new Map<MSDParticle, math.Vector3>();
 
-    for (const [spring, [p1, p2]] of this.links) {
-      const delta = p2.location.minus(p1.location);
-      const beamDist = delta.norm();
-      const beamDir = delta.normalized();
+    // these function executes dozens of times per frame. It may run
+    // 1000s of times per second. Any allocation avoided is a huge gain
+    // to avoid trashing the heap and trigger expensive GC.
 
-      const stretch = beamDist - spring.length;
+    // zero out cached forces
+    for (const p of this.particles.container) {
+      p.force[0] = 0;
+      p.force[1] = 0;
+      p.force[2] = 0;
+    }
 
-      const relativeVelocity = p2.velocity.minus(p1.velocity);
-      const damper = relativeVelocity.dot(beamDir);
+    for (const [link, [p1, p2]] of this.links) {
+      // [vecX, vecY, vecZ] is link distance vector
+      let [vecX, vecY, vecZ] = [
+        p2.location[0] - p1.location[0],
+        p2.location[1] - p1.location[1],
+        p2.location[2] - p1.location[2],
+      ];
+      // get distance
+      const distSq = vecX * vecX + vecY * vecY + vecZ * vecZ;
+      const linkDist = Math.sqrt(Math.max(distSq, 1e-8));
+      // [vecX, vecY, vecZ] is now link normalized direction
+      vecX /= linkDist;
+      vecY /= linkDist;
+      vecZ /= linkDist;
 
-      const forceMagnitude = spring.kSpring * stretch + spring.kDamper * damper;
-      const finalForce = beamDir.times(forceMagnitude);
+      const springDisp = linkDist - link.length;
 
-      const f1 = getOrInsertCond(forces, p1, () => math.vec3(0, 0, 0));
-      const f2 = getOrInsertCond(forces, p2, () => math.vec3(0, 0, 0));
+      // relative velocity dot the link direction
+      const dampingDir =
+        (p2.velocity[0] - p1.velocity[0]) * vecX +
+        (p2.velocity[1] - p1.velocity[1]) * vecY +
+        (p2.velocity[2] - p1.velocity[2]) * vecZ;
 
-      forces.set(p1, f1.plus(finalForce));
-      forces.set(p2, f2.minus(finalForce));
+      const forceMagnitude =
+        link.kSpring * springDisp + link.kDamper * dampingDir;
+
+      // [vecX, vecY, vecZ] is now link net force
+      vecX *= forceMagnitude;
+      vecY *= forceMagnitude;
+      vecZ *= forceMagnitude;
+
+      // accumulate forces
+      p1.force[0] += vecX;
+      p1.force[1] += vecY;
+      p1.force[2] += vecZ;
+      p2.force[0] -= vecX;
+      p2.force[1] -= vecY;
+      p2.force[2] -= vecZ;
     }
 
     for (const p of this.particles.container) {
-      if (p.tags.has("kinematic")) continue;
-      let FNet = getOrInsertCond(forces, p, () => math.vec3(0, 0, 0)).plus(
-        this.constAccel.times(p.mass),
-      );
+      if (p.tags.has("kinematic") || p.disabled) continue;
+
+      const isFree = p.tags.has("free");
+
+      if (isFree) {
+        for (const field of this.contactFields) {
+          if (field.affects(p) && field.sdf(p.location) < 0) {
+            this.trespassCB(p);
+          }
+        }
+        continue;
+      }
+
+      // const FNet = this.cache.temp0;
+
+      p.force[0] += this.constAccel[0] * p.mass;
+      p.force[1] += this.constAccel[1] * p.mass;
+      p.force[2] += this.constAccel[2] * p.mass;
+
+      // NOTE: if you edit this code be EXTREMELY careful of data races
+      // and coupled values.
 
       for (const field of this.contactFields) {
+        if (!field.affects(p)) continue;
         // apply contact forces
-        if (field.affects(p)) {
-          const dist = field.sdf(p.location);
-          const normal = field.normal(p.location);
 
-          if (dist < 0) {
-            const normSpeed = p.velocity.dot(normal);
-            const normVelocity = normal.times(normSpeed);
+        const dist = field.sdf(p.location);
+        if (dist >= 0) continue;
 
-            const msdForceMag =
-              -field.stiffness * dist - field.damping * normSpeed;
-            const msdForce = normal.times(msdForceMag);
-            FNet = FNet.plus(msdForce);
+        // cache alias for normal
+        const normal = this.cache.tempVec[0];
 
-            if (field.friction) {
-              if (field.role === "ground" && p.tags.has("tire")) {
-                // traction force
-                const forward = p.tireForward!.normalized();
-                const forwardProj = forward
-                  .minus(normal.times(forward.dot(normal)))
-                  .normalized();
-                const lateral = normal.cross(forwardProj).normalized();
-                // const lateral = normal.cross(forward).normalized();
-                const velFwd = p.velocity.dot(forward);
-                const spdFwd = Math.abs(velFwd);
-                const velLat = p.velocity.dot(lateral);
+        field.normal(p.location, normal);
+        normal.normalize();
 
-                const normalLoad = Math.max(0, msdForceMag);
-                // corneringStiffness 20-80
-                const cAlpha = 120;
-                const eps = 0.5; // prevents explosion at low speed
-                const slipAngle = Math.atan2(velLat, spdFwd + eps);
+        const normSpeed = p.velocity.dot(normal);
+        const msdForceMag = -field.stiffness * dist - field.damping * normSpeed;
 
-                let forceLatMag = -cAlpha * slipAngle;
-                const mu = 1.8; //field.friction.kinetic;
-                const maxForce = mu * normalLoad;
+        p.force[0] += normal[0] * msdForceMag;
+        p.force[1] += normal[1] * msdForceMag;
+        p.force[2] += normal[2] * msdForceMag;
 
-                forceLatMag = clamp(forceLatMag, -maxForce, maxForce);
-                const forceLat = lateral.times(forceLatMag);
+        if (field.friction) {
+          // cache aliases
+          const forward = this.cache.tempVec[1];
+          const forwardProj = this.cache.tempVec[2];
+          const lateral = this.cache.tempVec[3];
 
-                const eInit = Math.exp(-spdFwd);
-                const eEnd = Math.exp(3 * (10 - spdFwd));
-                const scaling = (eEnd - eInit) / (1 + eInit) / (1 + eEnd);
-                let forceFwdMag = scaling * (p.tireThrust ?? 0);
-                // longitudinalStiffness 10-40
-                const cFwd = 10;
-                forceFwdMag -= cFwd * velFwd;
+          if (field.role === "ground" && p.tags.has("tire")) {
+            // slip angle friction
 
-                let forceFwd = forward.times(forceFwdMag);
-                let forceTotal = forceFwd.plus(forceLat);
+            // const forward = p.tireForward!.normalized();
 
-                const mag = forceTotal.norm();
-                if (mag > maxForce) {
-                  forceTotal.scale_by(maxForce / mag);
-                }
+            // this is the tire forward (may not be planar to surface)
+            setVector(forward, p.tireForward!);
+            forward.normalize();
 
-                FNet = FNet.plus(forceTotal);
-              } else {
-                // disabled for now
-                // // compute regular tangential friction forces
-                // const tangVelocity = p.velocity.minus(normVelocity);
-                // if (tangVelocity.norm() < field.friction.threshold) {
-                //   // static
-                //   const muS = field.friction.static;
-                //   const fmax = msdForce.norm() * muS;
-                //   // p.velocity = normVelocity;
-                //   if (tangForce.norm() <= fmax) {
-                //     // zero out tangential force
-                //     FNet = FNet.minus(tangForce);
-                //   } else {
-                //     // subtract fmax along tangent
-                //     FNet = FNet.minus(tangForce.normalized().times(fmax));
-                //   }
-                // } else {
-                //   // kinetic
-                //   const muK = field.friction.kinetic;
-                //   FNet = FNet.minus(
-                //     tangVelocity.normalized().times(normalForce.norm() * muK),
-                //   );
-                // }
-              }
+            // project forward onto normal (zero most of the time)
+            projMut(normal, forward, forwardProj);
+            forward.subtract_by(forwardProj);
+            forward.normalize();
+
+            // get lateral vector
+            crossMut(normal, forward, lateral);
+            lateral.normalize();
+
+            const velFwd = p.velocity.dot(forward);
+            const spdFwd = Math.abs(velFwd);
+            const velLat = p.velocity.dot(lateral);
+
+            const normalLoad = Math.max(0, msdForceMag);
+            // corneringStiffness
+            const cAlpha = 120;
+            const eps = 0.5; // prevents explosion at low speed
+            const slipAngle = Math.atan2(velLat, spdFwd + eps);
+
+            let forceLatMag = -cAlpha * slipAngle;
+            const mu = 1.8; //field.friction.kinetic;
+            const maxForce = mu * normalLoad;
+            forceLatMag = clamp(forceLatMag, -maxForce, maxForce);
+
+            const forceLat = lateral;
+            // INVALIDATED: lateral
+            forceLat.scale_by(forceLatMag);
+
+            const eInit = Math.exp(-spdFwd);
+            const eEnd = Math.exp(3 * (10 - spdFwd));
+            const scaling = (eEnd - eInit) / (1 + eInit) / (1 + eEnd);
+            // longitudinalStiffness
+            const cFwd = 10;
+            const forceFwdMag = scaling * (p.tireThrust ?? 0) - cFwd * velFwd;
+
+            const forceFwd = forward;
+            forceFwd.scale_by(forceFwdMag);
+            // INVALIDATED: forward
+            const forceTotal = forceFwd;
+            forceTotal.add_by(forceLat);
+            // INVALIDATED: forceFwd
+
+            const mag = forceTotal.norm();
+            if (mag > maxForce) {
+              forceTotal.scale_by(maxForce / mag);
             }
 
-            if (field.restitution && normSpeed < 0) {
-              const restitution = normal.times(
-                normSpeed * (1 + field.restitution.coefficient),
-              );
-              p.velocity = p.velocity.minus(restitution);
-            }
+            p.force.add_by(forceTotal);
+          } else {
+            // tangential friction pending. Add only if needed
+            // // compute regular tangential friction forces
+            // const normVelocity = normal.times(normSpeed);
+            // const tangVelocity = p.velocity.minus(normVelocity);
+            // if (tangVelocity.norm() < field.friction.threshold) {
+            //   // static
+            //   const muS = field.friction.static;
+            //   const fmax = msdForce.norm() * muS;
+            //   // p.velocity = normVelocity;
+            //   if (tangForce.norm() <= fmax) {
+            //     // zero out tangential force
+            //     FNet = FNet.minus(tangForce);
+            //   } else {
+            //     // subtract fmax along tangent
+            //     FNet = FNet.minus(tangForce.normalized().times(fmax));
+            //   }
+            // } else {
+            //   // kinetic
+            //   const muK = field.friction.kinetic;
+            //   FNet = FNet.minus(
+            //     tangVelocity.normalized().times(normalForce.norm() * muK),
+            //   );
+            // }
           }
+        }
+
+        if (field.restitution && normSpeed < 0) {
+          const eScaled = normSpeed * (1 + field.restitution.coefficient);
+          p.velocity[0] -= normal[0] * eScaled;
+          p.velocity[1] -= normal[1] * eScaled;
+          p.velocity[2] -= normal[2] * eScaled;
         }
       }
 
-      forces.set(p, FNet);
+      // forces.set(p, FNet);
     }
 
-    return forces;
+    // return forces;
   }
 }
 
@@ -278,63 +408,32 @@ export interface Integrator {
 
 export class SymplecticEuler implements Integrator {
   step(system: SpringDamperSystem, dt: number) {
-    const forces = system.computeForces();
+    system.computeForces();
 
     for (const p of system.particles.container) {
-      if (p.tags.has("kinematic")) continue;
-      const a = forces.get(p)!.times(1 / p.mass);
+      if (p.tags.has("kinematic") || p.tags.has("free")) continue;
 
-      const newVel = p.velocity.plus(a.times(dt));
-      if (newVel.every((n) => !Number.isNaN(n))) {
-        p.velocity = newVel;
-      } else {
-        console.warn(["NAN vel in integrator", newVel]);
+      const massInv = 1 / p.mass;
+      const accX = p.force[0] * massInv;
+      const accY = p.force[1] * massInv;
+      const accZ = p.force[2] * massInv;
+
+      const velX = accX * dt;
+      const velY = accY * dt;
+      const velZ = accZ * dt;
+
+      if (Number.isNaN(velX) || Number.isNaN(velY) || Number.isNaN(velZ)) {
+        debugger;
+        console.warn("NaN found in integrator");
+        continue;
       }
-      const newLoc = p.location.plus(p.velocity.times(dt));
-      if (newLoc.every((n) => !Number.isNaN(n))) {
-        p.location = newLoc;
-      } else {
-        console.warn(["NAN loc in integrator", newLoc]);
-      }
-    }
-  }
-}
+      p.velocity[0] += velX;
+      p.velocity[1] += velY;
+      p.velocity[2] += velZ;
 
-export class ForwardEuler implements Integrator {
-  step(system: SpringDamperSystem, dt: number): void {
-    const forces = system.computeForces();
-
-    for (const p of system.particles.container) {
-      if (p.tags.has("kinematic")) continue;
-      let acc = forces.get(p)!.times(1 / p.mass);
-
-      p.location = p.location.plus(p.velocity.times(dt));
-      p.velocity = p.velocity.plus(acc.times(dt));
-    }
-  }
-}
-
-export class Verlet implements Integrator {
-  step(system: SpringDamperSystem, dt: number) {
-    const forces = system.computeForces();
-
-    for (const p of system.particles.container) {
-      if (p.tags.has("kinematic")) continue;
-      if (!p.prevLocation) {
-        p.prevLocation = p.location.minus(p.velocity.times(dt));
-      }
-
-      const a = forces.get(p)!.times(1 / p.mass);
-
-      const next = p.location
-        .times(2)
-        .minus(p.prevLocation)
-        .plus(a.times(dt * dt));
-
-      p.prevLocation = p.location;
-      p.location = next;
-
-      p.velocity = next.minus(p.prevLocation).times(1 / dt);
+      p.location[0] += p.velocity[0] * dt;
+      p.location[1] += p.velocity[1] * dt;
+      p.location[2] += p.velocity[2] * dt;
     }
   }
 }
