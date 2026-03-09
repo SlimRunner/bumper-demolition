@@ -145,6 +145,7 @@ const Shape = tiny.Shape =
 
 const test_rookie_mistake = function () {
     test_rookie_mistake.counter |= 0;
+    console.count("rookie_mistake");
     if (test_rookie_mistake.counter++ > 200)
         throw `Error: You are sending a lot of object definitions to the GPU, probably by mistake!  Many are likely
         duplicates, which you don't want since sending each one is very slow.  TO FIX THIS: Avoid ever declaring a 
