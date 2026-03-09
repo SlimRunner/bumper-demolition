@@ -2,26 +2,29 @@ import { tiny, Uniforms, MaterialRecord } from "../../tiny-graphics";
 import { math } from "../../tiny-graphics-math";
 import { defs } from "../../examples/common";
 import { createError } from "../utils/error";
-import { normalizeLines } from "../utils/text";
+import { normalizeLines, resolveSiblingPath } from "../utils/text";
 import { affineTransform, VectorKind } from "../utils/math";
+import { loadFile } from "../utils/requests";
+import { DrawableShape, ShapeCollection } from "./types";
 
 export const OBJParserError = createError("OBJParserError");
 export const OBJImplMissing = createError("OBJImplMissing");
 export const MTLParserError = createError("MTLParserError");
+export const MTLImplMissing = createError("MTLParserError");
 
 interface MTLMaterial {
   name: string;
-  Ns?: number;  // specular exponent (0-1000)
-  Ka?: [number, number, number];  // ambient color
-  Kd?: [number, number, number];  // diffuse color
-  Ks?: [number, number, number];  // specular color
-  Ke?: [number, number, number];  // emissive color
-  Ni?: number;  // optical density
-  d?: number;   // dissolve/opacity (0-1)
+  Ns?: number; // specular exponent (0-1000)
+  Ka?: [number, number, number]; // ambient color
+  Kd?: [number, number, number]; // diffuse color
+  Ks?: [number, number, number]; // specular color
+  Ke?: [number, number, number]; // emissive color
+  Ni?: number; // optical density
+  d?: number; // dissolve/opacity (0-1)
   illum?: number; // illumination model
 }
 
-export class FileMesh extends tiny.Shape {
+export class FileMesh implements ShapeCollection {
   private _ready = false;
   private _transform?: math.Mat4;
   private _uvscale?: math.Vector<2>;
@@ -34,149 +37,103 @@ export class FileMesh extends tiny.Shape {
     preTransform?: math.Mat4,
     uvScaling?: math.Vector<2>,
   ) {
-    super("position", "normal", "texture_coord");
-
     this._transform = preTransform;
     this._uvscale = uvScaling;
-    this.loadFile(filename);
-  }
-
-  private loadFile(filename: string) {
-    return fetch(filename)
-      .then((res) => {
-        if (res.ok) return Promise.resolve(res.text());
-        else return Promise.reject(res.status);
-      })
-      .then((objFile) => {
-        this.loadData(objFile, filename);
+    loadFile(filename)
+      .then((file) => {
+        this.loadOBJ(file, filename);
       })
       .catch((err) => {
-        throw "OBJ error: file not found or format is unsupported.";
+        throw err;
       });
   }
 
-  private resolveRelativePath(sourcePath: string, relativePath: string) {
-    if (relativePath.startsWith("/") || /^[a-z][a-z0-9+.-]*:/i.test(relativePath)) {
-      return relativePath;
-    }
-
-    const normalizedSource = sourcePath.replace(/\\/g, "/");
-    const slashIdx = normalizedSource.lastIndexOf("/");
-    const baseDir = slashIdx >= 0 ? normalizedSource.slice(0, slashIdx + 1) : "";
-    return `${baseDir}${relativePath}`;
-  }
-
-  private logPathFound(path: string) {
-    void fetch(path)
-      .then((res) => {
-        if (res.ok) {
-          console.log(`[mtllib] FOUND: ${path}`);
-        } else {
-          console.log(`[mtllib] NOT FOUND (${res.status}): ${path}`);
-        }
-      })
-      .catch(() => {
-        console.log(`[mtllib] NOT FOUND (fetch failed): ${path}`);
-      });
-  }
-
-  private createMTLPack(mtlPath: string) {
-    console.log(`[MTL] Attempting to fetch: ${mtlPath}`);
-    return fetch(mtlPath)
-      .then((res) => {
-        if (res.ok) {
-          console.log(`[MTL] Successfully fetched: ${mtlPath}`);
-          return Promise.resolve(res.text());
-        } else {
-          console.error(`[MTL] Fetch failed with status ${res.status}: ${mtlPath}`);
-          return Promise.reject(res.status);
-        }
-      })
-      .then((mtlFile) => {
-        this.parseMTL(mtlFile);
-      })
-      .catch((err) => {
-        console.error(`[MTL] Error loading file: ${mtlPath}`, err);
-      });
-  }
-
-  private parseMTL(mtlFile: string): void {
+  private parseMTL(mtlFile: string, path: string): void {
+    let lineNumber = 0;
+    let errors = 0;
     const lines = normalizeLines(mtlFile).split("\n");
     let currentMaterial: MTLMaterial | null = null;
 
     for (const line of lines) {
-      if (line === "" || line.startsWith("#")) continue;
+      ++lineNumber;
+      if (line.trim() === "") continue;
 
-      const tokens = line.trim().split(/\s+/);
-      const keyword = tokens[0];
+      try {
+        const expr: MTLPayload = parseMTLLine(line);
 
-      switch (keyword) {
-        case "newmtl":
-          if (currentMaterial) {
-            this.addMaterial(currentMaterial);
-          }
-          currentMaterial = { name: tokens.slice(1).join(" ") };
-          break;
-
-        case "Ns":
-          if (currentMaterial) currentMaterial.Ns = parseFloat(tokens[1]);
-          break;
-
-        case "Ka":
-          if (currentMaterial) {
-            currentMaterial.Ka = [
-              parseFloat(tokens[1]),
-              parseFloat(tokens[2]),
-              parseFloat(tokens[3]),
-            ];
-          }
-          break;
-
-        case "Kd":
-          if (currentMaterial) {
-            currentMaterial.Kd = [
-              parseFloat(tokens[1]),
-              parseFloat(tokens[2]),
-              parseFloat(tokens[3]),
-            ];
-          }
-          break;
-
-        case "Ks":
-          if (currentMaterial) {
-            currentMaterial.Ks = [
-              parseFloat(tokens[1]),
-              parseFloat(tokens[2]),
-              parseFloat(tokens[3]),
-            ];
-          }
-          break;
-
-        case "Ke":
-          if (currentMaterial) {
-            currentMaterial.Ke = [
-              parseFloat(tokens[1]),
-              parseFloat(tokens[2]),
-              parseFloat(tokens[3]),
-            ];
-          }
-          break;
-
-        case "Ni":
-          if (currentMaterial) currentMaterial.Ni = parseFloat(tokens[1]);
-          break;
-
-        case "d":
-          if (currentMaterial) currentMaterial.d = parseFloat(tokens[1]);
-          break;
-
-        case "illum":
-          if (currentMaterial) currentMaterial.illum = parseInt(tokens[1]);
-          break;
-
-        default:
-          // Ignore unsupported keywords (map_Kd, etc.)
-          break;
+        switch (expr.ident) {
+          case "newmtl":
+            if (currentMaterial) {
+              this.addMaterial(currentMaterial);
+            }
+            currentMaterial = { name: expr.params.name };
+            break;
+          case "Ns":
+            if (currentMaterial) {
+              currentMaterial.Ns = expr.params.specularWeight;
+            }
+            break;
+          case "Ka":
+            if (currentMaterial) {
+              currentMaterial.Ka = expr.params.ambientColor;
+            }
+            break;
+          case "Kd":
+            if (currentMaterial) {
+              currentMaterial.Kd = expr.params.diffuseColor;
+            }
+            break;
+          case "Ks":
+            if (currentMaterial) {
+              currentMaterial.Ks = expr.params.specularColor;
+            }
+            break;
+          case "Ke":
+            if (currentMaterial) {
+              currentMaterial.Ke = expr.params.emissiveColor;
+            }
+            break;
+          case "Ni":
+            if (currentMaterial) {
+              currentMaterial.Ni = expr.params.indexOfRefraction;
+            }
+            break;
+          case "d":
+            if (currentMaterial) {
+              currentMaterial.d = expr.params.alpha;
+            }
+            break;
+          case "Tr":
+            if (currentMaterial) {
+              currentMaterial.d = 1 - expr.params.transparency;
+            }
+            break;
+          case "illum":
+            if (currentMaterial) {
+              currentMaterial.illum = expr.params.model;
+            }
+            break;
+          case "#":
+            // ignore comments
+            break;
+          default: // just in case this code is modified in JS
+            throw new Error("Parser type safety violated");
+        }
+      } catch (error) {
+        if (error instanceof MTLParserError) {
+          ++errors;
+          console.error(
+            `${error.name}: ${path}: line ${lineNumber}: ${error.message}`,
+          );
+          continue;
+        } else if (error instanceof MTLImplMissing) {
+          console.info(
+            `${error.name}: ${path}: line ${lineNumber}: ${error.message}`,
+          );
+          continue;
+        } else {
+          throw error;
+        }
       }
     }
 
@@ -226,11 +183,10 @@ export class FileMesh extends tiny.Shape {
     return this._materials;
   }
 
-  private loadData(objFile: string, sourceFilename: string) {
+  private loadOBJ(objFile: string, path: string) {
     let lineNumber = 0;
     let errors = 0;
-    const expressions = normalizeLines(objFile);
-    const lines = expressions.split("\n");
+    const lines = normalizeLines(objFile).split("\n");
     const at = <T>(arr: Array<T>, i: number) => {
       i = i > 0 ? i - 1 : arr.length + i;
       if (i < 0 || i >= arr.length) {
@@ -256,23 +212,22 @@ export class FileMesh extends tiny.Shape {
     // appropriate token dispatcher below in `parseOBJLine`
     for (const line of lines) {
       ++lineNumber;
-      if (line === "") continue;
+      if (line.trim() === "") continue;
 
       try {
-        const expr: exprPayload = parseOBJLine(line);
+        const expr: OBJPayload = parseOBJLine(line);
 
         switch (expr.ident) {
           case "mtllib":
             {
-              const mtlPath = this.resolveRelativePath(
-                sourceFilename,
-                expr.params.filename,
-              );
-              console.log(`[MTL] Source OBJ: ${sourceFilename}`);
-              console.log(`[MTL] MTL filename from OBJ: ${expr.params.filename}`);
-              console.log(`[MTL] Resolved path: ${mtlPath}`);
-              this.logPathFound(mtlPath);
-              this.createMTLPack(mtlPath);
+              const mtlPath = resolveSiblingPath(path, expr.params.filename);
+              loadFile(mtlPath)
+                .then((mtlFile) => {
+                  this.parseMTL(mtlFile, mtlPath);
+                })
+                .catch((err) => {
+                  throw err;
+                });
             }
             break;
           case "v":
@@ -333,10 +288,14 @@ export class FileMesh extends tiny.Shape {
       } catch (error: unknown) {
         if (error instanceof OBJParserError) {
           ++errors;
-          console.error(`${error.name}: line ${lineNumber}: ${error.message}`);
+          console.error(
+            `${error.name}: ${path}: line ${lineNumber}: ${error.message}`,
+          );
           continue;
         } else if (error instanceof OBJImplMissing) {
-          console.info(`${error.name}: line ${lineNumber}: ${error.message}`);
+          console.info(
+            `${error.name}: ${path}: line ${lineNumber}: ${error.message}`,
+          );
           continue;
         } else {
           throw error;
@@ -348,7 +307,7 @@ export class FileMesh extends tiny.Shape {
     for (const [matName, groupFaces] of faceGroups) {
       if (groupFaces.length === 0) continue;
 
-      const subShape = new tiny.Shape("position", "normal", "texture_coord") as any;
+      const subShape = new tiny.Shape("position", "normal", "texture_coord");
       subShape.arrays.position = [];
       subShape.arrays.normal = [];
       subShape.arrays.texture_coord = [];
@@ -356,14 +315,11 @@ export class FileMesh extends tiny.Shape {
       for (const tri of groupFaces) {
         for (const idx of tri) {
           subShape.arrays.position.push(at(vertices, idx.vertex));
-          this.arrays.position!.push(at(vertices, idx.vertex));
           if (idx.ident === "V-T" || idx.ident === "V-T-N") {
             subShape.arrays.texture_coord.push(at(textures, idx.texture));
-            this.arrays.texture_coord!.push(at(textures, idx.texture));
           }
           if (idx.ident === "V-N" || idx.ident === "V-T-N") {
             subShape.arrays.normal.push(at(vertNormals, idx.normal));
-            this.arrays.normal!.push(at(vertNormals, idx.normal));
           }
         }
       }
@@ -373,6 +329,21 @@ export class FileMesh extends tiny.Shape {
     this._ready = true;
   }
 
+  foreach(
+    backFn: (
+      shape: DrawableShape,
+      material: MaterialRecord | undefined,
+      name: string,
+    ) => void,
+  ): void {
+    for (const [matKey, shape] of this._geometries) {
+      const material = this._materials.get(matKey);
+      if (this._ready) {
+        backFn(shape, material, matKey);
+      }
+    }
+  }
+
   draw(
     webgl_manager: tiny.Component,
     uniforms: Uniforms,
@@ -380,25 +351,52 @@ export class FileMesh extends tiny.Shape {
     material: MaterialRecord,
     type?: keyof WebGL2RenderingContext,
   ): void {
-    if (this._ready) {
-      super.draw(webgl_manager, uniforms, model_transform, material, type);
-    }
+    this.foreach((shape, subMat, name) => {
+      shape.draw(
+        webgl_manager,
+        uniforms,
+        model_transform,
+        {
+          ...subMat,
+          ...material,
+        },
+        type,
+      );
+    });
   }
 
   // Draw each geometry group with its parsed MTL material.
   // fallbackMaterial is used for groups whose material name isn't in _materials.
-  drawAll(
-    webgl_manager: tiny.Component,
-    uniforms: Uniforms,
-    model_transform: math.Mat4,
-    fallbackMaterial: MaterialRecord,
-  ): void {
-    if (!this._ready) return;
-    for (const [matName, subShape] of this._geometries) {
-      const material = this._materials.get(matName) ?? fallbackMaterial;
-      subShape.draw(webgl_manager, uniforms, model_transform, material);
-    }
-  }
+  // drawAll(
+  //   webgl_manager: tiny.Component,
+  //   uniforms: Uniforms,
+  //   model_transform: math.Mat4,
+  //   fallbackMaterial: MaterialRecord,
+  // ): void {
+  //   if (!this._ready) return;
+  //   for (const [matName, subShape] of this._geometries) {
+  //     const material = this._materials.get(matName) ?? fallbackMaterial;
+  //     subShape.draw(webgl_manager, uniforms, model_transform, material);
+  //   }
+  // }
+  // // Draw each geometry group with its parsed MTL material.
+  // // fallbackMaterial is used for groups whose material name isn't in _materials.
+  // drawAll(
+  //   webgl_manager: tiny.Component,
+  //   uniforms: Uniforms,
+  //   model_transform: math.Mat4,
+  //   matOverride: MaterialRecord,
+  //   type?: keyof WebGL2RenderingContext,
+  // ): void {
+  //   if (!this._ready) return;
+  //   for (const [matName, subShape] of this._geometries) {
+  //     const material = {
+  //       ...this._materials.get(matName) ?? {},
+  //       ...matOverride,
+  //     };
+  //     subShape.draw(webgl_manager, uniforms, model_transform, material, type);
+  //   }
+  // }
 }
 
 class TokenStream {
@@ -524,7 +522,7 @@ type groupExpr = {
   };
 };
 
-export type exprPayload =
+export type OBJPayload =
   | CommentExpr
   | MTLExpr
   | VertexExpr
@@ -536,7 +534,127 @@ export type exprPayload =
   | objectExpr
   | groupExpr;
 
-type Idents = exprPayload["ident"];
+type OBJIdents = OBJPayload["ident"];
+
+("newmtl");
+("Ns");
+("Ka");
+("Kd");
+("Ks");
+("Ke");
+("Ni");
+("d");
+("illum");
+
+type NewMTLExpr = {
+  ident: "newmtl";
+  params: {
+    name: string;
+  };
+};
+
+type NsExpr = {
+  ident: "Ns";
+  params: {
+    specularWeight: number;
+  };
+};
+
+type KaExpr = {
+  ident: "Ka";
+  params: {
+    ambientColor: _3tuple<number>;
+  };
+};
+
+type KdExpr = {
+  ident: "Kd";
+  params: {
+    diffuseColor: _3tuple<number>;
+  };
+};
+
+type KsExpr = {
+  ident: "Ks";
+  params: {
+    specularColor: _3tuple<number>;
+  };
+};
+
+type KeExpr = {
+  ident: "Ke";
+  params: {
+    emissiveColor: _3tuple<number>;
+  };
+};
+
+type NiExpr = {
+  ident: "Ni";
+  params: {
+    indexOfRefraction: number;
+  };
+};
+
+type dExpr = {
+  ident: "d";
+  params: {
+    alpha: number;
+  };
+};
+
+type TrExpr = {
+  ident: "Tr";
+  params: {
+    transparency: number;
+  };
+};
+
+enum IllumModels {
+  // Color on and Ambient off
+  ILLUM00 = 0,
+  // Color on and Ambient on
+  ILLUM01 = 1,
+  // Highlight on
+  ILLUM02 = 2,
+  // Reflection on and Ray trace on
+  ILLUM03 = 3,
+  // Transparency: Glass on Reflection: Ray trace on
+  ILLUM04 = 4,
+  // Reflection: Fresnel on and Ray trace on
+  ILLUM05 = 5,
+  // Transparency: Refraction on Reflection: Fresnel off and Ray trace on
+  ILLUM06 = 6,
+  // Transparency: Refraction on Reflection: Fresnel on and Ray trace on
+  ILLUM07 = 7,
+  // Reflection on and Ray trace off
+  ILLUM08 = 8,
+  // Transparency: Glass on Reflection: Ray trace off
+  ILLUM09 = 9,
+  // Casts shadows onto invisible surfaces
+  ILLUM10 = 10,
+}
+
+type illumExpr = {
+  ident: "illum";
+  params: {
+    model: IllumModels;
+  };
+};
+
+export type MTLPayload =
+  | CommentExpr
+  | NewMTLExpr
+  | NsExpr
+  | KaExpr
+  | KdExpr
+  | KsExpr
+  | KeExpr
+  | NiExpr
+  | dExpr
+  | TrExpr
+  | illumExpr;
+
+type MTLIdents = MTLPayload["ident"];
 
 function isNumeric(text: string) {
   const num = Number(text);
@@ -549,14 +667,14 @@ function assertToken(valid: boolean, msg: string): asserts valid {
   }
 }
 
-function parseOBJLine(expression: string): exprPayload {
+function parseOBJLine(expression: string): OBJPayload {
   const words = expression.trim().replace(/ +/g, " ").split(" ");
   const tokens = new TokenStream(words);
 
   const head = tokens.nextOpt();
   assertToken(head != null, "expression is empty");
 
-  switch (head as Idents) {
+  switch (head as OBJIdents) {
     case "#":
       return tokenComment(tokens);
     case "mtllib":
@@ -582,6 +700,227 @@ function parseOBJLine(expression: string): exprPayload {
   }
 }
 
+function parseMTLLine(expression: string): MTLPayload {
+  const words = expression.trim().replace(/ +/g, " ").split(" ");
+  const tokens = new TokenStream(words);
+
+  const head = tokens.nextOpt();
+  assertToken(head != null, "expression is empty");
+
+  switch (head as MTLIdents) {
+    case "newmtl":
+      return tokenNewMTL(tokens);
+    case "Ns":
+      return tokenNsMat(tokens);
+    case "Ka":
+      return tokenKaMat(tokens);
+    case "Kd":
+      return tokenKdMat(tokens);
+    case "Ks":
+      return tokenKsMat(tokens);
+    case "Ke":
+      return tokenKeMat(tokens);
+    case "Ni":
+      return tokenNiMat(tokens);
+    case "d":
+      return tokendMat(tokens);
+    case "Tr":
+      return tokenTrMat(tokens);
+    case "illum":
+      return tokenIllumMat(tokens);
+    case "#":
+      return tokenComment(tokens);
+    default:
+      throw new MTLParserError(`Unrecognized function found: '${head}'`);
+  }
+}
+
+function tokenNewMTL(tokens: TokenStream): NewMTLExpr {
+  const words: string[] = [];
+  for (; tokens.remaining > 0; words.push(tokens.next())) {}
+  return {
+    ident: "newmtl",
+    params: {
+      name: words.join(" "),
+    },
+  };
+}
+
+function tokenNsMat(tokens: TokenStream): NsExpr {
+  assertToken(
+    tokens.remaining === 1,
+    `'Ns' expects 1 parameter, ${tokens.remaining} found`,
+  );
+
+  const specularWeight = isNumeric(tokens.next());
+  assertToken(specularWeight != null, "specular weight not numeric");
+
+  return {
+    ident: "Ns",
+    params: {
+      specularWeight,
+    },
+  };
+}
+
+function tokenKaMat(tokens: TokenStream): KaExpr {
+  assertToken(
+    tokens.remaining === 3,
+    `'Ns' expects 3 parameter, ${tokens.remaining} found`,
+  );
+
+  const red = isNumeric(tokens.next());
+  assertToken(red != null, "red value not numeric");
+  const green = isNumeric(tokens.next());
+  assertToken(green != null, "green value not numeric");
+  const blue = isNumeric(tokens.next());
+  assertToken(blue != null, "blue value not numeric");
+
+  return {
+    ident: "Ka",
+    params: {
+      ambientColor: [red, green, blue],
+    },
+  };
+}
+
+function tokenKdMat(tokens: TokenStream): KdExpr {
+  assertToken(
+    tokens.remaining === 3,
+    `'Kd' expects 3 parameter, ${tokens.remaining} found`,
+  );
+
+  const red = isNumeric(tokens.next());
+  assertToken(red != null, "red value not numeric");
+  const green = isNumeric(tokens.next());
+  assertToken(green != null, "green value not numeric");
+  const blue = isNumeric(tokens.next());
+  assertToken(blue != null, "blue value not numeric");
+
+  return {
+    ident: "Kd",
+    params: {
+      diffuseColor: [red, green, blue],
+    },
+  };
+}
+
+function tokenKsMat(tokens: TokenStream): KsExpr {
+  assertToken(
+    tokens.remaining === 3,
+    `'Ks' expects 3 parameter, ${tokens.remaining} found`,
+  );
+
+  const red = isNumeric(tokens.next());
+  assertToken(red != null, "red value not numeric");
+  const green = isNumeric(tokens.next());
+  assertToken(green != null, "green value not numeric");
+  const blue = isNumeric(tokens.next());
+  assertToken(blue != null, "blue value not numeric");
+
+  return {
+    ident: "Ks",
+    params: {
+      specularColor: [red, green, blue],
+    },
+  };
+}
+
+function tokenKeMat(tokens: TokenStream): KeExpr {
+  assertToken(
+    tokens.remaining === 3,
+    `'Ke' expects 3 parameter, ${tokens.remaining} found`,
+  );
+
+  const red = isNumeric(tokens.next());
+  assertToken(red != null, "red value not numeric");
+  const green = isNumeric(tokens.next());
+  assertToken(green != null, "green value not numeric");
+  const blue = isNumeric(tokens.next());
+  assertToken(blue != null, "blue value not numeric");
+
+  return {
+    ident: "Ke",
+    params: {
+      emissiveColor: [red, green, blue],
+    },
+  };
+}
+
+function tokenNiMat(tokens: TokenStream): NiExpr {
+  assertToken(
+    tokens.remaining === 1,
+    `'Ni' expects 1 parameter, ${tokens.remaining} found`,
+  );
+
+  const indexOfRefraction = isNumeric(tokens.next());
+  assertToken(indexOfRefraction != null, "refraction index not numeric");
+
+  return {
+    ident: "Ni",
+    params: {
+      indexOfRefraction,
+    },
+  };
+}
+
+function tokendMat(tokens: TokenStream): dExpr {
+  assertToken(
+    tokens.remaining === 1,
+    `'d' expects 1 parameter, ${tokens.remaining} found`,
+  );
+
+  const alpha = isNumeric(tokens.next());
+  assertToken(alpha != null, "dissolve value not numeric");
+
+  return {
+    ident: "d",
+    params: {
+      alpha,
+    },
+  };
+}
+
+function tokenTrMat(tokens: TokenStream): TrExpr {
+  assertToken(
+    tokens.remaining === 1,
+    `'Tr' expects 1 parameter, ${tokens.remaining} found`,
+  );
+
+  const transparency = isNumeric(tokens.next());
+  assertToken(transparency != null, "transparency value not numeric");
+
+  return {
+    ident: "Tr",
+    params: {
+      transparency,
+    },
+  };
+}
+
+function tokenIllumMat(tokens: TokenStream): illumExpr {
+  assertToken(
+    tokens.remaining === 1,
+    `'Tr' expects 1 parameter, ${tokens.remaining} found`,
+  );
+
+  const model = isNumeric(tokens.next());
+  assertToken(
+    model != null && Number.isInteger(model),
+    "transparency value not integer",
+  );
+  assertToken(model >= 0 && model <= 10, "not a valid illumination model");
+  model as IllumModels;
+
+  // vertex != null && vertex !== 0 && Number.isInteger(vertex),
+  return {
+    ident: "illum",
+    params: {
+      model,
+    },
+  };
+}
+
 function tokenUseMtl(tokens: TokenStream): UseMtlExpr {
   const words: string[] = [];
   for (; tokens.remaining > 0; words.push(tokens.next())) {}
@@ -594,7 +933,8 @@ function tokenUseMtl(tokens: TokenStream): UseMtlExpr {
 }
 
 function tokenMtllib(tokens: TokenStream): MTLExpr {
-  assertToken(tokens.remaining === 1, "'mtllib' expects 1 parameter");
+  // BUGBUG: if the filename contains more than one space in its name
+  // this function would fail. The tokenizer throws it away.
 
   const words: string[] = [];
   for (; tokens.remaining > 0; words.push(tokens.next())) {}
