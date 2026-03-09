@@ -15,6 +15,7 @@ import { FileMesh } from "./shapes/fileMesh";
 import { ActionCamera } from "./components/actionCamera";
 import { ComplexTextured, CplxMats } from "./shaders/complexTexture";
 import { SkyboxWH } from "./shaders/skyboxShader";
+import { GameGUI } from "./components/gameGui";
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -88,6 +89,8 @@ export class BumperCarsBase extends tiny.Component {
     timeMultiplier: number;
     showMeshes: boolean;
   };
+
+  gui?: GameGUI;
 
   constructor() {
     super();
@@ -165,6 +168,18 @@ export class BumperCarsBase extends tiny.Component {
         math.Mat4.scale(0.559, 1.218, 1.152),
       ),
     );
+    const chasisMeshRed = new FileMesh(
+      "../assets/meshes/CarChasis_Red.obj",
+      math.Mat4.translation(0.261, 0, 0).times(
+        math.Mat4.scale(0.559, 1.218, 1.152),
+      ),
+    );
+    const chasisMeshBlue = new FileMesh(
+      "../assets/meshes/CarChasis_Blue.obj",
+      math.Mat4.translation(0.261, 0, 0).times(
+        math.Mat4.scale(0.559, 1.218, 1.152),
+      ),
+    );
     const sawMesh = new FileMesh(
       "../assets/meshes/Sawblade_2.obj",
       math.Mat4.scale(0.62, 0.62, 0.62),
@@ -235,10 +250,17 @@ export class BumperCarsBase extends tiny.Component {
       armLinkRadius: 0.06,
       sawRadius: 0.3,
     };
-    const cartMeshes = {
+    const cartMeshesA = {
       arm1: saw_arm1_mesh,
       arm2: saw_arm2_mesh,
-      chassis: chasisMesh,
+      chassis: chasisMeshRed,
+      saw: sawMesh,
+      wheel: tireMesh,
+    };
+    const cartMeshesB = {
+      arm1: saw_arm1_mesh,
+      arm2: saw_arm2_mesh,
+      chassis: chasisMeshBlue,
       saw: sawMesh,
       wheel: tireMesh,
     };
@@ -246,11 +268,11 @@ export class BumperCarsBase extends tiny.Component {
     this.armatures = {
       cartA: new CartArmature({
         dimensions: cartDims,
-        meshes: cartMeshes,
+        meshes: cartMeshesA,
       }),
       cartB: new CartArmature({
         dimensions: cartDims,
-        meshes: cartMeshes,
+        meshes: cartMeshesB,
       }),
     };
 
@@ -325,6 +347,7 @@ export class BumperCarsBase extends tiny.Component {
     this.physics.cartMSD.resetState();
     this.armatures.cartA.resetState();
     this.armatures.cartB.resetState();
+    this.gui?.resetState();
   }
 
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
@@ -333,6 +356,7 @@ export class BumperCarsBase extends tiny.Component {
     // even if you remove the camera leave this in. We can leverage it
     // to add a gui with CSS.
     const canvas = this.canvas ?? document.getElementById("canvas")!;
+    this.gui = new GameGUI(canvas as HTMLElement);
 
     const fov = (Math.PI * 60) / 180;
     const aspectRatio = this.width / this.height;
@@ -353,6 +377,11 @@ export class BumperCarsBase extends tiny.Component {
       fov,
       cameraPin: "follow",
     };
+
+    if (!this.gui) {
+      this.gui = new GameGUI(canvas);
+    }
+    this.gui.resetState();
   }
 
   render_animation(context: tiny.Component): void {
@@ -397,8 +426,40 @@ export class BumperCarsBase extends tiny.Component {
 }
 
 export class BumperCars extends BumperCarsBase {
+  private guiHealth = {
+    carA: 100,
+    carB: 100,
+  };
+
+  private guiPower: { carA: "heavy" | "laser" | "none"; carB: "heavy" | "laser" | "none" } = {
+    carA: "none",
+    carB: "none",
+  };
+
   constructor() {
     super();
+  }
+
+  protected resetGame(): void {
+    super.resetGame();
+    this.guiHealth.carA = 100;
+    this.guiHealth.carB = 100;
+    this.guiPower.carA = "none";
+    this.guiPower.carB = "none";
+  }
+
+  private applyGuiDamage(target: "carA" | "carB", damage: number): void {
+    const next = clamp(this.guiHealth[target] - damage, 0, 100);
+    this.guiHealth[target] = next;
+    this.gui?.updateHealth(this.guiHealth.carA, this.guiHealth.carB);
+  }
+
+  private setGuiPower(
+    target: "carA" | "carB",
+    power: "heavy" | "laser" | "none",
+  ): void {
+    this.guiPower[target] = power;
+    this.gui?.setPowerUp(this.guiPower.carA, this.guiPower.carB);
   }
 
   render_animation(context: tiny.Component): void {
@@ -408,6 +469,7 @@ export class BumperCars extends BumperCarsBase {
     const camSubjects: math.Vector3[] = [];
 
     const time = (this.uniforms.animation_time ?? 0) / 1000;
+    //const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
 
     const GL = context.context!;
 
@@ -417,11 +479,12 @@ export class BumperCars extends BumperCarsBase {
     const cartMSD = this.physics.cartMSD;
     const { cartA, cartB } = this.armatures;
 
-    // do all time related operations inside this if statement
+    // do all time related oerations inside this if statement
     if (cartMSD.enable && !this.globalProps.isIdling) {
       const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
       const timeMult = this.globalProps.timeMultiplier;
 
+      this.gui?.updateTimer(timeDelta * timeMult);
       this.gameView.actionCam!.updateCamera(timeDelta);
       cartA.updateControls(timeDelta * timeMult);
       cartB.updateControls(timeDelta * timeMult);
@@ -498,24 +561,40 @@ export class BumperCars extends BumperCarsBase {
 
     if (this.globalProps.showMeshes) {
       cartA.arcs.root.traverse((joint, node, matrix) => {
-        // can discriminate material based on name
         const name = node.name as CartNodeNames;
-        node.shape.draw(
-          context,
-          this.uniforms,
-          matrix,
-          this.materials.uvSimple,
-        );
+        if (name === "chassis") {
+          (node.shape as FileMesh).drawAll(
+            context,
+            this.uniforms,
+            matrix,
+            this.materials.uvSimple,
+          );
+        } else {
+          (node.shape as FileMesh).drawAll(
+            context,
+            this.uniforms,
+            matrix,
+            this.materials.uvSimple,
+          );
+        }
       }, mtxCarA);
       cartB.arcs.root.traverse((joint, node, matrix) => {
-        // can discriminate material based on name
         const name = node.name as CartNodeNames;
-        node.shape.draw(
-          context,
-          this.uniforms,
-          matrix,
-          this.materials.uvSimple,
-        );
+        if (name === "chassis") {
+          (node.shape as FileMesh).drawAll(
+            context,
+            this.uniforms,
+            matrix,
+            this.materials.uvSimple,
+          );
+        } else {
+          (node.shape as FileMesh).drawAll(
+            context,
+            this.uniforms,
+            matrix,
+            this.materials.uvSimple,
+          );
+        }
       }, mtxCarB);
     } else {
       // TODO: remove frame rending on finished game
@@ -641,6 +720,38 @@ export class BumperCars extends BumperCarsBase {
     });
     this.new_line();
 
+    // GUI debug shortcuts
+    this.live_string((elem) => {
+      elem.textContent = "GUI Debug";
+    });
+    this.key_triggered_button("A heavy power", ["u"], () => {
+      this.setGuiPower("carA", "heavy");
+      this.gui?.showMessage("Car A picked up Heavy");
+    });
+    this.key_triggered_button("B heavy power", ["i"], () => {
+      this.setGuiPower("carB", "heavy");
+      this.gui?.showMessage("Car B picked up Heavy");
+    });
+    this.key_triggered_button("clear powers", ["o"], () => {
+      this.setGuiPower("carA", "none");
+      this.setGuiPower("carB", "none");
+      this.gui?.hideMessage();
+    });
+    this.new_line();
+    this.key_triggered_button("damage A (-10)", ["j"], () => {
+      this.applyGuiDamage("carA", 10);
+    });
+    this.key_triggered_button("damage B (-10)", ["k"], () => {
+      this.applyGuiDamage("carB", 10);
+    });
+    this.key_triggered_button("heal both (+10)", ["l"], () => {
+      this.guiHealth.carA = clamp(this.guiHealth.carA + 10, 0, 100);
+      this.guiHealth.carB = clamp(this.guiHealth.carB + 10, 0, 100);
+      this.gui?.updateHealth(this.guiHealth.carA, this.guiHealth.carB);
+      console.log("Car A health:", this.guiHealth.carA, "Car B health:", this.guiHealth.carB);
+    });
+    this.new_line();
+
     // other shortcuts
     this.key_triggered_button("toggle physics", ["p"], () => {
       this.physics.cartMSD.enable = !this.physics.cartMSD.enable;
@@ -692,5 +803,7 @@ export class BumperCars extends BumperCarsBase {
     this.key_triggered_button("reset", ["t"], () => {
       this.resetGame();
     });
+
+    
   }
 }

@@ -1,16 +1,33 @@
 import { tiny, Uniforms, MaterialRecord } from "../../tiny-graphics";
 import { math } from "../../tiny-graphics-math";
+import { defs } from "../../examples/common";
 import { createError } from "../utils/error";
 import { normalizeLines } from "../utils/text";
 import { affineTransform, VectorKind } from "../utils/math";
 
 export const OBJParserError = createError("OBJParserError");
 export const OBJImplMissing = createError("OBJImplMissing");
+export const MTLParserError = createError("MTLParserError");
+
+interface MTLMaterial {
+  name: string;
+  Ns?: number;  // specular exponent (0-1000)
+  Ka?: [number, number, number];  // ambient color
+  Kd?: [number, number, number];  // diffuse color
+  Ks?: [number, number, number];  // specular color
+  Ke?: [number, number, number];  // emissive color
+  Ni?: number;  // optical density
+  d?: number;   // dissolve/opacity (0-1)
+  illum?: number; // illumination model
+}
 
 export class FileMesh extends tiny.Shape {
   private _ready = false;
   private _transform?: math.Mat4;
   private _uvscale?: math.Vector<2>;
+  private _materials: Map<string, MaterialRecord> = new Map();
+  // each key is a material name from usemtl; the shape holds that group's geometry
+  private _geometries: Map<string, tiny.Shape> = new Map();
 
   constructor(
     filename: string,
@@ -31,14 +48,185 @@ export class FileMesh extends tiny.Shape {
         else return Promise.reject(res.status);
       })
       .then((objFile) => {
-        this.loadData(objFile);
+        this.loadData(objFile, filename);
       })
       .catch((err) => {
         throw "OBJ error: file not found or format is unsupported.";
       });
   }
 
-  private loadData(objFile: string) {
+  private resolveRelativePath(sourcePath: string, relativePath: string) {
+    if (relativePath.startsWith("/") || /^[a-z][a-z0-9+.-]*:/i.test(relativePath)) {
+      return relativePath;
+    }
+
+    const normalizedSource = sourcePath.replace(/\\/g, "/");
+    const slashIdx = normalizedSource.lastIndexOf("/");
+    const baseDir = slashIdx >= 0 ? normalizedSource.slice(0, slashIdx + 1) : "";
+    return `${baseDir}${relativePath}`;
+  }
+
+  private logPathFound(path: string) {
+    void fetch(path)
+      .then((res) => {
+        if (res.ok) {
+          console.log(`[mtllib] FOUND: ${path}`);
+        } else {
+          console.log(`[mtllib] NOT FOUND (${res.status}): ${path}`);
+        }
+      })
+      .catch(() => {
+        console.log(`[mtllib] NOT FOUND (fetch failed): ${path}`);
+      });
+  }
+
+  private createMTLPack(mtlPath: string) {
+    console.log(`[MTL] Attempting to fetch: ${mtlPath}`);
+    return fetch(mtlPath)
+      .then((res) => {
+        if (res.ok) {
+          console.log(`[MTL] Successfully fetched: ${mtlPath}`);
+          return Promise.resolve(res.text());
+        } else {
+          console.error(`[MTL] Fetch failed with status ${res.status}: ${mtlPath}`);
+          return Promise.reject(res.status);
+        }
+      })
+      .then((mtlFile) => {
+        this.parseMTL(mtlFile);
+      })
+      .catch((err) => {
+        console.error(`[MTL] Error loading file: ${mtlPath}`, err);
+      });
+  }
+
+  private parseMTL(mtlFile: string): void {
+    const lines = normalizeLines(mtlFile).split("\n");
+    let currentMaterial: MTLMaterial | null = null;
+
+    for (const line of lines) {
+      if (line === "" || line.startsWith("#")) continue;
+
+      const tokens = line.trim().split(/\s+/);
+      const keyword = tokens[0];
+
+      switch (keyword) {
+        case "newmtl":
+          if (currentMaterial) {
+            this.addMaterial(currentMaterial);
+          }
+          currentMaterial = { name: tokens.slice(1).join(" ") };
+          break;
+
+        case "Ns":
+          if (currentMaterial) currentMaterial.Ns = parseFloat(tokens[1]);
+          break;
+
+        case "Ka":
+          if (currentMaterial) {
+            currentMaterial.Ka = [
+              parseFloat(tokens[1]),
+              parseFloat(tokens[2]),
+              parseFloat(tokens[3]),
+            ];
+          }
+          break;
+
+        case "Kd":
+          if (currentMaterial) {
+            currentMaterial.Kd = [
+              parseFloat(tokens[1]),
+              parseFloat(tokens[2]),
+              parseFloat(tokens[3]),
+            ];
+          }
+          break;
+
+        case "Ks":
+          if (currentMaterial) {
+            currentMaterial.Ks = [
+              parseFloat(tokens[1]),
+              parseFloat(tokens[2]),
+              parseFloat(tokens[3]),
+            ];
+          }
+          break;
+
+        case "Ke":
+          if (currentMaterial) {
+            currentMaterial.Ke = [
+              parseFloat(tokens[1]),
+              parseFloat(tokens[2]),
+              parseFloat(tokens[3]),
+            ];
+          }
+          break;
+
+        case "Ni":
+          if (currentMaterial) currentMaterial.Ni = parseFloat(tokens[1]);
+          break;
+
+        case "d":
+          if (currentMaterial) currentMaterial.d = parseFloat(tokens[1]);
+          break;
+
+        case "illum":
+          if (currentMaterial) currentMaterial.illum = parseInt(tokens[1]);
+          break;
+
+        default:
+          // Ignore unsupported keywords (map_Kd, etc.)
+          break;
+      }
+    }
+
+    // Add the last material
+    if (currentMaterial) {
+      this.addMaterial(currentMaterial);
+    }
+
+    // Log all loaded materials
+    console.log(`[MTL] Total materials loaded: ${this._materials.size}`);
+    this._materials.forEach((material, name) => {
+      console.log(`  - ${name}:`, material);
+    });
+  }
+
+  private addMaterial(mtlMat: MTLMaterial): void {
+    // Convert MTL material to tiny-graphics Phong material.
+    // Kd is a diffuse COLOR (rgb), not a scalar — do not average it for diffusivity.
+    // Ks is a specular COLOR (rgb) — average it to get a specularity scalar.
+    const material: MaterialRecord = {
+      shader: new defs.Phong_Shader(),
+      // Kd is the diffuse color; use it directly as the surface color
+      color: mtlMat.Kd
+        ? math.color(mtlMat.Kd[0], mtlMat.Kd[1], mtlMat.Kd[2], mtlMat.d ?? 1.0)
+        : math.color(0.8, 0.8, 0.8, 1.0),
+      // Full diffuse response to lights so color is visible
+      diffusivity: 1.0,
+      // Ka average controls how much ambient light this surface picks up
+      ambient: mtlMat.Ka
+        ? (mtlMat.Ka[0] + mtlMat.Ka[1] + mtlMat.Ka[2]) / 3
+        : 0.2,
+      // Ks average is the specular reflectance intensity
+      specularity: mtlMat.Ks
+        ? (mtlMat.Ks[0] + mtlMat.Ks[1] + mtlMat.Ks[2]) / 3
+        : 0.3,
+    };
+
+    this._materials.set(mtlMat.name, material);
+    console.log(`[MTL] Loaded material: ${mtlMat.name}`);
+  }
+
+  public getMaterial(name: string): MaterialRecord | undefined {
+    return this._materials.get(name);
+  }
+
+  public getAllMaterials(): Map<string, MaterialRecord> {
+    return this._materials;
+  }
+
+  private loadData(objFile: string, sourceFilename: string) {
     let lineNumber = 0;
     let errors = 0;
     const expressions = normalizeLines(objFile);
@@ -56,7 +244,10 @@ export class FileMesh extends tiny.Shape {
     const vertices: math.Vector3[] = [];
     const vertNormals: math.Vector3[] = [];
     const textures: math.Vector<2>[] = [];
-    const faces: _3tuple<FaceIndexPack>[] = [];
+    // faces grouped by their active usemtl name; "__default__" when none
+    const faceGroups: Map<string, _3tuple<FaceIndexPack>[]> = new Map();
+    let currentMaterialName = "__default__";
+    faceGroups.set(currentMaterialName, []);
 
     // parsing step: in this loop all the original values are
     // accumulated. TypeScript ensures that you can trust every single
@@ -72,7 +263,18 @@ export class FileMesh extends tiny.Shape {
 
         switch (expr.ident) {
           case "mtllib":
-            throw new OBJImplMissing(`'${expr.ident}' not implemented`);
+            {
+              const mtlPath = this.resolveRelativePath(
+                sourceFilename,
+                expr.params.filename,
+              );
+              console.log(`[MTL] Source OBJ: ${sourceFilename}`);
+              console.log(`[MTL] MTL filename from OBJ: ${expr.params.filename}`);
+              console.log(`[MTL] Resolved path: ${mtlPath}`);
+              this.logPathFound(mtlPath);
+              this.createMTLPack(mtlPath);
+            }
+            break;
           case "v":
             if (this._transform) {
               const v = affineTransform(
@@ -86,7 +288,7 @@ export class FileMesh extends tiny.Shape {
             }
             break;
           case "f":
-            faces.push(expr.params.indices);
+            faceGroups.get(currentMaterialName)!.push(expr.params.indices);
             break;
           case "vt":
             if (this._uvscale) {
@@ -111,7 +313,11 @@ export class FileMesh extends tiny.Shape {
             }
             break;
           case "usemtl":
-            throw new OBJImplMissing(`'${expr.ident}' not implemented`);
+            currentMaterialName = expr.params.name ?? "__default__";
+            if (!faceGroups.has(currentMaterialName)) {
+              faceGroups.set(currentMaterialName, []);
+            }
+            break;
           case "s":
             throw new OBJImplMissing(`'${expr.ident}' not implemented`);
           case "o":
@@ -138,17 +344,31 @@ export class FileMesh extends tiny.Shape {
       }
     }
 
-    // here is where all the data is pushed into the tiny-graphics Shape
-    for (const tri of faces) {
-      for (const idx of tri) {
-        this.arrays.position!.push(at(vertices, idx.vertex));
-        if (idx.ident === "V-T" || idx.ident === "V-T-N") {
-          this.arrays.texture_coord!.push(at(textures, idx.texture));
-        }
-        if (idx.ident === "V-N" || idx.ident === "V-T-N") {
-          this.arrays.normal!.push(at(vertNormals, idx.normal));
+    // Build one sub-shape per material group and populate this.arrays with everything
+    for (const [matName, groupFaces] of faceGroups) {
+      if (groupFaces.length === 0) continue;
+
+      const subShape = new tiny.Shape("position", "normal", "texture_coord") as any;
+      subShape.arrays.position = [];
+      subShape.arrays.normal = [];
+      subShape.arrays.texture_coord = [];
+
+      for (const tri of groupFaces) {
+        for (const idx of tri) {
+          subShape.arrays.position.push(at(vertices, idx.vertex));
+          this.arrays.position!.push(at(vertices, idx.vertex));
+          if (idx.ident === "V-T" || idx.ident === "V-T-N") {
+            subShape.arrays.texture_coord.push(at(textures, idx.texture));
+            this.arrays.texture_coord!.push(at(textures, idx.texture));
+          }
+          if (idx.ident === "V-N" || idx.ident === "V-T-N") {
+            subShape.arrays.normal.push(at(vertNormals, idx.normal));
+            this.arrays.normal!.push(at(vertNormals, idx.normal));
+          }
         }
       }
+
+      this._geometries.set(matName, subShape);
     }
     this._ready = true;
   }
@@ -162,6 +382,21 @@ export class FileMesh extends tiny.Shape {
   ): void {
     if (this._ready) {
       super.draw(webgl_manager, uniforms, model_transform, material, type);
+    }
+  }
+
+  // Draw each geometry group with its parsed MTL material.
+  // fallbackMaterial is used for groups whose material name isn't in _materials.
+  drawAll(
+    webgl_manager: tiny.Component,
+    uniforms: Uniforms,
+    model_transform: math.Mat4,
+    fallbackMaterial: MaterialRecord,
+  ): void {
+    if (!this._ready) return;
+    for (const [matName, subShape] of this._geometries) {
+      const material = this._materials.get(matName) ?? fallbackMaterial;
+      subShape.draw(webgl_manager, uniforms, model_transform, material);
     }
   }
 }
@@ -325,7 +560,7 @@ function parseOBJLine(expression: string): exprPayload {
     case "#":
       return tokenComment(tokens);
     case "mtllib":
-      throw new OBJImplMissing(`Implementation pending: '${head}'`);
+      return tokenMtllib(tokens);
     case "v":
       return tokenVertex(tokens);
     case "f":
@@ -335,7 +570,7 @@ function parseOBJLine(expression: string): exprPayload {
     case "vn":
       return tokenVNormal(tokens);
     case "usemtl":
-      throw new OBJImplMissing(`Implementation pending: '${head}'`);
+      return tokenUseMtl(tokens);
     case "s":
       throw new OBJImplMissing(`Implementation pending: '${head}'`);
     case "o":
@@ -345,6 +580,31 @@ function parseOBJLine(expression: string): exprPayload {
     default:
       throw new OBJParserError(`Unrecognized function found: '${head}'`);
   }
+}
+
+function tokenUseMtl(tokens: TokenStream): UseMtlExpr {
+  const words: string[] = [];
+  for (; tokens.remaining > 0; words.push(tokens.next())) {}
+  return {
+    ident: "usemtl",
+    params: {
+      name: words.length > 0 ? words.join(" ") : null,
+    },
+  };
+}
+
+function tokenMtllib(tokens: TokenStream): MTLExpr {
+  assertToken(tokens.remaining === 1, "'mtllib' expects 1 parameter");
+
+  const words: string[] = [];
+  for (; tokens.remaining > 0; words.push(tokens.next())) {}
+
+  return {
+    ident: "mtllib",
+    params: {
+      filename: words.join(" "),
+    },
+  };
 }
 
 function tokenComment(tokens: TokenStream): CommentExpr {
