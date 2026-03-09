@@ -279,8 +279,8 @@ return (`
 // Implementation of 2012 Hosek-Wilkie skylight model
 
 // Ground albedo and turbidity are baked into the lookup tables
-#define ALBEDO 0
-#define TURBIDITY 0
+#define ALBEDO 1
+#define TURBIDITY 3
 
 #define M_PI 3.1415926535897932384626433832795
 #define H_PI 1.5707963267948966192313216916398
