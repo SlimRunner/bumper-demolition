@@ -308,7 +308,7 @@ export class CartFrame {
     this.integrator = new SymplecticEuler();
 
     // this saves the state for resetting purposes
-    this.initial.locations = particles.container.map((p) => p.location);
+    this.initial.locations = particles.container.map((p) => p.location.copy());
     this.initial.carNodeCount = carNodeCount;
     this.nodeRanges = {
       CarA: [0, carNodeCount - 1],
