@@ -347,3 +347,48 @@ export function getSunColor(props: {
   // assign final color
   return clampV3(col, 0, 1).to4(1.0);
 }
+
+export function getGrayscale(color: math.Vector4) {
+  return 0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2];
+}
+
+export function calculateSunPosition(
+  hour_of_day: number,
+  axis_tilt: number,
+  month: number,
+) {
+  // Convert hour of the day to fractional hours (0 to 23.9999)
+  const fractional_hour = hour_of_day % 24;
+
+  // Convert month of the year to fractional months (0 to 11.9999)
+  const fractional_month = month % 12;
+
+  // Calculate declination angle (δ) of the sun
+  const declination =
+    23.44 * Math.sin((2 * Math.PI * (284 + fractional_month)) / 365);
+
+  // Calculate hour angle (H) of the sun
+  const hour_angle = (fractional_hour - 12) * 15;
+
+  // Calculate zenith angle (θ) of the sun
+  const sun_zenith = Math.acos(
+    Math.sin(axis_tilt) * Math.sin((declination * Math.PI) / 180) +
+      Math.cos(axis_tilt) *
+        Math.cos((declination * Math.PI) / 180) *
+        Math.cos((hour_angle * Math.PI) / 180),
+  );
+
+  // Calculate azimuth angle (φ) of the sun
+  let sun_azimuth = Math.atan2(
+    -Math.sin((hour_angle * Math.PI) / 180),
+    Math.tan(axis_tilt) * Math.cos(declination) -
+      Math.sin(declination) * Math.cos((hour_angle * Math.PI) / 180),
+  );
+
+  // Convert azimuth to the range [0, 2π)
+  if (sun_azimuth < 0) {
+    sun_azimuth += 2 * Math.PI;
+  }
+
+  return { sun_zenith, sun_azimuth };
+}
