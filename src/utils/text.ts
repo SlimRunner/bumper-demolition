@@ -14,3 +14,17 @@ export function parseNumberList(text: string, sep: string = " "): number[] {
     .map((n) => Number(n));
   return numbers;
 }
+
+export function resolveSiblingPath(sourcePath: string, relativePath: string) {
+  if (
+    relativePath.startsWith("/") ||
+    /^[a-z][a-z0-9+.-]*:/i.test(relativePath)
+  ) {
+    return relativePath;
+  }
+
+  const normalizedSource = sourcePath.replace(/\\/g, "/");
+  const slashIdx = normalizedSource.lastIndexOf("/");
+  const baseDir = slashIdx >= 0 ? normalizedSource.slice(0, slashIdx + 1) : "";
+  return `${baseDir}${relativePath}`;
+}

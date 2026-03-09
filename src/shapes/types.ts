@@ -10,3 +10,13 @@ export interface DrawableShape {
     type?: keyof WebGL2RenderingContext,
   ): void;
 }
+
+export interface ShapeCollection extends DrawableShape {
+  foreach(
+    backFn: (
+      shape: DrawableShape,
+      material: MaterialRecord | undefined,
+      name: string,
+    ) => void,
+  ): void;
+}
