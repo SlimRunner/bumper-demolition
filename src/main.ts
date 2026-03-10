@@ -451,8 +451,8 @@ export class BumperCars extends BumperCarsBase {
   };
 
   private guiPower: {
-    carA: "heavy" | "laser" | "none";
-    carB: "heavy" | "laser" | "none";
+    carA: "heavy" | "orbit" | "none";
+    carB: "heavy" | "orbit" | "none";
   } = {
     carA: "none",
     carB: "none",
@@ -478,7 +478,7 @@ export class BumperCars extends BumperCarsBase {
 
   private setGuiPower(
     target: "carA" | "carB",
-    power: "heavy" | "laser" | "none",
+    power: "heavy" | "orbit" | "none",
   ): void {
     this.guiPower[target] = power;
     this.gui?.setPowerUp(this.guiPower.carA, this.guiPower.carB);
@@ -755,6 +755,14 @@ export class BumperCars extends BumperCarsBase {
     this.key_triggered_button("B heavy power", ["i"], () => {
       this.setGuiPower("carB", "heavy");
       this.gui?.showMessage("Car B picked up Heavy");
+    });
+    this.key_triggered_button("A orbit power", ["y"], () => {
+      this.setGuiPower("carA", "orbit");
+      this.gui?.showMessage("Car A picked up Orbit");
+    })
+    this.key_triggered_button("B orbit power", ["h"], () => {
+      this.setGuiPower("carB", "orbit");
+      this.gui?.showMessage("Car B picked up Orbit");
     });
     this.key_triggered_button("clear powers", ["o"], () => {
       this.setGuiPower("carA", "none");
