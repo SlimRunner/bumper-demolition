@@ -15,14 +15,19 @@ export const MTLImplMissing = createError("MTLParserError");
 
 interface MTLMaterial {
   name: string;
-  Ns?: number; // specular exponent (0-1000)
   Ka?: [number, number, number]; // ambient color
   Kd?: [number, number, number]; // diffuse color
   Ks?: [number, number, number]; // specular color
   Ke?: [number, number, number]; // emissive color
+
+  Ns?: number; // specular exponent (0-1000)
   Ni?: number; // optical density
   d?: number; // dissolve/opacity (0-1)
   illum?: number; // illumination model
+
+  map_Kd?: string;
+  map_Ks?: string;
+  map_Bump?: string;
 }
 
 export class FileMesh implements ShapeCollection {
@@ -572,6 +577,21 @@ enum IllumModels {
   ILLUM10 = 10,
 }
 
+type MapKdExpr = {
+  ident: "map_Kd";
+  params: { filename: string };
+};
+
+type MapNsExpr = {
+  ident: "map_Ns";
+  params: { filename: string };
+};
+
+type MapBumpExpr = {
+  ident: "map_bump";
+  params: { filename: string };
+};
+
 type illumExpr = {
   ident: "illum";
   params: {
@@ -590,7 +610,10 @@ export type MTLPayload =
   | NiExpr
   | dExpr
   | TrExpr
-  | illumExpr;
+  | illumExpr
+  | MapKdExpr
+  | MapNsExpr
+  | MapBumpExpr;
 
 type MTLIdents = MTLPayload["ident"];
 
@@ -664,6 +687,12 @@ function parseMTLLine(expression: string): MTLPayload {
       return tokenTrMat(tokens);
     case "illum":
       return tokenIllumMat(tokens);
+    case "map_Kd":
+      return tokenKdMap(tokens);
+    case "map_Ns":
+      return tokenKsMap(tokens);
+    case "map_bump":
+      return tokenBumpMap(tokens);
     case "#":
       return tokenComment(tokens);
     default:
@@ -854,6 +883,42 @@ function tokenIllumMat(tokens: TokenStream): illumExpr {
     params: {
       model,
     },
+  };
+}
+
+function tokenKdMap(tokens: TokenStream): MapKdExpr {
+  const words: string[] = [];
+  for (; tokens.remaining > 0; words.push(tokens.next(true))) {}
+
+  return {
+    ident: "map_Kd",
+    params: {
+      filename: words.join("").trim(),
+    }
+  };
+}
+
+function tokenKsMap(tokens: TokenStream): MapNsExpr {
+  const words: string[] = [];
+  for (; tokens.remaining > 0; words.push(tokens.next(true))) {}
+
+  return {
+    ident: "map_Ns",
+    params: {
+      filename: words.join("").trim(),
+    }
+  };
+}
+
+function tokenBumpMap(tokens: TokenStream): MapBumpExpr {
+  const words: string[] = [];
+  for (; tokens.remaining > 0; words.push(tokens.next(true))) {}
+
+  return {
+    ident: "map_bump",
+    params: {
+      filename: words.join("").trim(),
+    }
   };
 }
 
