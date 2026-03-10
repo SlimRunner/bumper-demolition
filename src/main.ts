@@ -427,8 +427,34 @@ export class BumperCarsBase extends tiny.Component {
     this.gui.resetState();
 
     if (!this.sound) {
-      this.sound = new CarSound("../assets/motor-sound2.mp3");
+      this.sound = new CarSound("../assets/motor-sound3.mp3");
     }
+
+    if (div.querySelector("#sound-debug")) return;
+
+    const soundDebug = document.createElement("div");
+    soundDebug.id = "sound-debug";
+    soundDebug.style.cssText =
+      "position:absolute;bottom:8px;left:8px;display:flex;gap:6px;z-index:10;";
+    const btnMuteA = document.createElement("button");
+    btnMuteA.textContent = "Mute Car A";
+    btnMuteA.type = "button";
+    const btnMuteB = document.createElement("button");
+    btnMuteB.textContent = "Mute Car B";
+    btnMuteB.type = "button";
+    btnMuteA.addEventListener("click", () => {
+      const next = !this.sound?.getMuteA();
+      this.sound?.setMuteA(next);
+      btnMuteA.textContent = next ? "Unmute Car A" : "Mute Car A";
+    });
+    btnMuteB.addEventListener("click", () => {
+      const next = !this.sound?.getMuteB();
+      this.sound?.setMuteB(next);
+      btnMuteB.textContent = next ? "Unmute Car B" : "Mute Car B";
+    });
+    soundDebug.append(btnMuteA, btnMuteB);
+    div.style.position = div.style.position || "relative";
+    div.appendChild(soundDebug);
   }
 
   render_animation(context: tiny.Component): void {
@@ -744,7 +770,7 @@ export class BumperCars extends BumperCarsBase {
       cartB.updateFrontWheels(tires.carB.frontLeft, tires.carB.frontRight);
       cartA.updateArm(timeDelta * timeMult);
       cartB.updateArm(timeDelta * timeMult);
-      // possibly use thrust (pitch) and speed (volume)
+      // TODO: possibly use thrust (pitch) and speed (volume)
       const speedA =
         (Math.abs(groundSpeeds.carA.frontLeft) +
           Math.abs(groundSpeeds.carA.frontRight) +
@@ -757,7 +783,19 @@ export class BumperCars extends BumperCarsBase {
           Math.abs(groundSpeeds.carB.rearLeft) +
           Math.abs(groundSpeeds.carB.rearRight)) /
         4;
-      this.sound?.update(speedA, speedB);
+      // TODO: Can this be re-factored out?
+      const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
+      const carAPos = math.vec3(mtxCarA[0][3], mtxCarA[1][3], mtxCarA[2][3]);
+      const carBPos = math.vec3(mtxCarB[0][3], mtxCarB[1][3], mtxCarB[2][3]);
+      const camPos = math.vec3(cam_loc[0], cam_loc[1], cam_loc[2]);
+      const camRight = math.vec3(CMT[0][0], CMT[0][1], CMT[0][2]);
+      const toA = carAPos.minus(camPos);
+      const toB = carBPos.minus(camPos);
+      const distA = Math.max(toA.norm(), 0.001);
+      const distB = Math.max(toB.norm(), 0.001);
+      const panA = -clamp(toA.dot(camRight) / distA, -1, 1);
+      const panB = -clamp(toB.dot(camRight) / distB, -1, 1);
+      this.sound?.update(speedA, speedB, panA, panB);
     }
 
     // this pattern can be used to create a sky texture later

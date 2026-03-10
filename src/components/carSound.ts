@@ -6,8 +6,13 @@ export class CarSound {
   private readonly minVolume = 0.15;
   private readonly maxVolume = 0.6;
   private readonly minRate = 0.8;
-  private readonly maxRate = 1.5;
+  private readonly maxRate = 2.4;
   private readonly maxSpeed: number;
+  private ctx: AudioContext | null = null;
+  private pannerA: StereoPannerNode | null = null;
+  private pannerB: StereoPannerNode | null = null;
+  private muteA = false;
+  private muteB = false;
 
   constructor(src: string, maxSpeed = 20) {
     this.audioA = new Audio(src);
@@ -21,7 +26,41 @@ export class CarSound {
     this.maxSpeed = Math.max(1, Math.abs(maxSpeed));
   }
 
-  update(speedA: number, speedB: number): void {
+  private ensureContext(): void {
+    if (this.ctx?.state === "suspended") {
+      this.ctx.resume();
+    }
+    if (this.ctx) return;
+    this.ctx = new AudioContext();
+    const srcA = this.ctx.createMediaElementSource(this.audioA);
+    const srcB = this.ctx.createMediaElementSource(this.audioB);
+    this.pannerA = this.ctx.createStereoPanner();
+    this.pannerB = this.ctx.createStereoPanner();
+    this.pannerA.pan.value = -1;
+    this.pannerB.pan.value = 1;
+    srcA.connect(this.pannerA).connect(this.ctx.destination);
+    srcB.connect(this.pannerB).connect(this.ctx.destination);
+  }
+
+  setMuteA(mute: boolean): void {
+    this.muteA = mute;
+  }
+
+  setMuteB(mute: boolean): void {
+    this.muteB = mute;
+  }
+
+  getMuteA(): boolean {
+    return this.muteA;
+  }
+
+  getMuteB(): boolean {
+    return this.muteB;
+  }
+
+  update(speedA: number, speedB: number, panA = 0, panB = 0): void {
+    if (this.pannerA) this.pannerA.pan.value = panA;
+    if (this.pannerB) this.pannerB.pan.value = panB;
     const normA = this.normalize(speedA);
     const normB = this.normalize(speedB);
     this.applyToChannel(this.audioA, normA, "A");
@@ -47,9 +86,11 @@ export class CarSound {
     normalized: number,
     channel: "A" | "B",
   ): void {
-    const volume =
-      this.minVolume +
-      (this.maxVolume - this.minVolume) * normalized;
+    const muted = channel === "A" ? this.muteA : this.muteB;
+    const volume = muted
+      ? 0
+      : this.minVolume +
+        (this.maxVolume - this.minVolume) * normalized;
     const rate =
       this.minRate +
       (this.maxRate - this.minRate) * normalized;
@@ -59,6 +100,7 @@ export class CarSound {
 
     const playing = channel === "A" ? this.playingA : this.playingB;
     if (!playing) {
+      this.ensureContext();
       audio
         .play()
         .then(() => {
