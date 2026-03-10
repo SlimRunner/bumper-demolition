@@ -582,25 +582,43 @@ export class BumperCars extends BumperCarsBase {
     if (this.globalProps.showMeshes) {
       cartA.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
-        (node.shape as FileMesh).foreach((shape, mat, name) => {
-          shape.draw(
+        if (node.shape instanceof FileMesh) {
+          node.shape.foreach((shape, mat, name) => {
+            shape.draw(
+              context,
+              this.uniforms,
+              matrix,
+              mat ?? this.materials.uvSimple,
+            );
+          });
+        } else {
+          node.shape.draw(
             context,
             this.uniforms,
             matrix,
-            mat ?? this.materials.uvSimple,
+            this.materials.uvSimple,
           );
-        });
+        }
       }, mtxCarA);
       cartB.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
-        (node.shape as FileMesh).foreach((shape, mat, name) => {
-          shape.draw(
+        if (node.shape instanceof FileMesh) {
+          node.shape.foreach((shape, mat, name) => {
+            shape.draw(
+              context,
+              this.uniforms,
+              matrix,
+              mat ?? this.materials.uvSimple,
+            );
+          });
+        } else {
+          node.shape.draw(
             context,
             this.uniforms,
             matrix,
-            mat ?? this.materials.uvSimple,
+            this.materials.uvSimple,
           );
-        });
+        }
       }, mtxCarB);
     } else {
       // TODO: remove frame rending on finished game
