@@ -16,6 +16,7 @@ import { ActionCamera } from "./components/actionCamera";
 import { ComplexTextured, CplxMats } from "./shaders/complexTexture";
 import { SkyboxWH } from "./shaders/skyboxShader";
 import { GameGUI } from "./components/gameGui";
+import { CarSound } from "./components/carSound";
 import {
   calculateSunPosition,
   getAverageSkyColor,
@@ -113,6 +114,7 @@ export class BumperCarsBase extends tiny.Component {
   };
 
   gui?: GameGUI;
+  sound?: CarSound;
 
   readonly lightCount = 6;
 
@@ -423,6 +425,10 @@ export class BumperCarsBase extends tiny.Component {
       this.gui = new GameGUI(canvas);
     }
     this.gui.resetState();
+
+    if (!this.sound) {
+      this.sound = new CarSound("../assets/motor-sound2.mp3");
+    }
   }
 
   render_animation(context: tiny.Component): void {
@@ -738,6 +744,20 @@ export class BumperCars extends BumperCarsBase {
       cartB.updateFrontWheels(tires.carB.frontLeft, tires.carB.frontRight);
       cartA.updateArm(timeDelta * timeMult);
       cartB.updateArm(timeDelta * timeMult);
+      // possibly use thrust (pitch) and speed (volume)
+      const speedA =
+        (Math.abs(groundSpeeds.carA.frontLeft) +
+          Math.abs(groundSpeeds.carA.frontRight) +
+          Math.abs(groundSpeeds.carA.rearLeft) +
+          Math.abs(groundSpeeds.carA.rearRight)) /
+        4;
+      const speedB =
+        (Math.abs(groundSpeeds.carB.frontLeft) +
+          Math.abs(groundSpeeds.carB.frontRight) +
+          Math.abs(groundSpeeds.carB.rearLeft) +
+          Math.abs(groundSpeeds.carB.rearRight)) /
+        4;
+      this.sound?.update(speedA, speedB);
     }
 
     // this pattern can be used to create a sky texture later
