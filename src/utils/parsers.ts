@@ -23,6 +23,13 @@ type MTLExpr = {
   };
 };
 
+type LineExpr = {
+  ident: "l";
+  params: {
+    vertices: number[];
+  };
+};
+
 type VertexExpr = {
   ident: "v";
   params: {
@@ -112,6 +119,7 @@ type groupExpr = {
 export type OBJPayload =
   | CommentExpr
   | MTLExpr
+  | LineExpr
   | VertexExpr
   | FaceExpr
   | VTexExpr
@@ -273,6 +281,8 @@ export function parseOBJLine(expression: string): OBJPayload {
       return tokenComment(tokens);
     case "mtllib":
       return tokenMtllib(tokens);
+    case "l":
+      throw new OBJImplMissing(`Implementation pending: '${head}'`);
     case "v":
       return tokenVertex(tokens);
     case "f":
