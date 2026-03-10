@@ -6,6 +6,7 @@ import { normalizeLines, resolveSiblingPath } from "../utils/text";
 import { affineTransform, VectorKind } from "../utils/math";
 import { loadFile } from "../utils/requests";
 import { DrawableShape, ShapeCollection } from "./types";
+import { computeTangents } from "./extendMesh";
 
 export const OBJParserError = createError("OBJParserError");
 export const OBJImplMissing = createError("OBJImplMissing");
@@ -307,7 +308,13 @@ export class FileMesh implements ShapeCollection {
     for (const [matName, groupFaces] of faceGroups) {
       if (groupFaces.length === 0) continue;
 
-      const subShape = new tiny.Shape("position", "normal", "texture_coord");
+      const subShape = new tiny.Shape(
+        "position",
+        "normal",
+        "texture_coord",
+        "tangents",
+        "bitangents",
+      );
       subShape.arrays.position = [];
       subShape.arrays.normal = [];
       subShape.arrays.texture_coord = [];
@@ -323,6 +330,9 @@ export class FileMesh implements ShapeCollection {
           }
         }
       }
+
+      // compute tangets and bitangents for easy bump mapping
+      computeTangents(subShape);
 
       this._geometries.set(matName, subShape);
     }
