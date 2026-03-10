@@ -134,9 +134,9 @@ export class BumperCarsBase extends tiny.Component {
       asphalt: {
         shader: new ComplexTextured(5),
         ambient: 0.4,
-        diffusivity: 4,
-        specularity: 1,
-        bumpiness: 2,
+        diffusivity: 1,
+        specularity: 0.5,
+        bumpiness: 1,
         ambient_color: math.color(0.5, 0.5, 0.5, 1),
         texture: new tiny.Texture(
           "../assets/textures/asphalt/color_map.jpg",
@@ -425,7 +425,7 @@ export class BumperCarsBase extends tiny.Component {
       0,
     );
     this.uniforms.lights = [
-      defs.Phong_Shader.light_source(light_dir, sunColor, 50),
+      defs.Phong_Shader.light_source(light_dir, sunColor, 220),
     ];
     for (const [x, z] of [
       [-1, -1],
@@ -437,7 +437,7 @@ export class BumperCarsBase extends tiny.Component {
         defs.Phong_Shader.light_source(
           math.vec4(x * 15, 10, z * 15, 1),
           math.color(1, 1, 1, 1),
-          70 * (1 - sunLuminance),
+          370 * (1 - sunLuminance),
         ),
       );
     }
