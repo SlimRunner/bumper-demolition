@@ -513,16 +513,6 @@ export type OBJPayload =
 
 type OBJIdents = OBJPayload["ident"];
 
-("newmtl");
-("Ns");
-("Ka");
-("Kd");
-("Ks");
-("Ke");
-("Ni");
-("d");
-("illum");
-
 type NewMTLExpr = {
   ident: "newmtl";
   params: {
