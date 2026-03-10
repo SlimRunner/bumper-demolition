@@ -3,7 +3,7 @@ export interface StringParsable {
 }
 
 export function normalizeLines(expression: string): string {
-  return expression.replace("\r\n", "\n");
+  return expression.replace(/\r\n/g, "\n");
 }
 
 export function parseNumberList(text: string, sep: string = " "): number[] {
