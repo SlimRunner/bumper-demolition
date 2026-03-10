@@ -2,7 +2,7 @@ import { tiny, Uniforms, MaterialRecord } from "../../tiny-graphics";
 import { math } from "../../tiny-graphics-math";
 import { defs } from "../../examples/common";
 import { createError } from "../utils/error";
-import { normalizeLines, resolveSiblingPath } from "../utils/text";
+import { normalizeLines, resolveSiblingPath, TokenStream } from "../utils/text";
 import { affineTransform, VectorKind } from "../utils/math";
 import { loadFile } from "../utils/requests";
 import { DrawableShape, ShapeCollection } from "./types";
@@ -142,12 +142,6 @@ export class FileMesh implements ShapeCollection {
     if (currentMaterial) {
       this.addMaterial(currentMaterial);
     }
-
-    // Log all loaded materials
-    console.log(`[MTL] Total materials loaded: ${this._materials.size}`);
-    this._materials.forEach((material, name) => {
-      console.log(`  - ${name}:`, material);
-    });
   }
 
   private addMaterial(mtlMat: MTLMaterial): void {
@@ -173,7 +167,6 @@ export class FileMesh implements ShapeCollection {
     };
 
     this._materials.set(mtlMat.name, material);
-    console.log(`[MTL] Loaded material: ${mtlMat.name}`);
   }
 
   public getMaterial(name: string): MaterialRecord | undefined {
@@ -221,6 +214,7 @@ export class FileMesh implements ShapeCollection {
         switch (expr.ident) {
           case "mtllib":
             {
+              console.log("[MTLLIB]: " + expr.params.filename);
               const mtlPath = resolveSiblingPath(path, expr.params.filename);
               loadFile(mtlPath)
                 .then((mtlFile) => {
@@ -269,6 +263,7 @@ export class FileMesh implements ShapeCollection {
             }
             break;
           case "usemtl":
+            console.log("[USEMLT]: " + expr.params.name);
             currentMaterialName = expr.params.name ?? "__default__";
             if (!faceGroups.has(currentMaterialName)) {
               faceGroups.set(currentMaterialName, []);
@@ -373,30 +368,6 @@ export class FileMesh implements ShapeCollection {
         type,
       );
     });
-  }
-}
-
-class TokenStream {
-  private i = 0;
-
-  constructor(private tokens: string[]) {}
-
-  next(): string {
-    if (this.i >= this.tokens.length) {
-      throw new OBJParserError("unexpected end of input");
-    }
-    return this.tokens[this.i++];
-  }
-
-  nextOpt(): string | null {
-    if (this.i >= this.tokens.length) {
-      return null;
-    }
-    return this.tokens[this.i++];
-  }
-
-  get remaining() {
-    return this.tokens.length - this.i;
   }
 }
 
@@ -635,8 +606,7 @@ function assertToken(valid: boolean, msg: string): asserts valid {
 }
 
 function parseOBJLine(expression: string): OBJPayload {
-  const words = expression.trim().replace(/ +/g, " ").split(" ");
-  const tokens = new TokenStream(words);
+  const tokens = new TokenStream(expression, OBJParserError);
 
   const head = tokens.nextOpt();
   assertToken(head != null, "expression is empty");
@@ -668,8 +638,7 @@ function parseOBJLine(expression: string): OBJPayload {
 }
 
 function parseMTLLine(expression: string): MTLPayload {
-  const words = expression.trim().replace(/ +/g, " ").split(" ");
-  const tokens = new TokenStream(words);
+  const tokens = new TokenStream(expression, MTLParserError);
 
   const head = tokens.nextOpt();
   assertToken(head != null, "expression is empty");
@@ -890,37 +859,34 @@ function tokenIllumMat(tokens: TokenStream): illumExpr {
 
 function tokenUseMtl(tokens: TokenStream): UseMtlExpr {
   const words: string[] = [];
-  for (; tokens.remaining > 0; words.push(tokens.next())) {}
+  for (; tokens.remaining > 0; words.push(tokens.next(true))) {}
   return {
     ident: "usemtl",
     params: {
-      name: words.length > 0 ? words.join(" ") : null,
+      name: words.length > 0 ? words.join("").trim() : null,
     },
   };
 }
 
 function tokenMtllib(tokens: TokenStream): MTLExpr {
-  // BUGBUG: if the filename contains more than one space in its name
-  // this function would fail. The tokenizer throws it away.
-
   const words: string[] = [];
-  for (; tokens.remaining > 0; words.push(tokens.next())) {}
+  for (; tokens.remaining > 0; words.push(tokens.next(true))) {}
 
   return {
     ident: "mtllib",
     params: {
-      filename: words.join(" "),
+      filename: words.join("").trim(),
     },
   };
 }
 
 function tokenComment(tokens: TokenStream): CommentExpr {
   let words = [];
-  for (; tokens.remaining > 0; words.push(tokens.next())) {}
+  for (; tokens.remaining > 0; words.push(tokens.next(true))) {}
   return {
     ident: "#",
     params: {
-      message: words.join(" "),
+      message: words.join("").trim(),
     },
   };
 }
@@ -995,7 +961,9 @@ function tokenFace(tokens: TokenStream): FaceExpr {
   const params: FaceIndexPack[] = [];
 
   for (let i = 0; i < 3; ++i) {
-    const vInfo = new TokenStream(tokens.next().split("/"));
+    const vInfo = new TokenStream(tokens.next(), OBJParserError, {
+      separator: /\//g,
+    });
 
     switch (vInfo.remaining) {
       case 1:
