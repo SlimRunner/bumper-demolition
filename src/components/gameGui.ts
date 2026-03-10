@@ -1,4 +1,4 @@
-type PowerUpState = "heavy" | "laser" | "none";
+type PowerUpState = "heavy" | "orbit" | "none";
 
 export class GameGUI {
   private static styleInstalled = false;
@@ -176,7 +176,7 @@ export class GameGUI {
   private getPowerupDisplayName(powerup: PowerUpState): string {
     switch (powerup) {
       case "heavy": return "Heavy";
-      case "laser": return "Laser";
+      case "orbit": return "Orbit";
       default: return "None";
     }
   }
@@ -200,8 +200,8 @@ export class GameGUI {
     switch (powerup) {
       case "heavy":
         return "powerUpIcon_Heavy";
-      case "laser":
-        return "powerUpIcon_Laser";
+      case "orbit":
+        return "powerUpIcon_Orbit";
       default:
         return "powerUpIcon_None";
     }
