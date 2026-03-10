@@ -190,6 +190,24 @@ export class ComplexTextured extends tiny.Shader {
     gl.uniform1f(gpu.specularity, material.specularity!);
     gl.uniform1f(gpu.smoothness, material.smoothness!);
     gl.uniform1f(gpu.bumpiness, material.bumpiness!);
+
+    if (
+      material.texture &&
+      material.texture.ready &&
+      material.bump_map &&
+      material.bump_map.ready &&
+      material.spec_map &&
+      material.spec_map.ready
+    ) {
+      // Select texture unit 0 for the fragment shader Sampler2D uniform called "texture":
+      gl.uniform1i(gpu.texture, 0);
+      gl.uniform1i(gpu.bump_map, 1);
+      gl.uniform1i(gpu.spec_map, 2);
+      // For this draw, use the texture image from correct the GPU buffer:
+      material.texture.activate(gl, 0);
+      material.bump_map.activate(gl, 1);
+      material.spec_map.activate(gl, 2);
+    }
   }
 
   private send_uniforms(
@@ -275,23 +293,5 @@ export class ComplexTextured extends tiny.Shader {
 
     this.send_material(context, gpu_addresses, material);
     this.send_uniforms(context, gpu_addresses, uniforms, model_transform);
-
-    if (
-      material.texture &&
-      material.texture.ready &&
-      material.bump_map &&
-      material.bump_map.ready &&
-      material.spec_map &&
-      material.spec_map.ready
-    ) {
-      // Select texture unit 0 for the fragment shader Sampler2D uniform called "texture":
-      context.uniform1i(gpu_addresses.texture, 0);
-      context.uniform1i(gpu_addresses.bump_map, 1);
-      context.uniform1i(gpu_addresses.spec_map, 2);
-      // For this draw, use the texture image from correct the GPU buffer:
-      material.texture.activate(context, 0);
-      material.bump_map.activate(context, 1);
-      material.spec_map.activate(context, 2);
-    }
   }
 }
