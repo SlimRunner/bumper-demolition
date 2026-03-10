@@ -364,39 +364,6 @@ export class FileMesh implements ShapeCollection {
       );
     });
   }
-
-  // Draw each geometry group with its parsed MTL material.
-  // fallbackMaterial is used for groups whose material name isn't in _materials.
-  // drawAll(
-  //   webgl_manager: tiny.Component,
-  //   uniforms: Uniforms,
-  //   model_transform: math.Mat4,
-  //   fallbackMaterial: MaterialRecord,
-  // ): void {
-  //   if (!this._ready) return;
-  //   for (const [matName, subShape] of this._geometries) {
-  //     const material = this._materials.get(matName) ?? fallbackMaterial;
-  //     subShape.draw(webgl_manager, uniforms, model_transform, material);
-  //   }
-  // }
-  // // Draw each geometry group with its parsed MTL material.
-  // // fallbackMaterial is used for groups whose material name isn't in _materials.
-  // drawAll(
-  //   webgl_manager: tiny.Component,
-  //   uniforms: Uniforms,
-  //   model_transform: math.Mat4,
-  //   matOverride: MaterialRecord,
-  //   type?: keyof WebGL2RenderingContext,
-  // ): void {
-  //   if (!this._ready) return;
-  //   for (const [matName, subShape] of this._geometries) {
-  //     const material = {
-  //       ...this._materials.get(matName) ?? {},
-  //       ...matOverride,
-  //     };
-  //     subShape.draw(webgl_manager, uniforms, model_transform, material, type);
-  //   }
-  // }
 }
 
 class TokenStream {
