@@ -56,9 +56,6 @@ export class BumperCarsBase extends tiny.Component {
       shader: tiny.Shader;
       color: math.Vector4;
     };
-    asphalt: {
-      shader: ComplexTextured;
-    } & CplxMats;
     skybox: {
       shader: SkyboxWH;
       sun_zenith: number;
@@ -99,6 +96,8 @@ export class BumperCarsBase extends tiny.Component {
 
   gui?: GameGUI;
 
+  readonly lightCount = 5;
+
   constructor() {
     super();
 
@@ -113,7 +112,7 @@ export class BumperCarsBase extends tiny.Component {
     };
 
     const uvShader = new UVShader();
-    const phongShader = new defs.Phong_Shader(5);
+    const phongShader = new defs.Phong_Shader(this.lightCount);
     const solidColor = new SolidColor();
 
     this.materials = {
@@ -131,26 +130,6 @@ export class BumperCarsBase extends tiny.Component {
         shader: solidColor,
         color: math.vec4(0.6, 0.6, 0.6, 1),
       },
-      asphalt: {
-        shader: new ComplexTextured(5),
-        ambient: 0.4,
-        diffusivity: 1,
-        specularity: 0.5,
-        bumpiness: 1,
-        ambient_color: math.color(0.5, 0.5, 0.5, 1),
-        texture: new tiny.Texture(
-          "../assets/textures/asphalt/color_map.jpg",
-          "LINEAR_MIPMAP_LINEAR",
-        ),
-        spec_map: new tiny.Texture(
-          "../assets/textures/asphalt/spec_map.jpg",
-          "LINEAR_MIPMAP_LINEAR",
-        ),
-        bump_map: new tiny.Texture(
-          "../assets/textures/asphalt/normal_map.jpg",
-          "LINEAR_MIPMAP_LINEAR",
-        ),
-      },
       skybox: {
         shader: new SkyboxWH(),
         sun_azimuth: Math.PI * 0.4,
@@ -166,46 +145,52 @@ export class BumperCarsBase extends tiny.Component {
       [0, 2],
       [0, 1],
     ]);
-    const tireMesh = new FileMesh(
-      "../assets/meshes/TireMesh_1.obj",
-      math.Mat4.scale(3.49, 3.49, 3.49),
-    ); //3.7 tires
-    const chasisMeshRed = new FileMesh(
-      "../assets/meshes/CarChasis_Red.obj",
-      math.Mat4.translation(0.261, 0, 0).times(
+    const tireMesh = new FileMesh("../assets/meshes/TireMesh_1.obj", {
+      preTransform: math.Mat4.scale(3.49, 3.49, 3.49),
+      lightCount: this.lightCount,
+    });
+    const chasisMeshRed = new FileMesh("../assets/meshes/CarChasis_Red.obj", {
+      preTransform: math.Mat4.translation(0.261, 0, 0).times(
         math.Mat4.scale(0.559, 1.218, 1.152),
       ),
-    );
-    const chasisMeshBlue = new FileMesh(
-      "../assets/meshes/CarChasis_Blue.obj",
-      math.Mat4.translation(0.261, 0, 0).times(
+      lightCount: this.lightCount,
+    });
+    const chasisMeshBlue = new FileMesh("../assets/meshes/CarChasis_Blue.obj", {
+      preTransform: math.Mat4.translation(0.261, 0, 0).times(
         math.Mat4.scale(0.559, 1.218, 1.152),
       ),
-    );
-    const sawMesh = new FileMesh(
-      "../assets/meshes/Sawblade_2.obj",
-      math.Mat4.scale(0.62, 0.62, 0.62),
-    );
-    const saw_arm1_mesh = new FileMesh(
-      "../assets/meshes/SawArm1_1.obj",
-      math.Mat4.translation(0, 0, -0.495).times(
+      lightCount: this.lightCount,
+    });
+    const sawMesh = new FileMesh("../assets/meshes/Sawblade_2.obj", {
+      preTransform: math.Mat4.scale(0.62, 0.62, 0.62),
+      lightCount: this.lightCount,
+    });
+    const saw_arm1_mesh = new FileMesh("../assets/meshes/SawArm1_1.obj", {
+      preTransform: math.Mat4.translation(0, 0, -0.495).times(
         math.Mat4.scale(1.208, 1.208, 0.0789),
       ),
-    );
-    const saw_arm2_mesh = new FileMesh(
-      "../assets/meshes/SawArm2_1.obj",
-      math.Mat4.translation(0, 0, -0.495).times(
+      lightCount: this.lightCount,
+    });
+    const saw_arm2_mesh = new FileMesh("../assets/meshes/SawArm2_1.obj", {
+      preTransform: math.Mat4.translation(0, 0, -0.495).times(
         math.Mat4.scale(1.208, 1.208, 0.0789),
       ),
-    );
+      lightCount: this.lightCount,
+    });
     const arenaFloor = new FileMesh(
       "../assets/meshes/capsule-shape-arena-floor.obj",
-      math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
-      math.Vector.create(2, 2),
+      {
+        preTransform: math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
+        uvScaling: math.Vector.create(2, 2),
+        lightCount: this.lightCount,
+      },
     );
     const arenaWalls = new FileMesh(
       "../assets/meshes/capsule-shape-arena-walls.obj",
-      math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
+      {
+        preTransform: math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
+        lightCount: this.lightCount,
+      },
     );
 
     this.shapes = {
@@ -413,8 +398,6 @@ export class BumperCarsBase extends tiny.Component {
     const sunColor = getSunColor({ sun_azimuth, sun_zenith });
     this.colors.sumAmbient = getAverageSkyColor({ sun_azimuth, sun_zenith });
 
-    this.materials.asphalt.ambient_color = this.colors.sumAmbient;
-
     const sunLuminance = getGrayscale(sunColor);
     this.materials.skybox.sun_azimuth = sun_azimuth;
     this.materials.skybox.sun_zenith = sun_zenith;
@@ -549,12 +532,12 @@ export class BumperCars extends BumperCarsBase {
     );
     GL.enable(GL.DEPTH_TEST);
 
-    this.drawables.arenaFloor.draw(
-      context,
-      this.uniforms,
-      math.Mat4.identity(),
-      this.materials.asphalt,
-    );
+    this.drawables.arenaFloor.foreach((shape, material, name) => {
+      shape.draw(context, this.uniforms, math.Mat4.identity(), {
+        ...material,
+        ambient_color: this.colors.sumAmbient,
+      });
+    });
     this.drawables.arenaWalls.draw(
       context,
       this.uniforms,

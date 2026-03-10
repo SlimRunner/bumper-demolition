@@ -1,6 +1,5 @@
 import { tiny, Uniforms, MaterialRecord } from "../../tiny-graphics";
 import { math } from "../../tiny-graphics-math";
-import { defs } from "../../examples/common";
 import { normalizeLines, resolveSiblingPath } from "../utils/text";
 import { affineTransform, VectorKind } from "../utils/math";
 import { loadFile } from "../utils/requests";
@@ -17,6 +16,8 @@ import {
   parseMTLLine,
   parseOBJLine,
 } from "../utils/parsers";
+import { ComplexTextured, CplxMats } from "../shaders/complexTexture";
+import { defs } from "../../examples/common";
 
 type _3tuple<T> = [T, T, T];
 
@@ -32,26 +33,36 @@ interface MTLMaterial {
   d?: number; // dissolve/opacity (0-1)
   illum?: number; // illumination model
 
-  map_Kd?: string;
-  map_Ks?: string;
-  map_Bump?: string;
+  map_Kd?: string; // diffuse color map
+  map_Ns?: string; // specular highlight map
+  map_Bump?: string; // normal map
 }
 
 export class FileMesh implements ShapeCollection {
-  private _ready = false;
+  private _waitCount = 1;
   private _transform?: math.Mat4;
   private _uvscale?: math.Vector<2>;
+  private _shaders: Map<string, tiny.Shader> = new Map();
   private _materials: Map<string, MaterialRecord> = new Map();
   // each key is a material name from usemtl; the shape holds that group's geometry
   private _geometries: Map<string, tiny.Shape> = new Map();
+  private _lightCount: number;
 
   constructor(
     filename: string,
-    preTransform?: math.Mat4,
-    uvScaling?: math.Vector<2>,
+    props?: {
+      lightCount?: number;
+      preTransform?: math.Mat4;
+      uvScaling?: math.Vector<2>;
+    },
   ) {
+    const { lightCount, preTransform, uvScaling } = {
+      lightCount: 2,
+      ...props,
+    };
     this._transform = preTransform;
     this._uvscale = uvScaling;
+    this._lightCount = lightCount;
     loadFile(filename)
       .then((file) => {
         this.loadOBJ(file, filename);
@@ -59,6 +70,10 @@ export class FileMesh implements ShapeCollection {
       .catch((err) => {
         throw err;
       });
+  }
+
+  private get _ready() {
+    return this._waitCount === 0;
   }
 
   private parseMTL(mtlFile: string, path: string): void {
@@ -77,7 +92,7 @@ export class FileMesh implements ShapeCollection {
         switch (expr.ident) {
           case "newmtl":
             if (currentMaterial) {
-              this.addMaterial(currentMaterial);
+              this.addMaterial(currentMaterial, path);
             }
             currentMaterial = { name: expr.params.name };
             break;
@@ -126,6 +141,21 @@ export class FileMesh implements ShapeCollection {
               currentMaterial.illum = expr.params.model;
             }
             break;
+          case "map_Kd":
+            if (currentMaterial) {
+              currentMaterial.map_Kd = expr.params.filename;
+            }
+            break;
+          case "map_Ns":
+            if (currentMaterial) {
+              currentMaterial.map_Ns = expr.params.filename;
+            }
+            break;
+          case "map_bump":
+            if (currentMaterial) {
+              currentMaterial.map_Bump = expr.params.filename;
+            }
+            break;
           case "#":
             // ignore comments
             break;
@@ -152,33 +182,78 @@ export class FileMesh implements ShapeCollection {
 
     // Add the last material
     if (currentMaterial) {
-      this.addMaterial(currentMaterial);
+      this.addMaterial(currentMaterial, path);
     }
+    this._waitCount -= 1;
   }
 
-  private addMaterial(mtlMat: MTLMaterial): void {
-    // Convert MTL material to tiny-graphics Phong material.
-    // Kd is a diffuse COLOR (rgb), not a scalar — do not average it for diffusivity.
-    // Ks is a specular COLOR (rgb) — average it to get a specularity scalar.
-    const material: MaterialRecord = {
-      shader: new defs.Phong_Shader(5),
-      // Kd is the diffuse color; use it directly as the surface color
-      color: mtlMat.Kd
-        ? math.color(mtlMat.Kd[0], mtlMat.Kd[1], mtlMat.Kd[2], mtlMat.d ?? 1.0)
-        : math.color(0.8, 0.8, 0.8, 1.0),
-      // Full diffuse response to lights so color is visible
-      diffusivity: 1.0,
-      // Ka average controls how much ambient light this surface picks up
-      ambient: mtlMat.Ka
-        ? (mtlMat.Ka[0] + mtlMat.Ka[1] + mtlMat.Ka[2]) / 3
-        : 0.2,
-      // Ks average is the specular reflectance intensity
-      specularity: mtlMat.Ks
-        ? (mtlMat.Ks[0] + mtlMat.Ks[1] + mtlMat.Ks[2]) / 3
-        : 0.3,
-    };
+  private addMaterial(mtlMat: MTLMaterial, path: string): void {
+    if (mtlMat.map_Kd || mtlMat.map_Ns || mtlMat.map_Bump) {
+      const shader = this._shaders.get(mtlMat.name) ?? new ComplexTextured(this._lightCount);
 
-    this._materials.set(mtlMat.name, material);
+      const material: CplxMats = {
+        shader: shader,
+  
+        diffuse_color: mtlMat.Kd
+          ? math.color(mtlMat.Kd[0], mtlMat.Kd[1], mtlMat.Kd[2], mtlMat.d ?? 1)
+          : math.color(1, 1, 1, 1),
+  
+        specular_color: mtlMat.Ks
+          ? math.color(mtlMat.Ks[0], mtlMat.Ks[1], mtlMat.Ks[2], 1)
+          : math.color(1, 1, 1, 1),
+  
+        ambient_color: mtlMat.Ka
+          ? math.color(mtlMat.Ka[0], mtlMat.Ka[1], mtlMat.Ka[2], 1)
+          : math.color(1, 1, 1, 1),
+  
+        ambient: 0.3,
+        diffusivity: 1,
+        specularity: 1,
+  
+        smoothness: mtlMat.Ns ?? 40,
+        bumpiness: 1,
+      };
+  
+      if (mtlMat.map_Kd) {
+        const relPath = resolveSiblingPath(path, mtlMat.map_Kd);
+        material.texture = new tiny.Texture(relPath);
+      }
+  
+      if (mtlMat.map_Ns) {
+        const relPath = resolveSiblingPath(path, mtlMat.map_Ns);
+        material.spec_map = new tiny.Texture(relPath);
+      }
+  
+      if (mtlMat.map_Bump) {
+        const relPath = resolveSiblingPath(path, mtlMat.map_Bump);
+        material.bump_map = new tiny.Texture(relPath);
+      }
+      this._materials.set(mtlMat.name, material);
+    } else {
+      // Convert MTL material to tiny-graphics Phong material.
+      // Kd is a diffuse COLOR (rgb), not a scalar — do not average it for diffusivity.
+      // Ks is a specular COLOR (rgb) — average it to get a specularity scalar.
+      const shader = this._shaders.get(mtlMat.name) ?? new defs.Phong_Shader(this._lightCount);
+
+      const material: MaterialRecord = {
+        shader: shader,
+        // Kd is the diffuse color; use it directly as the surface color
+        color: mtlMat.Kd
+          ? math.color(mtlMat.Kd[0], mtlMat.Kd[1], mtlMat.Kd[2], mtlMat.d ?? 1.0)
+          : math.color(0.8, 0.8, 0.8, 1.0),
+        // Full diffuse response to lights so color is visible
+        diffusivity: 1.0,
+        // Ka average controls how much ambient light this surface picks up
+        ambient: mtlMat.Ka
+          ? (mtlMat.Ka[0] + mtlMat.Ka[1] + mtlMat.Ka[2]) / 3
+          : 0.2,
+        // Ks average is the specular reflectance intensity
+        specularity: mtlMat.Ks
+          ? (mtlMat.Ks[0] + mtlMat.Ks[1] + mtlMat.Ks[2]) / 3
+          : 0.3,
+      };
+      this._materials.set(mtlMat.name, material);
+    }
   }
 
   public getMaterial(name: string): MaterialRecord | undefined {
@@ -228,6 +303,7 @@ export class FileMesh implements ShapeCollection {
             {
               console.log("[MTLLIB]: " + expr.params.filename);
               const mtlPath = resolveSiblingPath(path, expr.params.filename);
+              this._waitCount += 1;
               loadFile(mtlPath)
                 .then((mtlFile) => {
                   this.parseMTL(mtlFile, mtlPath);
@@ -343,7 +419,7 @@ export class FileMesh implements ShapeCollection {
 
       this._geometries.set(matName, subShape);
     }
-    this._ready = true;
+    this._waitCount -= 1;
   }
 
   foreach(
