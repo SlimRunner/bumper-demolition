@@ -8,10 +8,20 @@ import {
 import { affineTransform, VectorKind } from "../utils/math";
 import { LightSource } from "../../examples/common-shaders";
 
+const DEF_TEXTURES = {
+  whiteTexture: createTexture("#ffffff"),
+  blackTexture: createTexture("#000000"),
+  neutralNormal: createTexture("#8080ff"),
+} as const;
+
 export type CplxMats = MaterialRecord & {
   bump_map?: tiny.Texture;
   spec_map?: tiny.Texture;
+
+  diffuse_color?: math.Vector4;
+  specular_color?: math.Vector4;
   ambient_color?: math.Vector4;
+
   ambient?: number;
   diffusivity?: number;
   specularity?: number;
@@ -34,7 +44,6 @@ export class ComplexTextured extends tiny.Shader {
   }
 
   shared_glsl_code() {
-    // ********* SHARED CODE, INCLUDED IN BOTH SHADERS *********
     return `
       precision highp float;
       const int N_LIGHTS = ${this.lightCount};
@@ -44,10 +53,9 @@ export class ComplexTextured extends tiny.Shader {
       uniform vec4 ambient_color;
       uniform vec3 squared_scale, camera_center;
 
-      // Specifier "varying" means a variable's final value will be passed from the vertex shader
-      // on to the next phase (fragment shader), then interpolated per-fragment, weighted by the
-      // pixel fragment's proximity to each of the 3 vertices (barycentric interpolation).
+      varying vec2 f_tex_coord;
       varying vec3 N, vertex_worldspace;
+      varying mat3 TBN;
 
       // might implement this later (Fresnel): https://stackoverflow.com/a/9901654
       // ***** PHONG SHADING HAPPENS HERE: *****
@@ -86,10 +94,8 @@ export class ComplexTextured extends tiny.Shader {
   }
 
   vertex_glsl_code() {
-    // ********* VERTEX SHADER *********
     return `
       ${this.shared_glsl_code()}
-      varying vec2 f_tex_coord;
       attribute vec3 position, normal;
       // Position is expressed in object coordinates.
       attribute vec2 texture_coord;
@@ -100,10 +106,16 @@ export class ComplexTextured extends tiny.Shader {
       uniform mat4 projection_camera_model_transform;
 
       void main(){
-        // The vertex's final resting place (in NDCS):
-        gl_Position = projection_camera_model_transform * vec4( position, 1.0 );
-        // The final normal vector in screen space.
+        vec3 T = normalize(mat3(model_transform) * tangent);
+        vec3 B = normalize(mat3(model_transform) * bitangent);
+        vec3 NN = normalize(mat3(model_transform) * normal);
+
+        TBN = mat3(T, B, NN);
+        // normal in screen space
         N = normalize( mat3( model_transform ) * normal / squared_scale);
+
+        gl_Position = projection_camera_model_transform * vec4( position, 1.0 );
+        
         vertex_worldspace = ( model_transform * vec4( position, 1.0 ) ).xyz;
         // Turn the per-vertex texture coordinate into an interpolated variable.
         f_tex_coord = texture_coord;
@@ -112,66 +124,38 @@ export class ComplexTextured extends tiny.Shader {
   }
 
   fragment_glsl_code() {
-    // ********* FRAGMENT SHADER *********
-    // A fragment is a pixel that's overlapped by the current triangle.
-    // Fragments affect the final image or get discarded due to depth.
     return `
       ${this.shared_glsl_code()}
-      varying vec2 f_tex_coord;
       uniform sampler2D texture;
       uniform sampler2D bump_map;
       uniform sampler2D spec_map;
 
-      vec3 approximateTangent(vec3 N, vec3 V) {
-        return normalize(cross(N, V));
-      }
-
-      vec3 approximateBitangent(vec3 N, vec3 T) {
-        return normalize(cross(T, N));
-      }
-
-      vec3 perturbNormal(vec3 N, vec3 V, vec4 normalMap) {
-        // Get the tangent and bitangent vectors
-        vec3 T = normalize(approximateTangent(N, V));
-        vec3 B = normalize(approximateBitangent(N, T));
-
-        // Calculate the tangent space matrix
-        mat3 TBN = mat3(T, B, N);
-
-        // Transform the normal map values from [0,1] to [-1,1] range
-        vec3 mapNormal = normalMap.xyz * 2.0 - 1.0;
-
-        // Transform the normal map from tangent space to world space
-        vec3 worldNormal = normalize(TBN * mapNormal);
-
-        // Perturb the original normal using the world space normal
-        vec3 perturbedNormal = normalize(N + worldNormal);
-
-        return perturbedNormal;
-      }
+      uniform vec4 diffuse_color;
+      uniform vec4 specular_color;
 
       void main(){
         // Sample the texture image in the correct place:
-        vec4 tex_color = texture2D( texture, f_tex_coord );
-        vec4 spec_color = texture2D( spec_map, f_tex_coord );
-        vec4 bump_color = texture2D( bump_map, f_tex_coord );
-        if( tex_color.w < .01 ) discard;
+        vec4 tex_color = texture2D(texture, f_tex_coord);
+        vec3 spec_map_color = texture2D(spec_map, f_tex_coord).rgb;
+        vec3 bump_color = texture2D(bump_map, f_tex_coord).rgb;
 
-        // convert spec_color to grayscale
-        float spec_intensity = dot(spec_color.rgb, vec3(0.299, 0.587, 0.114));
-        // use bump_color and N (which is the normal) to compute a bump map
-        vec3 V = normalize( camera_center - vertex_worldspace );
-        vec3 N_bumped = mix(N, perturbNormal(N, V, bump_color), bumpiness);
+        vec3 diffuse = tex_color.rgb * diffuse_color.rgb;
+        float alpha = tex_color.a * diffuse_color.a;
+        vec3 spec_color = spec_map_color * specular_color.rgb;
 
-        // Compute an initial (ambient) color:
-        gl_FragColor = vec4( (ambient_color * tex_color).xyz * ambient, ambient_color.w * tex_color.w );
+        vec3 tangent_normal = texture2D(bump_map, f_tex_coord).xyz * 2.0 - 1.0;
+        vec3 N_bumped = normalize(mix(N, normalize(TBN * tangent_normal), bumpiness));
 
-        // Compute the final color with contributions from lights:
+        gl_FragColor = vec4(
+          diffuse * ambient_color.rgb * ambient,
+          alpha
+        );
+
         gl_FragColor.xyz += phong_model_lights(
-          normalize( N_bumped ),
+          normalize(N_bumped),
           vertex_worldspace,
-          tex_color.xyz,
-          spec_intensity
+          diffuse,
+          dot(spec_color, vec3(0.299,0.587,0.114))
         );
       }
     `;
@@ -182,14 +166,35 @@ export class ComplexTextured extends tiny.Shader {
     gpu: GPUAddresses,
     material: CplxMats,
   ) {
-    // send_material(): Send the desired shape-wide material qualities to the
-    // graphics card, where they will tweak the Phong lighting formula.
+    const diffuse = material.texture ?? DEF_TEXTURES.whiteTexture;
+    const spec_map = material.spec_map ?? DEF_TEXTURES.whiteTexture;
+    const bump_map = material.bump_map ?? DEF_TEXTURES.neutralNormal;
+
+    // send colors
+    gl.uniform4fv(gpu.diffuse_color, material.diffuse_color!);
+    gl.uniform4fv(gpu.specular_color, material.specular_color!);
     gl.uniform4fv(gpu.ambient_color, material.ambient_color!);
+
+    // send scalars properties
     gl.uniform1f(gpu.ambient, material.ambient!);
     gl.uniform1f(gpu.diffusivity, material.diffusivity!);
     gl.uniform1f(gpu.specularity, material.specularity!);
     gl.uniform1f(gpu.smoothness, material.smoothness!);
     gl.uniform1f(gpu.bumpiness, material.bumpiness!);
+
+    // notify shader whether texture were actuall loaded
+    gl.uniform1i(gpu.use_texture, material.texture ? 1 : 0);
+    gl.uniform1i(gpu.use_spec_map, material.spec_map ? 1 : 0);
+    gl.uniform1i(gpu.use_bump_map, material.bump_map ? 1 : 0);
+
+    // activate maps (conditionally choose default or provided)
+    gl.uniform1i(gpu.texture, 0);
+    gl.uniform1i(gpu.bump_map, 1);
+    gl.uniform1i(gpu.spec_map, 2);
+
+    diffuse.activate(gl, 0);
+    bump_map.activate(gl, 1);
+    spec_map.activate(gl, 2);
   }
 
   private send_uniforms(
@@ -264,6 +269,8 @@ export class ComplexTextured extends tiny.Shader {
   ): void {
     // Fill in any missing fields in the Material object with custom defaults for this shader:
     const defaults = {
+      diffuse_color: math.color(1, 1, 1, 1),
+      specular_color: math.color(1, 1, 1, 1),
       ambient_color: math.color(0, 0, 0, 1),
       ambient: 0,
       diffusivity: 1,
@@ -275,23 +282,16 @@ export class ComplexTextured extends tiny.Shader {
 
     this.send_material(context, gpu_addresses, material);
     this.send_uniforms(context, gpu_addresses, uniforms, model_transform);
-
-    if (
-      material.texture &&
-      material.texture.ready &&
-      material.bump_map &&
-      material.bump_map.ready &&
-      material.spec_map &&
-      material.spec_map.ready
-    ) {
-      // Select texture unit 0 for the fragment shader Sampler2D uniform called "texture":
-      context.uniform1i(gpu_addresses.texture, 0);
-      context.uniform1i(gpu_addresses.bump_map, 1);
-      context.uniform1i(gpu_addresses.spec_map, 2);
-      // For this draw, use the texture image from correct the GPU buffer:
-      material.texture.activate(context, 0);
-      material.bump_map.activate(context, 1);
-      material.spec_map.activate(context, 2);
-    }
   }
+}
+
+function createTexture(color: string) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 1;
+
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, 1, 1);
+
+  return new tiny.Texture(c.toDataURL(), "LINEAR_MIPMAP_LINEAR");
 }

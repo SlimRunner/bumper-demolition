@@ -1,44 +1,68 @@
 import { tiny, Uniforms, MaterialRecord } from "../../tiny-graphics";
 import { math } from "../../tiny-graphics-math";
-import { defs } from "../../examples/common";
-import { createError } from "../utils/error";
 import { normalizeLines, resolveSiblingPath } from "../utils/text";
 import { affineTransform, VectorKind } from "../utils/math";
 import { loadFile } from "../utils/requests";
 import { DrawableShape, ShapeCollection } from "./types";
+import { computeTangents } from "./extendMesh";
+import {
+  FaceIndexPack,
+  MTLImplMissing,
+  MTLParserError,
+  MTLPayload,
+  OBJImplMissing,
+  OBJParserError,
+  OBJPayload,
+  parseMTLLine,
+  parseOBJLine,
+} from "../utils/parsers";
+import { ComplexTextured, CplxMats } from "../shaders/complexTexture";
+import { defs } from "../../examples/common";
 
-export const OBJParserError = createError("OBJParserError");
-export const OBJImplMissing = createError("OBJImplMissing");
-export const MTLParserError = createError("MTLParserError");
-export const MTLImplMissing = createError("MTLParserError");
+type _3tuple<T> = [T, T, T];
 
 interface MTLMaterial {
   name: string;
-  Ns?: number; // specular exponent (0-1000)
   Ka?: [number, number, number]; // ambient color
   Kd?: [number, number, number]; // diffuse color
   Ks?: [number, number, number]; // specular color
   Ke?: [number, number, number]; // emissive color
+
+  Ns?: number; // specular exponent (0-1000)
   Ni?: number; // optical density
   d?: number; // dissolve/opacity (0-1)
   illum?: number; // illumination model
+
+  map_Kd?: string; // diffuse color map
+  map_Ns?: string; // specular highlight map
+  map_Bump?: string; // normal map
 }
 
 export class FileMesh implements ShapeCollection {
-  private _ready = false;
+  private _waitCount = 1;
   private _transform?: math.Mat4;
   private _uvscale?: math.Vector<2>;
+  private _shaders: Map<string, tiny.Shader> = new Map();
   private _materials: Map<string, MaterialRecord> = new Map();
   // each key is a material name from usemtl; the shape holds that group's geometry
   private _geometries: Map<string, tiny.Shape> = new Map();
+  private _lightCount: number;
 
   constructor(
     filename: string,
-    preTransform?: math.Mat4,
-    uvScaling?: math.Vector<2>,
+    props?: {
+      lightCount?: number;
+      preTransform?: math.Mat4;
+      uvScaling?: math.Vector<2>;
+    },
   ) {
+    const { lightCount, preTransform, uvScaling } = {
+      lightCount: 2,
+      ...props,
+    };
     this._transform = preTransform;
     this._uvscale = uvScaling;
+    this._lightCount = lightCount;
     loadFile(filename)
       .then((file) => {
         this.loadOBJ(file, filename);
@@ -46,6 +70,10 @@ export class FileMesh implements ShapeCollection {
       .catch((err) => {
         throw err;
       });
+  }
+
+  private get _ready() {
+    return this._waitCount === 0;
   }
 
   private parseMTL(mtlFile: string, path: string): void {
@@ -64,7 +92,7 @@ export class FileMesh implements ShapeCollection {
         switch (expr.ident) {
           case "newmtl":
             if (currentMaterial) {
-              this.addMaterial(currentMaterial);
+              this.addMaterial(currentMaterial, path);
             }
             currentMaterial = { name: expr.params.name };
             break;
@@ -113,6 +141,21 @@ export class FileMesh implements ShapeCollection {
               currentMaterial.illum = expr.params.model;
             }
             break;
+          case "map_Kd":
+            if (currentMaterial) {
+              currentMaterial.map_Kd = expr.params.filename;
+            }
+            break;
+          case "map_Ns":
+            if (currentMaterial) {
+              currentMaterial.map_Ns = expr.params.filename;
+            }
+            break;
+          case "map_bump":
+            if (currentMaterial) {
+              currentMaterial.map_Bump = expr.params.filename;
+            }
+            break;
           case "#":
             // ignore comments
             break;
@@ -139,40 +182,78 @@ export class FileMesh implements ShapeCollection {
 
     // Add the last material
     if (currentMaterial) {
-      this.addMaterial(currentMaterial);
+      this.addMaterial(currentMaterial, path);
     }
-
-    // Log all loaded materials
-    console.log(`[MTL] Total materials loaded: ${this._materials.size}`);
-    this._materials.forEach((material, name) => {
-      console.log(`  - ${name}:`, material);
-    });
+    this._waitCount -= 1;
   }
 
-  private addMaterial(mtlMat: MTLMaterial): void {
-    // Convert MTL material to tiny-graphics Phong material.
-    // Kd is a diffuse COLOR (rgb), not a scalar — do not average it for diffusivity.
-    // Ks is a specular COLOR (rgb) — average it to get a specularity scalar.
-    const material: MaterialRecord = {
-      shader: new defs.Phong_Shader(5),
-      // Kd is the diffuse color; use it directly as the surface color
-      color: mtlMat.Kd
-        ? math.color(mtlMat.Kd[0], mtlMat.Kd[1], mtlMat.Kd[2], mtlMat.d ?? 1.0)
-        : math.color(0.8, 0.8, 0.8, 1.0),
-      // Full diffuse response to lights so color is visible
-      diffusivity: 1.0,
-      // Ka average controls how much ambient light this surface picks up
-      ambient: mtlMat.Ka
-        ? (mtlMat.Ka[0] + mtlMat.Ka[1] + mtlMat.Ka[2]) / 3
-        : 0.2,
-      // Ks average is the specular reflectance intensity
-      specularity: mtlMat.Ks
-        ? (mtlMat.Ks[0] + mtlMat.Ks[1] + mtlMat.Ks[2]) / 3
-        : 0.3,
-    };
+  private addMaterial(mtlMat: MTLMaterial, path: string): void {
+    if (mtlMat.map_Kd || mtlMat.map_Ns || mtlMat.map_Bump) {
+      const shader = this._shaders.get(mtlMat.name) ?? new ComplexTextured(this._lightCount);
 
-    this._materials.set(mtlMat.name, material);
-    console.log(`[MTL] Loaded material: ${mtlMat.name}`);
+      const material: CplxMats = {
+        shader: shader,
+  
+        diffuse_color: mtlMat.Kd
+          ? math.color(mtlMat.Kd[0], mtlMat.Kd[1], mtlMat.Kd[2], mtlMat.d ?? 1)
+          : math.color(1, 1, 1, 1),
+  
+        specular_color: mtlMat.Ks
+          ? math.color(mtlMat.Ks[0], mtlMat.Ks[1], mtlMat.Ks[2], 1)
+          : math.color(1, 1, 1, 1),
+  
+        ambient_color: mtlMat.Ka
+          ? math.color(mtlMat.Ka[0], mtlMat.Ka[1], mtlMat.Ka[2], 1)
+          : math.color(1, 1, 1, 1),
+  
+        ambient: 0.3,
+        diffusivity: 1,
+        specularity: 1,
+  
+        smoothness: mtlMat.Ns ?? 40,
+        bumpiness: 1,
+      };
+  
+      if (mtlMat.map_Kd) {
+        const relPath = resolveSiblingPath(path, mtlMat.map_Kd);
+        material.texture = new tiny.Texture(relPath);
+      }
+  
+      if (mtlMat.map_Ns) {
+        const relPath = resolveSiblingPath(path, mtlMat.map_Ns);
+        material.spec_map = new tiny.Texture(relPath);
+      }
+  
+      if (mtlMat.map_Bump) {
+        const relPath = resolveSiblingPath(path, mtlMat.map_Bump);
+        material.bump_map = new tiny.Texture(relPath);
+      }
+      this._materials.set(mtlMat.name, material);
+    } else {
+      // Convert MTL material to tiny-graphics Phong material.
+      // Kd is a diffuse COLOR (rgb), not a scalar — do not average it for diffusivity.
+      // Ks is a specular COLOR (rgb) — average it to get a specularity scalar.
+      const shader = this._shaders.get(mtlMat.name) ?? new defs.Phong_Shader(this._lightCount);
+
+      const material: MaterialRecord = {
+        shader: shader,
+        // Kd is the diffuse color; use it directly as the surface color
+        color: mtlMat.Kd
+          ? math.color(mtlMat.Kd[0], mtlMat.Kd[1], mtlMat.Kd[2], mtlMat.d ?? 1.0)
+          : math.color(0.8, 0.8, 0.8, 1.0),
+        // Full diffuse response to lights so color is visible
+        diffusivity: 1.0,
+        // Ka average controls how much ambient light this surface picks up
+        ambient: mtlMat.Ka
+          ? (mtlMat.Ka[0] + mtlMat.Ka[1] + mtlMat.Ka[2]) / 3
+          : 0.2,
+        // Ks average is the specular reflectance intensity
+        specularity: mtlMat.Ks
+          ? (mtlMat.Ks[0] + mtlMat.Ks[1] + mtlMat.Ks[2]) / 3
+          : 0.3,
+      };
+      this._materials.set(mtlMat.name, material);
+    }
   }
 
   public getMaterial(name: string): MaterialRecord | undefined {
@@ -220,7 +301,9 @@ export class FileMesh implements ShapeCollection {
         switch (expr.ident) {
           case "mtllib":
             {
+              console.log("[MTLLIB]: " + expr.params.filename);
               const mtlPath = resolveSiblingPath(path, expr.params.filename);
+              this._waitCount += 1;
               loadFile(mtlPath)
                 .then((mtlFile) => {
                   this.parseMTL(mtlFile, mtlPath);
@@ -268,6 +351,7 @@ export class FileMesh implements ShapeCollection {
             }
             break;
           case "usemtl":
+            console.log("[USEMLT]: " + expr.params.name);
             currentMaterialName = expr.params.name ?? "__default__";
             if (!faceGroups.has(currentMaterialName)) {
               faceGroups.set(currentMaterialName, []);
@@ -307,7 +391,13 @@ export class FileMesh implements ShapeCollection {
     for (const [matName, groupFaces] of faceGroups) {
       if (groupFaces.length === 0) continue;
 
-      const subShape = new tiny.Shape("position", "normal", "texture_coord");
+      const subShape = new tiny.Shape(
+        "position",
+        "normal",
+        "texture_coord",
+        "tangents",
+        "bitangents",
+      );
       subShape.arrays.position = [];
       subShape.arrays.normal = [];
       subShape.arrays.texture_coord = [];
@@ -324,9 +414,12 @@ export class FileMesh implements ShapeCollection {
         }
       }
 
+      // compute tangets and bitangents for easy bump mapping
+      computeTangents(subShape);
+
       this._geometries.set(matName, subShape);
     }
-    this._ready = true;
+    this._waitCount -= 1;
   }
 
   foreach(
@@ -364,736 +457,4 @@ export class FileMesh implements ShapeCollection {
       );
     });
   }
-
-  // Draw each geometry group with its parsed MTL material.
-  // fallbackMaterial is used for groups whose material name isn't in _materials.
-  // drawAll(
-  //   webgl_manager: tiny.Component,
-  //   uniforms: Uniforms,
-  //   model_transform: math.Mat4,
-  //   fallbackMaterial: MaterialRecord,
-  // ): void {
-  //   if (!this._ready) return;
-  //   for (const [matName, subShape] of this._geometries) {
-  //     const material = this._materials.get(matName) ?? fallbackMaterial;
-  //     subShape.draw(webgl_manager, uniforms, model_transform, material);
-  //   }
-  // }
-  // // Draw each geometry group with its parsed MTL material.
-  // // fallbackMaterial is used for groups whose material name isn't in _materials.
-  // drawAll(
-  //   webgl_manager: tiny.Component,
-  //   uniforms: Uniforms,
-  //   model_transform: math.Mat4,
-  //   matOverride: MaterialRecord,
-  //   type?: keyof WebGL2RenderingContext,
-  // ): void {
-  //   if (!this._ready) return;
-  //   for (const [matName, subShape] of this._geometries) {
-  //     const material = {
-  //       ...this._materials.get(matName) ?? {},
-  //       ...matOverride,
-  //     };
-  //     subShape.draw(webgl_manager, uniforms, model_transform, material, type);
-  //   }
-  // }
-}
-
-class TokenStream {
-  private i = 0;
-
-  constructor(private tokens: string[]) {}
-
-  next(): string {
-    if (this.i >= this.tokens.length) {
-      throw new OBJParserError("unexpected end of input");
-    }
-    return this.tokens[this.i++];
-  }
-
-  nextOpt(): string | null {
-    if (this.i >= this.tokens.length) {
-      return null;
-    }
-    return this.tokens[this.i++];
-  }
-
-  get remaining() {
-    return this.tokens.length - this.i;
-  }
-}
-
-type _2tuple = [number, number];
-type _3tuple<T> = [T, T, T];
-
-type CommentExpr = {
-  ident: "#";
-  params: {
-    message: string;
-  };
-};
-
-type MTLExpr = {
-  ident: "mtllib";
-  params: {
-    filename: string;
-  };
-};
-
-type VertexExpr = {
-  ident: "v";
-  params: {
-    coords: _3tuple<number>;
-  };
-};
-
-type FacePack_V = {
-  ident: "V";
-  vertex: number;
-};
-
-type FacePack_VT = {
-  ident: "V-T";
-  vertex: number;
-  texture: number;
-};
-
-type FacePack_VTN = {
-  ident: "V-T-N";
-  vertex: number;
-  texture: number;
-  normal: number;
-};
-
-type FacePack_VN = {
-  ident: "V-N";
-  vertex: number;
-  normal: number;
-};
-
-type FaceIndexPack = FacePack_V | FacePack_VT | FacePack_VTN | FacePack_VN;
-
-type FaceExpr = {
-  ident: "f";
-  params: {
-    indices: _3tuple<FaceIndexPack>;
-  };
-};
-
-type VTexExpr = {
-  ident: "vt";
-  params: {
-    coords: _2tuple;
-  };
-};
-
-type VNormExpr = {
-  ident: "vn";
-  params: {
-    coords: _3tuple<number>;
-  };
-};
-
-type UseMtlExpr = {
-  ident: "usemtl";
-  params: {
-    name: string | null;
-  };
-};
-
-type smoothingExpr = {
-  ident: "s";
-  params: {
-    group: unknown;
-  };
-};
-
-type objectExpr = {
-  ident: "o";
-  params: {
-    name: string;
-  };
-};
-
-type groupExpr = {
-  ident: "g";
-  params: {
-    name: string;
-  };
-};
-
-export type OBJPayload =
-  | CommentExpr
-  | MTLExpr
-  | VertexExpr
-  | FaceExpr
-  | VTexExpr
-  | VNormExpr
-  | UseMtlExpr
-  | smoothingExpr
-  | objectExpr
-  | groupExpr;
-
-type OBJIdents = OBJPayload["ident"];
-
-("newmtl");
-("Ns");
-("Ka");
-("Kd");
-("Ks");
-("Ke");
-("Ni");
-("d");
-("illum");
-
-type NewMTLExpr = {
-  ident: "newmtl";
-  params: {
-    name: string;
-  };
-};
-
-type NsExpr = {
-  ident: "Ns";
-  params: {
-    specularWeight: number;
-  };
-};
-
-type KaExpr = {
-  ident: "Ka";
-  params: {
-    ambientColor: _3tuple<number>;
-  };
-};
-
-type KdExpr = {
-  ident: "Kd";
-  params: {
-    diffuseColor: _3tuple<number>;
-  };
-};
-
-type KsExpr = {
-  ident: "Ks";
-  params: {
-    specularColor: _3tuple<number>;
-  };
-};
-
-type KeExpr = {
-  ident: "Ke";
-  params: {
-    emissiveColor: _3tuple<number>;
-  };
-};
-
-type NiExpr = {
-  ident: "Ni";
-  params: {
-    indexOfRefraction: number;
-  };
-};
-
-type dExpr = {
-  ident: "d";
-  params: {
-    alpha: number;
-  };
-};
-
-type TrExpr = {
-  ident: "Tr";
-  params: {
-    transparency: number;
-  };
-};
-
-enum IllumModels {
-  // Color on and Ambient off
-  ILLUM00 = 0,
-  // Color on and Ambient on
-  ILLUM01 = 1,
-  // Highlight on
-  ILLUM02 = 2,
-  // Reflection on and Ray trace on
-  ILLUM03 = 3,
-  // Transparency: Glass on Reflection: Ray trace on
-  ILLUM04 = 4,
-  // Reflection: Fresnel on and Ray trace on
-  ILLUM05 = 5,
-  // Transparency: Refraction on Reflection: Fresnel off and Ray trace on
-  ILLUM06 = 6,
-  // Transparency: Refraction on Reflection: Fresnel on and Ray trace on
-  ILLUM07 = 7,
-  // Reflection on and Ray trace off
-  ILLUM08 = 8,
-  // Transparency: Glass on Reflection: Ray trace off
-  ILLUM09 = 9,
-  // Casts shadows onto invisible surfaces
-  ILLUM10 = 10,
-}
-
-type illumExpr = {
-  ident: "illum";
-  params: {
-    model: IllumModels;
-  };
-};
-
-export type MTLPayload =
-  | CommentExpr
-  | NewMTLExpr
-  | NsExpr
-  | KaExpr
-  | KdExpr
-  | KsExpr
-  | KeExpr
-  | NiExpr
-  | dExpr
-  | TrExpr
-  | illumExpr;
-
-type MTLIdents = MTLPayload["ident"];
-
-function isNumeric(text: string) {
-  const num = Number(text);
-  return Number.isNaN(num) ? null : num;
-}
-
-function assertToken(valid: boolean, msg: string): asserts valid {
-  if (!valid) {
-    throw new OBJParserError(msg);
-  }
-}
-
-function parseOBJLine(expression: string): OBJPayload {
-  const words = expression.trim().replace(/ +/g, " ").split(" ");
-  const tokens = new TokenStream(words);
-
-  const head = tokens.nextOpt();
-  assertToken(head != null, "expression is empty");
-
-  switch (head as OBJIdents) {
-    case "#":
-      return tokenComment(tokens);
-    case "mtllib":
-      return tokenMtllib(tokens);
-    case "v":
-      return tokenVertex(tokens);
-    case "f":
-      return tokenFace(tokens);
-    case "vt":
-      return tokenVtTexture(tokens);
-    case "vn":
-      return tokenVNormal(tokens);
-    case "usemtl":
-      return tokenUseMtl(tokens);
-    case "s":
-      throw new OBJImplMissing(`Implementation pending: '${head}'`);
-    case "o":
-      throw new OBJImplMissing(`Implementation pending: '${head}'`);
-    case "g":
-      throw new OBJImplMissing(`Implementation pending: '${head}'`);
-    default:
-      throw new OBJParserError(`Unrecognized function found: '${head}'`);
-  }
-}
-
-function parseMTLLine(expression: string): MTLPayload {
-  const words = expression.trim().replace(/ +/g, " ").split(" ");
-  const tokens = new TokenStream(words);
-
-  const head = tokens.nextOpt();
-  assertToken(head != null, "expression is empty");
-
-  switch (head as MTLIdents) {
-    case "newmtl":
-      return tokenNewMTL(tokens);
-    case "Ns":
-      return tokenNsMat(tokens);
-    case "Ka":
-      return tokenKaMat(tokens);
-    case "Kd":
-      return tokenKdMat(tokens);
-    case "Ks":
-      return tokenKsMat(tokens);
-    case "Ke":
-      return tokenKeMat(tokens);
-    case "Ni":
-      return tokenNiMat(tokens);
-    case "d":
-      return tokendMat(tokens);
-    case "Tr":
-      return tokenTrMat(tokens);
-    case "illum":
-      return tokenIllumMat(tokens);
-    case "#":
-      return tokenComment(tokens);
-    default:
-      throw new MTLParserError(`Unrecognized function found: '${head}'`);
-  }
-}
-
-function tokenNewMTL(tokens: TokenStream): NewMTLExpr {
-  const words: string[] = [];
-  for (; tokens.remaining > 0; words.push(tokens.next())) {}
-  return {
-    ident: "newmtl",
-    params: {
-      name: words.join(" "),
-    },
-  };
-}
-
-function tokenNsMat(tokens: TokenStream): NsExpr {
-  assertToken(
-    tokens.remaining === 1,
-    `'Ns' expects 1 parameter, ${tokens.remaining} found`,
-  );
-
-  const specularWeight = isNumeric(tokens.next());
-  assertToken(specularWeight != null, "specular weight not numeric");
-
-  return {
-    ident: "Ns",
-    params: {
-      specularWeight,
-    },
-  };
-}
-
-function tokenKaMat(tokens: TokenStream): KaExpr {
-  assertToken(
-    tokens.remaining === 3,
-    `'Ns' expects 3 parameter, ${tokens.remaining} found`,
-  );
-
-  const red = isNumeric(tokens.next());
-  assertToken(red != null, "red value not numeric");
-  const green = isNumeric(tokens.next());
-  assertToken(green != null, "green value not numeric");
-  const blue = isNumeric(tokens.next());
-  assertToken(blue != null, "blue value not numeric");
-
-  return {
-    ident: "Ka",
-    params: {
-      ambientColor: [red, green, blue],
-    },
-  };
-}
-
-function tokenKdMat(tokens: TokenStream): KdExpr {
-  assertToken(
-    tokens.remaining === 3,
-    `'Kd' expects 3 parameter, ${tokens.remaining} found`,
-  );
-
-  const red = isNumeric(tokens.next());
-  assertToken(red != null, "red value not numeric");
-  const green = isNumeric(tokens.next());
-  assertToken(green != null, "green value not numeric");
-  const blue = isNumeric(tokens.next());
-  assertToken(blue != null, "blue value not numeric");
-
-  return {
-    ident: "Kd",
-    params: {
-      diffuseColor: [red, green, blue],
-    },
-  };
-}
-
-function tokenKsMat(tokens: TokenStream): KsExpr {
-  assertToken(
-    tokens.remaining === 3,
-    `'Ks' expects 3 parameter, ${tokens.remaining} found`,
-  );
-
-  const red = isNumeric(tokens.next());
-  assertToken(red != null, "red value not numeric");
-  const green = isNumeric(tokens.next());
-  assertToken(green != null, "green value not numeric");
-  const blue = isNumeric(tokens.next());
-  assertToken(blue != null, "blue value not numeric");
-
-  return {
-    ident: "Ks",
-    params: {
-      specularColor: [red, green, blue],
-    },
-  };
-}
-
-function tokenKeMat(tokens: TokenStream): KeExpr {
-  assertToken(
-    tokens.remaining === 3,
-    `'Ke' expects 3 parameter, ${tokens.remaining} found`,
-  );
-
-  const red = isNumeric(tokens.next());
-  assertToken(red != null, "red value not numeric");
-  const green = isNumeric(tokens.next());
-  assertToken(green != null, "green value not numeric");
-  const blue = isNumeric(tokens.next());
-  assertToken(blue != null, "blue value not numeric");
-
-  return {
-    ident: "Ke",
-    params: {
-      emissiveColor: [red, green, blue],
-    },
-  };
-}
-
-function tokenNiMat(tokens: TokenStream): NiExpr {
-  assertToken(
-    tokens.remaining === 1,
-    `'Ni' expects 1 parameter, ${tokens.remaining} found`,
-  );
-
-  const indexOfRefraction = isNumeric(tokens.next());
-  assertToken(indexOfRefraction != null, "refraction index not numeric");
-
-  return {
-    ident: "Ni",
-    params: {
-      indexOfRefraction,
-    },
-  };
-}
-
-function tokendMat(tokens: TokenStream): dExpr {
-  assertToken(
-    tokens.remaining === 1,
-    `'d' expects 1 parameter, ${tokens.remaining} found`,
-  );
-
-  const alpha = isNumeric(tokens.next());
-  assertToken(alpha != null, "dissolve value not numeric");
-
-  return {
-    ident: "d",
-    params: {
-      alpha,
-    },
-  };
-}
-
-function tokenTrMat(tokens: TokenStream): TrExpr {
-  assertToken(
-    tokens.remaining === 1,
-    `'Tr' expects 1 parameter, ${tokens.remaining} found`,
-  );
-
-  const transparency = isNumeric(tokens.next());
-  assertToken(transparency != null, "transparency value not numeric");
-
-  return {
-    ident: "Tr",
-    params: {
-      transparency,
-    },
-  };
-}
-
-function tokenIllumMat(tokens: TokenStream): illumExpr {
-  assertToken(
-    tokens.remaining === 1,
-    `'Tr' expects 1 parameter, ${tokens.remaining} found`,
-  );
-
-  const model = isNumeric(tokens.next());
-  assertToken(
-    model != null && Number.isInteger(model),
-    "transparency value not integer",
-  );
-  assertToken(model >= 0 && model <= 10, "not a valid illumination model");
-  model as IllumModels;
-
-  // vertex != null && vertex !== 0 && Number.isInteger(vertex),
-  return {
-    ident: "illum",
-    params: {
-      model,
-    },
-  };
-}
-
-function tokenUseMtl(tokens: TokenStream): UseMtlExpr {
-  const words: string[] = [];
-  for (; tokens.remaining > 0; words.push(tokens.next())) {}
-  return {
-    ident: "usemtl",
-    params: {
-      name: words.length > 0 ? words.join(" ") : null,
-    },
-  };
-}
-
-function tokenMtllib(tokens: TokenStream): MTLExpr {
-  // BUGBUG: if the filename contains more than one space in its name
-  // this function would fail. The tokenizer throws it away.
-
-  const words: string[] = [];
-  for (; tokens.remaining > 0; words.push(tokens.next())) {}
-
-  return {
-    ident: "mtllib",
-    params: {
-      filename: words.join(" "),
-    },
-  };
-}
-
-function tokenComment(tokens: TokenStream): CommentExpr {
-  let words = [];
-  for (; tokens.remaining > 0; words.push(tokens.next())) {}
-  return {
-    ident: "#",
-    params: {
-      message: words.join(" "),
-    },
-  };
-}
-
-function tokenVertex(tokens: TokenStream): VertexExpr {
-  assertToken(
-    tokens.remaining === 3,
-    `'v' expects 3 parameters, ${tokens.remaining} found`,
-  );
-
-  const x = isNumeric(tokens.next());
-  assertToken(x != null, "x-coord in vertex not numeric");
-  const y = isNumeric(tokens.next());
-  assertToken(y != null, "y-coord in vertex not numeric");
-  const z = isNumeric(tokens.next());
-  assertToken(z != null, "z-coord in vertex not numeric");
-
-  return {
-    ident: "v",
-    params: {
-      coords: [x, y, z],
-    },
-  };
-}
-
-function tokenVNormal(tokens: TokenStream): VNormExpr {
-  assertToken(
-    tokens.remaining === 3,
-    `'vn' expects 3 parameters, ${tokens.remaining} found`,
-  );
-
-  const x = isNumeric(tokens.next());
-  assertToken(x != null, "x-coord in normal not numeric");
-  const y = isNumeric(tokens.next());
-  assertToken(y != null, "y-coord in normal not numeric");
-  const z = isNumeric(tokens.next());
-  assertToken(z != null, "z-coord in normal not numeric");
-
-  return {
-    ident: "vn",
-    params: {
-      coords: [x, y, z],
-    },
-  };
-}
-
-function tokenVtTexture(tokens: TokenStream): VTexExpr {
-  assertToken(
-    tokens.remaining === 2,
-    `'vt' expects 2 parameters, ${tokens.remaining} found`,
-  );
-
-  const u = isNumeric(tokens.next());
-  assertToken(u != null, "u-coord in texture is not numeric");
-  const v = isNumeric(tokens.next());
-  assertToken(v != null, "v-coord in texture is not numeric");
-
-  return {
-    ident: "vt",
-    params: {
-      coords: [u, v],
-    },
-  };
-}
-
-function tokenFace(tokens: TokenStream): FaceExpr {
-  assertToken(
-    tokens.remaining === 3,
-    `this parser only supports triangles, ${tokens.remaining} tokens were found.`,
-  );
-
-  const params: FaceIndexPack[] = [];
-
-  for (let i = 0; i < 3; ++i) {
-    const vInfo = new TokenStream(tokens.next().split("/"));
-
-    switch (vInfo.remaining) {
-      case 1:
-        {
-          const vertex = isNumeric(vInfo.next());
-          assertToken(
-            vertex != null && vertex !== 0 && Number.isInteger(vertex),
-            "vertex index must be a non-zero integer",
-          );
-          params.push({ ident: "V", vertex });
-        }
-        break;
-      case 2:
-        {
-          const vertex = isNumeric(vInfo.next());
-          assertToken(
-            vertex != null && vertex !== 0 && Number.isInteger(vertex),
-            "vertex index must be a non-zero integer",
-          );
-          const texture = isNumeric(vInfo.next());
-          assertToken(
-            texture != null && texture !== 0 && Number.isInteger(texture),
-            "texture index must be a non-zero integer",
-          );
-          params.push({ ident: "V-T", vertex, texture });
-        }
-        break;
-      case 3:
-        {
-          const vertex = isNumeric(vInfo.next());
-          assertToken(
-            vertex != null && vertex !== 0 && Number.isInteger(vertex),
-            "vertex index must be a non-zero integer",
-          );
-          // empty one must be consumed anyway
-          const textureOpt = vInfo.next();
-          const normal = isNumeric(vInfo.next());
-          assertToken(
-            normal != null && normal !== 0 && Number.isInteger(normal),
-            "normal index must be a non-zero integer",
-          );
-          if (textureOpt === "") {
-            params.push({ ident: "V-N", vertex, normal });
-          } else {
-            const texture = isNumeric(textureOpt);
-            assertToken(
-              texture != null && texture !== 0 && Number.isInteger(texture),
-              "texture index must be a non-zero integer",
-            );
-            params.push({ ident: "V-T-N", vertex, texture, normal });
-          }
-        }
-        break;
-      default:
-        assertToken(
-          false,
-          `incorrect face element syntax found: ${vInfo.remaining} > 3`,
-        );
-    }
-  }
-
-  return {
-    ident: "f",
-    params: {
-      indices: [params[0], params[1], params[2]],
-    },
-  };
 }
