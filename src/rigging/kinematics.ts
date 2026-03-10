@@ -1,7 +1,7 @@
 import { math } from "../../tiny-graphics-math";
 import { tiny } from "../../tiny-graphics";
 import { clamp, matrixMult, transposeMatrix } from "../utils/math";
-import { DrawableShape } from "src/shapes/types";
+import { DrawableShape, ShapeCollection } from "src/shapes/types";
 
 export type traverseCB = (
   joint: ArcJoint,
@@ -18,11 +18,15 @@ type DOFRef = {
 
 export class NodeLink {
   readonly name: string;
-  shape: tiny.Shape | DrawableShape;
+  shape: tiny.Shape | DrawableShape | ShapeCollection;
   transform: math.Mat4;
   arcs: ArcJoint[] = [];
 
-  constructor(name: string, shape: tiny.Shape | DrawableShape, transform: math.Mat4) {
+  constructor(
+    name: string,
+    shape: tiny.Shape | DrawableShape | ShapeCollection,
+    transform: math.Mat4,
+  ) {
     this.name = name;
     this.shape = shape;
     this.transform = transform;

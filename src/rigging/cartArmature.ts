@@ -2,7 +2,7 @@ import { ArcJoint, NodeLink } from "../rigging/kinematics";
 import { math } from "../../tiny-graphics-math";
 import { tiny } from "../../tiny-graphics";
 import { clamp, lerp, smoothstep } from "../utils/math";
-import { DrawableShape } from "src/shapes/types";
+import { DrawableShape, ShapeCollection } from "src/shapes/types";
 
 const armJointInitAngle1 = -0.1;
 const armJointInitAngle2 = 0.45;
@@ -81,11 +81,11 @@ export class CartArmature {
 
   constructor(props: {
     meshes: {
-      chassis: tiny.Shape | DrawableShape;
-      wheel: tiny.Shape | DrawableShape;
-      arm1: tiny.Shape | DrawableShape;
-      arm2: tiny.Shape | DrawableShape;
-      saw: tiny.Shape | DrawableShape;
+      chassis: tiny.Shape | DrawableShape | ShapeCollection;
+      wheel: tiny.Shape | DrawableShape | ShapeCollection;
+      arm1: tiny.Shape | DrawableShape | ShapeCollection;
+      arm2: tiny.Shape | DrawableShape | ShapeCollection;
+      saw: tiny.Shape | DrawableShape | ShapeCollection;
     };
     dimensions: {
       chassisWidth: number;
@@ -366,8 +366,14 @@ export class CartArmature {
         clamp(anim.timing, 0, 1) + clamp(9 - anim.timing, 4, 5) - 5,
       );
 
-      this.arcs.sawArmJoint1.setAngle("rz", lerp(armJointInitAngle1, -Math.PI * 0.9, t));
-      this.arcs.sawArmJoint2.setAngle("rz", lerp(armJointInitAngle2, Math.PI * 0.6, t));
+      this.arcs.sawArmJoint1.setAngle(
+        "rz",
+        lerp(armJointInitAngle1, -Math.PI * 0.9, t),
+      );
+      this.arcs.sawArmJoint2.setAngle(
+        "rz",
+        lerp(armJointInitAngle2, Math.PI * 0.6, t),
+      );
       if (anim.timing > 5) {
         anim.swinging = false;
       }
