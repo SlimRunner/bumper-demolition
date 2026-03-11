@@ -52,6 +52,7 @@ export class MSDParticle {
   tireForward?: math.Vector3;
   tireThrust?: number;
   disabled: boolean = false;
+  metadata?: unknown;
 
   tags: Set<ParticleTags>;
   group: Set<string>;
@@ -114,7 +115,7 @@ export class SpringDamperSystem {
   contactFields: ContactField[];
 
   particleGroups: Map<string, Set<MSDParticle>>;
-  trespassCB: (p: MSDParticle) => void = () => {};
+  trespassCB: (p: MSDParticle, f: ContactField) => void = () => {};
 
   cache: {
     // this pattern makes size and accesses static (i.e. you cannot use
@@ -257,7 +258,7 @@ export class SpringDamperSystem {
       if (isFree) {
         for (const field of this.contactFields) {
           if (field.affects(p) && field.sdf(p.location) < 0) {
-            this.trespassCB(p);
+            this.trespassCB(p, field);
           }
         }
         continue;
