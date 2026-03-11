@@ -39,8 +39,8 @@ export type MatchEvent = (event: MatchEventArgs) => void;
 
 // in seconds
 const PowerupDurations: Record<PowerUpKind, number> = {
-  heavy: 8,
-  orbit: 16,
+  heavy: 16,
+  orbit: 12,
 };
 
 export class MatchManager {
