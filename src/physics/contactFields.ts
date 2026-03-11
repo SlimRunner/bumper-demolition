@@ -21,6 +21,7 @@ export interface ContactField {
   affects(p: MSDParticle): boolean;
   sdf(pos: math.Vector3): number;
   normal(pos: math.Vector3, out: math.Vector3): void;
+  get group(): Set<string>;
 
   readonly role: FieldRole;
   stiffness: number;
@@ -102,6 +103,10 @@ export class PlaneField implements ContactField {
     this.sdfFunc = curry(sdPlane, normal, props.height);
   }
 
+  get group(): Set<string> {
+    return this.groupSet;
+  }
+
   affects(p: MSDParticle): boolean {
     for (const allowed of this.groupSet) {
       if (p.group.has(allowed)) {
@@ -156,6 +161,10 @@ export class CartField implements ContactField {
     this.friction = props.friction ?? null;
     this.restitution = props.restitution ?? null;
     this.sdfFunc = sdfFunc;
+  }
+
+  get group(): Set<string> {
+    return this.groupSet;
   }
 
   affects(p: MSDParticle): boolean {
@@ -222,6 +231,10 @@ export class ArenaField implements ContactField {
       geometry.width,
       geometry.onto,
     );
+  }
+
+  get group(): Set<string> {
+    return this.groupSet;
   }
 
   affects(p: MSDParticle): boolean {
