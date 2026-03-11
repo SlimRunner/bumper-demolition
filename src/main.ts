@@ -102,7 +102,7 @@ export class BumperCarsBase extends tiny.Component {
     isIdling: boolean;
     timeMultiplier: number;
     showMeshes: boolean;
-    timer: number,
+    timer: number;
   };
 
   gui?: GameGUI;
@@ -517,6 +517,8 @@ export class BumperCars extends BumperCarsBase {
       if (p.group.has("orbit") && target) {
         p.disabled = true;
         this.gameMatch.makeDamage(target, 1);
+      } else if (p.group.has("sawblade") && target) {
+        this.gameMatch.makeDamage(target, 0.013);
       } else if (
         p.group.has("powerup") &&
         target &&
@@ -669,6 +671,10 @@ export class BumperCars extends BumperCarsBase {
     if (this.globalProps.showMeshes) {
       cartA.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
+        if (name === "saw") {
+          cartMSD.setBlade("carA", matrix[0][3], matrix[1][3], matrix[2][3]);
+        }
+
         if (node.shape instanceof FileMesh) {
           node.shape.foreach((shape, mat, name) => {
             shape.draw(
@@ -689,6 +695,10 @@ export class BumperCars extends BumperCarsBase {
       }, mtxCarA);
       cartB.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
+        if (name === "saw") {
+          cartMSD.setBlade("carB", matrix[0][3], matrix[1][3], matrix[2][3]);
+        }
+
         if (node.shape instanceof FileMesh) {
           node.shape.foreach((shape, mat, name) => {
             shape.draw(

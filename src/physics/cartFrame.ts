@@ -51,6 +51,7 @@ export class CartFrame {
     orbitA: [number, number];
     orbitB: [number, number];
     powerUps: [number, number];
+    blades: [number, number];
     // sparksA: [number, number]; // if we have time
     // sparksB: [number, number]; // if we have time
   };
@@ -259,6 +260,17 @@ export class CartFrame {
       this.msdSystem.addParticleToGroup(p, "powerup");
     }
 
+    for (const name of ["CarA", "CarB"]) {
+      const p = new MSDParticle({
+        location: math.vec3(0, 0, 0),
+      });
+      p.tags.add("free");
+      p.disabled = false;
+      particles.container.push(p);
+      this.msdSystem.addParticleToGroup(p, name);
+      this.msdSystem.addParticleToGroup(p, "sawblade");
+    }
+
     // add particles to their appropriate groups
     for (const i of range(carNodeCount)) {
       this.msdSystem.addParticleToGroup(particles.container[i], "CarA");
@@ -408,6 +420,7 @@ export class CartFrame {
     const sep4 = sep3 + orbitCount;
     const sep5 = sep4 + orbitCount;
     const sep6 = sep5 + boxCount;
+    const sep7 = sep6 + 2;
     // ranges are [inclusive, exclusive]
     this.nodeRanges = {
       CarA: [sep1, sep2],
@@ -415,6 +428,7 @@ export class CartFrame {
       orbitA: [sep3, sep4],
       orbitB: [sep4, sep5],
       powerUps: [sep5, sep6],
+      blades: [sep6, sep7],
     };
 
     this.updateTireVectors(0, 0, 0, 0);
@@ -512,6 +526,24 @@ export class CartFrame {
         p.metadata = power;
         break;
       }
+    }
+  }
+
+  setBlade(player: CarName, x: number, y: number, z: number) {
+    const pc = this.msdSystem.particles.container;
+    const iA = this.nodeRanges.blades[0];
+    const iB = iA + 1;
+    switch (player) {
+      case "carA":
+        pc[iA].location[0] = x;
+        pc[iA].location[1] = y;
+        pc[iA].location[2] = z;
+        break;
+      case "carB":
+        pc[iB].location[0] = x;
+        pc[iB].location[1] = y;
+        pc[iB].location[2] = z;
+        break;
     }
   }
 
