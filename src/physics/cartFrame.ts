@@ -61,6 +61,7 @@ export class CartFrame {
     carB: ContactField;
   };
   private orbitRandom: Array<[number, number, number, number]>;
+  private _orbitTimer: number = 0;
 
   constructor(props: {
     dimensions: {
@@ -421,6 +422,7 @@ export class CartFrame {
 
   resetState() {
     const pcs = this.msdSystem.particles.container;
+    this._orbitTimer = 0;
     for (const i of range(...this.nodeRanges.CarA)) {
       pcs[i].location = this.initial.locations[i].copy();
       pcs[i].velocity = math.vec3(0, 0, 0);
@@ -605,7 +607,8 @@ export class CartFrame {
     };
   }
 
-  updateCarOrbits(time: number) {
+  updateCarOrbits(timeDelta: number) {
+    this._orbitTimer += timeDelta;
     const sh = this.initial.carNodeCount;
     const centerA = this.getAverage([0, 3 + 1]);
     const centerB = this.getAverage([0 + sh, 3 + sh + 1]);
@@ -613,7 +616,7 @@ export class CartFrame {
       let center = p.group.has("CarA") ? centerA : centerB;
       if (p.disabled) continue;
       const [w, phi, rd, h] = this.orbitRandom[i];
-      const theta = w * time + phi;
+      const theta = w * this._orbitTimer + phi;
       p.location[0] = center[0] + Math.cos(theta) * rd;
       p.location[2] = center[2] + Math.sin(theta) * rd;
       p.location[1] = center[1] + h;
