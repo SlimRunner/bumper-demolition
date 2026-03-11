@@ -452,7 +452,7 @@ export class BumperCarsBase extends tiny.Component {
       0,
     );
     this.uniforms.lights = [
-      defs.Phong_Shader.light_source(light_dir, sunColor, 280),
+      defs.Phong_Shader.light_source(light_dir, sunColor, 620),
     ];
     for (const [x, z] of [
       [-1, -1],
@@ -653,7 +653,8 @@ export class BumperCars extends BumperCarsBase {
         ...material,
         ambient_color: this.colors.sumAmbient,
         smoothness: 20,
-        ambient: 0.4,
+        ambnient: 0.4,
+        specularity: 0.6,
       });
     });
     this.drawables.arenaWalls.foreach((shape, material, name) => {
