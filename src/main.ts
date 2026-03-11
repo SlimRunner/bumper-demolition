@@ -102,6 +102,7 @@ export class BumperCarsBase extends tiny.Component {
     isIdling: boolean;
     timeMultiplier: number;
     showMeshes: boolean;
+    timer: number,
   };
 
   gui?: GameGUI;
@@ -232,6 +233,7 @@ export class BumperCarsBase extends tiny.Component {
       isIdling: false,
       timeMultiplier: 1,
       showMeshes: true,
+      timer: 0,
     };
 
     const cartDims = {
@@ -355,6 +357,7 @@ export class BumperCarsBase extends tiny.Component {
     this.armatures.cartA.resetState();
     this.armatures.cartB.resetState();
     this.gui?.resetState();
+    this.globalProps.timer = 0;
   }
 
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
@@ -398,7 +401,11 @@ export class BumperCarsBase extends tiny.Component {
   render_animation(context: tiny.Component): void {
     const time = (this.uniforms.animation_time ?? 0) / 1000;
     const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
+    const timeMult = this.globalProps.timeMultiplier;
 
+    this.globalProps.timer += timeDelta * timeMult;
+
+    // camera should not be subject to slow motion
     this.gameView.actionCam!.updateCamera(timeDelta);
 
     const { cameraMatrix, position } =
@@ -564,6 +571,8 @@ export class BumperCars extends BumperCarsBase {
 
     const time = (this.uniforms.animation_time ?? 0) / 1000;
     const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
+    const timeMult = this.globalProps.timeMultiplier;
+    const gblTimer = this.globalProps.timer;
 
     const GL = context.context!;
 
@@ -575,8 +584,6 @@ export class BumperCars extends BumperCarsBase {
 
     // do all time related oerations inside this if statement
     if (cartMSD.enable && !this.globalProps.isIdling) {
-      const timeMult = this.globalProps.timeMultiplier;
-
       this.gui?.updateTimer(timeDelta * timeMult);
       this.gameMatch.updateExpiry(timeDelta * timeMult);
       this.gameMatch.checkTime();
@@ -730,7 +737,7 @@ export class BumperCars extends BumperCarsBase {
         context,
         this.uniforms,
         math.Mat4.translation(x, y, z)
-          .times(math.Mat4.rotation(time, 0, 1, 0))
+          .times(math.Mat4.rotation(gblTimer, 0, 1, 0))
           .times(this.transforms.powerupBox),
         {
           ...this.materials.plastic,
