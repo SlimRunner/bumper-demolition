@@ -21,7 +21,7 @@ export class GameGUI implements MatchGui {
   private elapsedSeconds = 0;
 
   constructor(parent: HTMLElement) {
-    this.host = this.resolveHost(parent);
+    this.host = parent;
 
     if (!GameGUI.styleInstalled) {
       GameGUI.installStyles();
@@ -163,7 +163,11 @@ export class GameGUI implements MatchGui {
 
   showMessage(msg: string): void {
     this.messageBox.textContent = msg;
-    this.messageBox.classList.remove("hidden");
+    this.messageBox.classList.remove('hidden');
+  
+    setTimeout(() => {
+      this.hideMessage();
+    }, 3000);
   }
 
   hideMessage(): void {
@@ -199,14 +203,6 @@ export class GameGUI implements MatchGui {
       default:
         return "None";
     }
-  }
-
-  private resolveHost(parent: HTMLElement): HTMLElement {
-    if (parent instanceof HTMLCanvasElement && parent.parentElement) {
-      return parent.parentElement;
-    }
-
-    return parent;
   }
 
   private buildHealthBar(fill: HTMLDivElement, mirror = false): HTMLDivElement {
@@ -414,10 +410,16 @@ export class GameGUI implements MatchGui {
         background: rgba(8, 12, 20, 0.75);
         border: 1px solid rgba(133, 166, 216, 0.4);
         font-size: 0.95rem;
+
+        /* Animation logic */
+        transition: opacity 0.4s ease, visibility 0.4s;
+        opacity: 1;
+        visibility: visible;
       }
 
       .message-inner.hidden {
-        display: none;
+        opacity: 0;
+        visibility: hidden; /* Prevents clicking the ghost of the toast */
       }
 
       @media (max-width: 820px) {

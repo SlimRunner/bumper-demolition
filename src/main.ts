@@ -342,7 +342,11 @@ export class BumperCarsBase extends tiny.Component {
     // even if you remove the camera leave this in. We can leverage it
     // to add a gui with CSS.
     const canvas = this.canvas ?? document.getElementById("canvas")!;
-    this.gui = new GameGUI(canvas as HTMLElement);
+    const canvasDiv = document.createElement("div");
+    canvas.parentElement?.insertBefore(canvasDiv, canvas);
+    canvasDiv.insertBefore(canvas, null);
+
+    this.gui = new GameGUI(canvasDiv);
 
     const fov = (Math.PI * 60) / 180;
     const aspectRatio = this.width / this.height;
