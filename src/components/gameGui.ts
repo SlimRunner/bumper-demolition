@@ -24,7 +24,7 @@ export class GameGUI {
     this.host = this.resolveHost(parent);
 
     if (!GameGUI.styleInstalled) {
-      this.installStyles();
+      GameGUI.installStyles();
       GameGUI.styleInstalled = true;
     }
 
@@ -224,7 +224,7 @@ export class GameGUI {
     return `${mm}:${ss}`;
   }
 
-  private installStyles(): void {
+  private static installStyles(): void {
     const style = document.createElement("style");
     style.id = "gui-styles";
     style.textContent = `
