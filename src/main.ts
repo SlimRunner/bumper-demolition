@@ -23,6 +23,10 @@ import {
   getSunColor,
 } from "./shaders/skyboxUtils";
 import { DrawableShape, ShapeCollection } from "./shapes/types";
+import { MatchManager } from "./components/gameMatch";
+import type { CarName, PowerUpKind } from "./components/types";
+
+type CarTarget = "carA" | "carB";
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -39,7 +43,13 @@ export class BumperCarsBase extends tiny.Component {
     readonly softBlue: math.Vector4;
     readonly yellow: math.Vector4;
     readonly white: math.Vector4;
+    readonly heavyBox: math.Vector4;
+    readonly orbitBox: math.Vector4;
     sumAmbient: math.Vector4;
+  };
+  transforms: {
+    readonly identity: math.Mat4;
+    readonly powerupBox: math.Mat4;
   };
   materials: {
     uvSimple: {
@@ -109,6 +119,17 @@ export class BumperCarsBase extends tiny.Component {
       yellow: math.color(1, 1, 0, 1),
       white: math.color(1, 1, 1, 1),
       sumAmbient: math.color(0, 0, 0, 0),
+      heavyBox: math.color(1, 1, 0, 0.2),
+      orbitBox: math.color(1, 0, 1, 0.2),
+    };
+
+    this.transforms = {
+      identity: math.Mat4.identity(),
+      powerupBox: math.Mat4.rotation((7 * Math.PI) / 36, 0, 0, 1)
+        .times(math.Mat4.rotation(Math.PI / 4, 1, 0, 0))
+        .times(
+          math.Mat4.scale(1 / Math.sqrt(3), 1 / Math.sqrt(3), 1 / Math.sqrt(3)),
+        ),
     };
 
     const uvShader = new UVShader();
@@ -442,30 +463,97 @@ export class BumperCars extends BumperCarsBase {
     carB: "none",
   };
 
+  gameMatch: MatchManager;
+
   constructor() {
     super();
+    this.gameMatch = new MatchManager((evt) => {
+      switch (evt.event) {
+        case "suddentDeath":
+          // start sudden death stage
+          console.log(evt.event);
+          break;
+        case "gameOver":
+          console.log(evt.loser);
+          // game end logic
+          break;
+        case "powerSpawn":
+          switch (evt.count) {
+            case 0:
+              this.physics.cartMSD.spawnPowerup(evt.kind, math.vec3(0, 1, 10));
+              break;
+            case 1:
+              this.physics.cartMSD.spawnPowerup(evt.kind, math.vec3(0, 1, -10));
+              break;
+            default:
+              this.physics.cartMSD.spawnPowerup(evt.kind);
+          }
+          break;
+        case "powerExpires":
+          switch (evt.kind) {
+            case "heavy":
+              this.physics.cartMSD.makeLight(evt.player);
+              this.setThrust(evt.player, 120);
+              break;
+            case "orbit":
+              this.physics.cartMSD.setOrbitStatus(evt.player, true);
+              break;
+          }
+          break;
+      }
+    });
+  }
+
+  render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
+    super.render_layout(div, options);
+
+    this.gameMatch.linkGUI(this.gui!);
+
+    // free particle collision detection
+    this.physics.cartMSD.msdSystem.trespassCB = (p, field) => {
+      let target: CarTarget | undefined;
+
+      if (field.group.has("CarA")) {
+        target = "carB";
+      } else if (field.group.has("CarB")) {
+        target = "carA";
+      }
+
+      if (p.group.has("orbit") && target) {
+        p.disabled = true;
+        this.gameMatch.makeDamage(target, 1);
+      } else if (
+        p.group.has("powerup") &&
+        target &&
+        !this.gameMatch.getPowerup(target)
+      ) {
+        p.disabled = true;
+        this.gui?.showMessage(
+          `Car ${target.slice(-1)} picked up ${p.metadata}`,
+        );
+        this.gameMatch.setPowerup(target, p.metadata as PowerUpKind);
+        if ((p.metadata as PowerUpKind) === "orbit") {
+          this.physics.cartMSD.setOrbitStatus(target);
+        } else if ((p.metadata as PowerUpKind) === "heavy") {
+          this.physics.cartMSD.makeHeavy(target);
+          this.setThrust(target, 240);
+        }
+      }
+    };
   }
 
   protected resetGame(): void {
     super.resetGame();
-    this.guiHealth.carA = 100;
-    this.guiHealth.carB = 100;
-    this.guiPower.carA = "none";
-    this.guiPower.carB = "none";
+    this.gameMatch.resetState();
   }
 
-  private applyGuiDamage(target: "carA" | "carB", damage: number): void {
-    const next = clamp(this.guiHealth[target] - damage, 0, 100);
-    this.guiHealth[target] = next;
-    this.gui?.updateHealth(this.guiHealth.carA, this.guiHealth.carB);
-  }
-
-  private setGuiPower(
-    target: "carA" | "carB",
-    power: "heavy" | "orbit" | "none",
-  ): void {
-    this.guiPower[target] = power;
-    this.gui?.setPowerUp(this.guiPower.carA, this.guiPower.carB);
+  protected setThrust(car: CarName, value: number) {
+    switch (car) {
+      case "carA":
+        this.armatures.cartB.maxThrust = value;
+      case "carB":
+        this.armatures.cartB.maxThrust = value;
+    }
   }
 
   render_animation(context: tiny.Component): void {
@@ -490,6 +578,9 @@ export class BumperCars extends BumperCarsBase {
       const timeMult = this.globalProps.timeMultiplier;
 
       this.gui?.updateTimer(timeDelta * timeMult);
+      this.gameMatch.updateExpiry(timeDelta * timeMult);
+      this.gameMatch.checkTime();
+      cartMSD.updateCarOrbits(timeDelta * timeMult);
       cartA.updateControls(timeDelta * timeMult);
       cartB.updateControls(timeDelta * timeMult);
       const tires = cartMSD.updateTireVectors(
@@ -534,7 +625,7 @@ export class BumperCars extends BumperCarsBase {
     GL.enable(GL.DEPTH_TEST);
 
     this.drawables.arenaFloor.foreach((shape, material, name) => {
-      shape.draw(context, this.uniforms, math.Mat4.identity(), {
+      shape.draw(context, this.uniforms, this.transforms.identity, {
         ...material,
         ambient_color: this.colors.sumAmbient,
       });
@@ -542,7 +633,7 @@ export class BumperCars extends BumperCarsBase {
     this.drawables.arenaWalls.draw(
       context,
       this.uniforms,
-      math.Mat4.identity(),
+      this.transforms.identity,
       this.materials.uvSimple,
     );
 
@@ -562,6 +653,19 @@ export class BumperCars extends BumperCarsBase {
         this.gameView.gimbalCam?.setOrigin(carBPos);
         break;
     }
+
+    cartMSD.traverseOrbits((p, owner) => {
+      const [x, y, z] = p.location;
+      this.shapes.ball.draw(
+        context,
+        this.uniforms,
+        math.Mat4.translation(x, y, z).times(math.Mat4.scale(0.1, 0.1, 0.1)),
+        {
+          ...this.materials.plastic,
+          color: owner === "carA" ? this.colors.red : this.colors.blue,
+        },
+      );
+    });
 
     if (this.globalProps.showMeshes) {
       cartA.arcs.root.traverse((joint, node, matrix) => {
@@ -609,9 +713,32 @@ export class BumperCars extends BumperCarsBase {
       this.drawables.cartFrame.draw(
         context,
         this.uniforms,
-        math.Mat4.identity(),
+        this.transforms.identity,
       );
     }
+
+    GL.depthMask(false);
+    cartMSD.traverseBoxes((p, power) => {
+      if (power == null) return;
+      camSubjects.push(p.location);
+      const [x, y, z] = p.location;
+      const colors = {
+        heavy: this.colors.heavyBox,
+        orbit: this.colors.orbitBox,
+      };
+      this.shapes.box.draw(
+        context,
+        this.uniforms,
+        math.Mat4.translation(x, y, z)
+          .times(math.Mat4.rotation(time, 0, 1, 0))
+          .times(this.transforms.powerupBox),
+        {
+          ...this.materials.plastic,
+          color: colors[power],
+        },
+      );
+    });
+    GL.depthMask(true);
 
     // do this at the very end always
     this.gameView.actionCam!.updateTargets(camSubjects);
@@ -626,7 +753,7 @@ export class BumperCars extends BumperCarsBase {
       "accelerate",
       ["w"],
       () => {
-        this.armatures.cartA.thrustForce = 120;
+        this.armatures.cartA.thrustForce = this.armatures.cartA.maxThrust;
       },
       undefined,
       () => {
@@ -637,7 +764,7 @@ export class BumperCars extends BumperCarsBase {
       "brake",
       ["s"],
       () => {
-        this.armatures.cartA.thrustForce = -120;
+        this.armatures.cartA.thrustForce = -this.armatures.cartA.maxThrust;
       },
       undefined,
       () => {
@@ -681,7 +808,7 @@ export class BumperCars extends BumperCarsBase {
       "accelerate",
       ["8"],
       () => {
-        this.armatures.cartB.thrustForce = 120;
+        this.armatures.cartB.thrustForce = this.armatures.cartB.maxThrust;
       },
       undefined,
       () => {
@@ -692,7 +819,7 @@ export class BumperCars extends BumperCarsBase {
       "brake",
       ["5"],
       () => {
-        this.armatures.cartB.thrustForce = -120;
+        this.armatures.cartB.thrustForce = -this.armatures.cartB.maxThrust;
       },
       undefined,
       () => {
@@ -731,45 +858,6 @@ export class BumperCars extends BumperCarsBase {
     // GUI debug shortcuts
     this.live_string((elem) => {
       elem.textContent = "GUI Debug";
-    });
-    this.key_triggered_button("A heavy power", ["u"], () => {
-      this.setGuiPower("carA", "heavy");
-      this.gui?.showMessage("Car A picked up Heavy");
-    });
-    this.key_triggered_button("B heavy power", ["i"], () => {
-      this.setGuiPower("carB", "heavy");
-      this.gui?.showMessage("Car B picked up Heavy");
-    });
-    this.key_triggered_button("A orbit power", ["y"], () => {
-      this.setGuiPower("carA", "orbit");
-      this.gui?.showMessage("Car A picked up Orbit");
-    })
-    this.key_triggered_button("B orbit power", ["h"], () => {
-      this.setGuiPower("carB", "orbit");
-      this.gui?.showMessage("Car B picked up Orbit");
-    });
-    this.key_triggered_button("clear powers", ["o"], () => {
-      this.setGuiPower("carA", "none");
-      this.setGuiPower("carB", "none");
-      this.gui?.hideMessage();
-    });
-    this.new_line();
-    this.key_triggered_button("damage A (-10)", ["j"], () => {
-      this.applyGuiDamage("carA", 10);
-    });
-    this.key_triggered_button("damage B (-10)", ["k"], () => {
-      this.applyGuiDamage("carB", 10);
-    });
-    this.key_triggered_button("heal both (+10)", ["l"], () => {
-      this.guiHealth.carA = clamp(this.guiHealth.carA + 10, 0, 100);
-      this.guiHealth.carB = clamp(this.guiHealth.carB + 10, 0, 100);
-      this.gui?.updateHealth(this.guiHealth.carA, this.guiHealth.carB);
-      console.log(
-        "Car A health:",
-        this.guiHealth.carA,
-        "Car B health:",
-        this.guiHealth.carB,
-      );
     });
     this.new_line();
 
