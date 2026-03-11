@@ -519,7 +519,18 @@ export class BumperCars extends BumperCarsBase {
     this.gameMatch.linkGUI(this.gui!);
 
     // free particle collision detection
-    this.physics.cartMSD.msdSystem.trespassCB = (p, field) => {
+    const cartMSD = this.physics.cartMSD;
+
+    // notify main component when the two cars exchange forces
+    cartMSD.onCollision = (player, impulse) => {
+      // impulse is the integral of the normal force over the physics step.
+      // damage is scaled arbitrarily; tune to taste or convert to energy
+      // later if you prefer (0.5*m*v^2 loss etc.)
+      const other: CarTarget = player === "carA" ? "carB" : "carA";
+      this.gameMatch.makeDamage(other, impulse * 0.05);
+    };
+
+    cartMSD.msdSystem.trespassCB = (p, field) => {
       let target: CarTarget | undefined;
 
       if (field.group.has("CarA")) {
@@ -608,12 +619,12 @@ export class BumperCars extends BumperCarsBase {
         const steps = Math.floor(timeDelta / timeStep);
 
         for (const _ of range(steps)) {
-          cartMSD.integrator.step(cartMSD.msdSystem, timeStep * timeMult);
+          cartMSD.step(timeStep * timeMult);
         }
 
         const remainder = timeDelta - steps * timeStep;
         if (remainder > 0) {
-          cartMSD.integrator.step(cartMSD.msdSystem, remainder * timeMult);
+          cartMSD.step(remainder * timeMult);
         }
       }
 

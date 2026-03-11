@@ -64,6 +64,17 @@ export class CartFrame {
   private orbitRandom: Array<[number, number, number, number]>;
   private _orbitTimer: number = 0;
 
+  // accumulated contact force magnitudes.  When the integrator advances a
+  // timestep we will multiply by dt to convert to impulse and optionally
+  // fire a callback.  Values are reset every time the public step method
+  // is called.
+  collisionImpulse: { CarA: number; CarB: number } = { CarA: 0, CarB: 0 };
+
+  // optional client notification.  invoked after each physics substep with
+  // the impulse accrued by the named car during the step.  impulse has
+  // units kg·m/s (force * dt).
+  onCollision?: (player: CarName, impulse: number) => void;
+
   constructor(props: {
     dimensions: {
       frameWidth: number;
@@ -411,6 +422,18 @@ export class CartFrame {
       this.SDFields.ground,
     );
 
+    // The callback is executed for each particle/field pair that
+    // produces a non‑zero normal force.
+    this.msdSystem.collisionCB = (p, field, forceMag) => {
+      if (field === this.SDFields.carA) {
+        // a particle belonging to carB is being pushed by carA's
+        // collision shape;
+        this.collisionImpulse.CarA += Math.abs(forceMag);
+      } else if (field === this.SDFields.carB) {
+        this.collisionImpulse.CarB += Math.abs(forceMag);
+      }
+    };
+
     // this was the best performing one
     this.integrator = new SymplecticEuler();
 
@@ -688,6 +711,33 @@ export class CartFrame {
           break;
       }
       callback(p, power);
+    }
+  }
+
+  
+  /**
+   * Advance the physics state by a single timestep and notify the
+   * `onCollision` listener with impulses incurred during the step.
+   *
+   * The caller previously had to drive the integrator directly; this helper
+   * makes it easier to reset the accumulator and package the force‑*‑time
+   * product in one place.  `dt` should be the same value passed to
+   * `integrator.step`.
+   */
+  step(dt: number) {
+    // clear the previous frame's tally
+    this.collisionImpulse.CarA = 0;
+    this.collisionImpulse.CarB = 0;
+
+    this.integrator.step(this.msdSystem, dt);
+
+    if (this.onCollision) {
+      if (this.collisionImpulse.CarA) {
+        this.onCollision("carA", this.collisionImpulse.CarA * dt);
+      }
+      if (this.collisionImpulse.CarB) {
+        this.onCollision("carB", this.collisionImpulse.CarB * dt);
+      }
     }
   }
 

@@ -117,6 +117,17 @@ export class SpringDamperSystem {
   particleGroups: Map<string, Set<MSDParticle>>;
   trespassCB: (p: MSDParticle, f: ContactField) => void = () => {};
 
+  // invoked every time a non-free particle is pushed by a contact
+  // field. the third argument is the magnitude of the normal force that
+  // was computed for that particle / contact pair.  (positive =
+  // compressive) callers can integrate this over time to derive an
+  // impulse or use it directly for instantaneous effects.
+  collisionCB?: (
+    p: MSDParticle,
+    f: ContactField,
+    forceMag: number,
+  ) => void;
+
   cache: {
     // this pattern makes size and accesses static (i.e. you cannot use
     // an index of type number). Arbitrarily 10
@@ -288,6 +299,11 @@ export class SpringDamperSystem {
 
         const normSpeed = p.velocity.dot(normal);
         const msdForceMag = -field.stiffness * dist - field.damping * normSpeed;
+
+        // notify interested parties before the force is added so the
+        // callback can record whatever it wants (impulse = force * dt is
+        // computed by the caller, which knows the timestep).
+        if (this.collisionCB) this.collisionCB(p, field, msdForceMag);
 
         p.force[0] += normal[0] * msdForceMag;
         p.force[1] += normal[1] * msdForceMag;
