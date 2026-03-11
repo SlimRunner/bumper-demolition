@@ -382,8 +382,11 @@ export class CartFrame {
       ground: new PlaneField(new Set(["grounded"]), math.vec3(0, 1, 0), {
         stiffness: 15000,
         damping: 10,
+        // NOTE: particles themselves should have these parameters not
+        // the ground. But not enough time to make the change at this
+        // point.
         traction: {
-          coeff: 1.8,
+          coeff: 2.8,
           stiffness: {
             cornering: 120,
             longitudinal: 10,
