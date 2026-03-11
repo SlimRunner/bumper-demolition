@@ -479,12 +479,12 @@ export class BumperCars extends BumperCarsBase {
     this.gameMatch = new MatchManager((evt) => {
       switch (evt.event) {
         case "suddentDeath":
-          // start sudden death stage
+          // TODO: start sudden death stage
           console.log(evt.event);
           break;
         case "gameOver":
           console.log(evt.loser);
-          // game end logic
+          // TODO: game end logic
           break;
         case "powerSpawn":
           switch (evt.count) {
