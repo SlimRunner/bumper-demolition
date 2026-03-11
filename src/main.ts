@@ -211,6 +211,7 @@ export class BumperCarsBase extends tiny.Component {
       "../assets/meshes/capsule-shape-arena-walls.obj",
       {
         preTransform: math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
+        uvScaling: math.Vector.create(1, 1.2),
         lightCount: this.lightCount,
       },
     );
