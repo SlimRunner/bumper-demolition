@@ -22,6 +22,7 @@ export interface ContactField {
   sdf(pos: math.Vector3): number;
   normal(pos: math.Vector3, out: math.Vector3): void;
   get group(): Set<string>;
+  readonly sdfFunc: FunctorSDF<math.Vector3, number>;
 
   readonly role: FieldRole;
   stiffness: number;
@@ -84,7 +85,7 @@ export class PlaneField implements ContactField {
     coefficient: number;
   } | null;
 
-  private sdfFunc: FunctorSDF<math.Vector3, number>;
+  readonly sdfFunc: FunctorSDF<math.Vector3, number>;
   private _normal: math.Vector3;
   readonly role: FieldRole;
 
@@ -151,7 +152,7 @@ export class CartField implements ContactField {
 
   constructor(
     private groupSet: Set<string>,
-    private sdfFunc: FunctorSDF<math.Vector3, number>,
+    readonly sdfFunc: FunctorSDF<math.Vector3, number>,
     props: ContactProps,
   ) {
     this.role = "dynamic boundary";
@@ -206,7 +207,7 @@ export class ArenaField implements ContactField {
 
   readonly role: FieldRole;
   private tempCache: math.Vector3 = math.vec3(0, 0, 0);
-  private sdfFunc: FunctorSDF<math.Vector3, number>;
+  readonly sdfFunc: FunctorSDF<math.Vector3, number>;
 
   constructor(
     private groupSet: Set<string>,
