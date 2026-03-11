@@ -298,12 +298,6 @@ export class SpringDamperSystem {
           const forwardProj = this.cache.tempVec[2];
           const lateral = this.cache.tempVec[3];
 
-          // NOTE: these are too many checks, but I don't really want to
-          // mess with this at the moment. It needs fixing. Why does it
-          // have to be ground? Why does the field have to define the
-          // traction? Feels like it should be the particle, but then
-          // that is yet more data per particle.
-
           // slip angle friction
 
           // this is the tire forward (may not be planar to surface)
