@@ -120,8 +120,8 @@ export class BumperCarsBase extends tiny.Component {
       yellow: math.color(1, 1, 0, 1),
       white: math.color(1, 1, 1, 1),
       sumAmbient: math.color(0, 0, 0, 0),
-      heavyBox: math.color(1, 1, 0, 0.2),
-      orbitBox: math.color(1, 0, 1, 0.2),
+      heavyBox: math.color(1, 1, 0, 0.4),
+      orbitBox: math.color(1, 0, 1, 0.4),
     };
 
     this.transforms = {
