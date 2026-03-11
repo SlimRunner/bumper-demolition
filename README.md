@@ -30,21 +30,24 @@ A tentative and non-exhaustive TODO list
   - [x] create a function to make the arm swing forward or back ward (think of a scorpion strikes)
   - [x] create a function to manage wheel rotation
   - [x] create a function to manage steer rotation (see link for steer geometry below)
-- [ ] create a way to manage the game state
-  - [ ] timer for game cycle
-  - [ ] health of each car
+- [x] create a way to manage the game state
+  - [x] timer for game cycle
+  - [x] health of each car
   - [x] allow game to be reset
-- [ ] add a library to manage mass-spring-damper (MSD) frame
+  - [ ] manage game cycling transition
+  - [ ] add a sudden death circle of death
+- [x] add a library to manage mass-spring-damper (MSD) frame
   - [x] add a way to assign signed distance fields to nodes (search Inigo Quilez)
   - [x] add a rolling-friction model assignable to nodes (for tires)
-  - [ ] allow arbitrary external forces for the particles
+  - [x] allow arbitrary external forces for the particles
   - [x] synchronize MSD frame position-direction with cart armature
   - [x] create MSD-frames for both vehicles
 - [ ] add a GUI (either CSS or Shader)
-  - [ ] show health bars above (fighter game-like)
-  - [ ] allow printing text to screen
-    - [ ] show timer in between health bars
+  - [x] show health bars above (fighter game-like)
+  - [x] allow printing text to screen
+    - [x] show timer in between health bars
     - [ ] show WIN toast at the end
+  - [ ] tracking score
 - [ ] prettify game
   - [ ] find nice meshes
     - [x] arena floor
@@ -56,11 +59,12 @@ A tentative and non-exhaustive TODO list
     - [ ] stadium light pole (optional)
   - [ ] add texturing
     - [x] arena floor
-    - [ ] arena walls
+    - [x] arena walls
     - [ ] wheels
-    - [ ] arm-links
-    - [ ] body
-    - [ ] saw
+      - [ ] add texture (optional currently you can barely see they spin)
+    - [x] arm-links
+    - [x] body
+    - [x] saw
     - [ ] stadium light pole (optional)
   - [ ] add nice shaders
     - [x] skybox
@@ -68,6 +72,10 @@ A tentative and non-exhaustive TODO list
     - [x] specular mapping
     - [ ] orbiting particles (single vertex)
     - [ ] aura like field (for mass power up)
+  - [ ] add sound
+    - [ ] engine sound
+    - [ ] collision sound
+    - [ ] music?
 
 Proposals for implementation
 - particle orbit cloud collision detection
