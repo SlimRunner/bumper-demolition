@@ -528,6 +528,7 @@ export class BumperCars extends BumperCarsBase {
         );
         this.gameMatch.setPowerup(target, p.metadata as PowerUpKind);
         if ((p.metadata as PowerUpKind) === "orbit") {
+          this.physics.cartMSD.updateCarOrbits(0, true);
           this.physics.cartMSD.setOrbitStatus(target);
         } else if ((p.metadata as PowerUpKind) === "heavy") {
           this.physics.cartMSD.makeHeavy(target);

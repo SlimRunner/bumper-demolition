@@ -607,14 +607,14 @@ export class CartFrame {
     };
   }
 
-  updateCarOrbits(timeDelta: number) {
+  updateCarOrbits(timeDelta: number, forceUpdate: boolean = false) {
     this._orbitTimer += timeDelta;
     const sh = this.initial.carNodeCount;
     const centerA = this.getAverage([0, 3 + 1]);
     const centerB = this.getAverage([0 + sh, 3 + sh + 1]);
     for (const [i, p] of enumerate(this.msdSystem.getGroup("orbit"))) {
       let center = p.group.has("CarA") ? centerA : centerB;
-      if (p.disabled) continue;
+      if (p.disabled && !forceUpdate) continue;
       const [w, phi, rd, h] = this.orbitRandom[i];
       const theta = w * this._orbitTimer + phi;
       p.location[0] = center[0] + Math.cos(theta) * rd;
