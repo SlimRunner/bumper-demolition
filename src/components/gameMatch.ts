@@ -77,6 +77,7 @@ export class MatchManager {
         count: 1,
       },
     ];
+    this.activeBoxes = 0;
   }
 
   private get playerA() {
