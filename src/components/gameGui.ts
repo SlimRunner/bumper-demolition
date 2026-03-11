@@ -1,6 +1,6 @@
-type PowerUpState = "heavy" | "orbit" | "none";
+import type { CarName as CarName, MatchGui, PowerUpState } from "./types";
 
-export class GameGUI {
+export class GameGUI implements MatchGui {
   private static styleInstalled = false;
 
   private readonly host: HTMLElement;
@@ -127,14 +127,29 @@ export class GameGUI {
     return this.elapsedSeconds;
   }
 
-  updateHealth(carA: number, carB: number): void {
-    const a = this.clampPercent(carA);
-    const b = this.clampPercent(carB);
+  updateHealth(car: CarName, value: number): void {
+    value = this.clampPercent(value);
+    switch (car) {
+      case "carA":
+        this.healthBarA.style.width = `${value}%`;
+        this.healthTextA.textContent = `HP: ${Math.round(value)}`;
+        break;
+      case "carB":
+        this.healthBarB.style.width = `${value}%`;
+        this.healthTextB.textContent = `HP: ${Math.round(value)}`;
+        break;
+    }
+  }
 
-    this.healthBarA.style.width = `${a}%`;
-    this.healthBarB.style.width = `${b}%`;
-    this.healthTextA.textContent = `HP: ${Math.round(a)}`;
-    this.healthTextB.textContent = `HP: ${Math.round(b)}`;
+  setPowerUp(car: CarName, value: PowerUpState): void {
+    switch (car) {
+      case "carA":
+        this.applyPowerupState(this.powerupA, this.powerupLabelA, value);
+        break;
+      case "carB":
+        this.applyPowerupState(this.powerupB, this.powerupLabelB, value);
+        break;
+    }
   }
 
   updateTimer(timeDelta: number): void {
@@ -158,26 +173,31 @@ export class GameGUI {
   resetState(): void {
     this.elapsedSeconds = 0;
     this.timerValue.textContent = this.formatClock(0);
-    this.updateHealth(100, 100);
-    this.setPowerUp("none", "none");
+    this.updateHealth("carA", 100);
+    this.updateHealth("carB", 100);
+    this.setPowerUp("carA", "none");
+    this.setPowerUp("carB", "none");
     this.hideMessage();
   }
 
-  setPowerUp(carA: PowerUpState, carB: PowerUpState): void {
-    this.applyPowerupState(this.powerupA, this.powerupLabelA, carA);
-    this.applyPowerupState(this.powerupB, this.powerupLabelB, carB);
-  }
-
-  private applyPowerupState(icon: HTMLImageElement, label: HTMLSpanElement, powerup: PowerUpState): void {
+  private applyPowerupState(
+    icon: HTMLImageElement,
+    label: HTMLSpanElement,
+    powerup: PowerUpState,
+  ): void {
     icon.src = `./assets/images/${this.getPowerupIconName(powerup)}.png`;
-    label.textContent = powerup !== "none" ? this.getPowerupDisplayName(powerup) : "";
+    label.textContent =
+      powerup !== "none" ? this.getPowerupDisplayName(powerup) : "";
   }
 
   private getPowerupDisplayName(powerup: PowerUpState): string {
     switch (powerup) {
-      case "heavy": return "Heavy";
-      case "orbit": return "Orbit";
-      default: return "None";
+      case "heavy":
+        return "Heavy";
+      case "orbit":
+        return "Orbit";
+      default:
+        return "None";
     }
   }
 
@@ -191,7 +211,9 @@ export class GameGUI {
 
   private buildHealthBar(fill: HTMLDivElement, mirror = false): HTMLDivElement {
     const track = document.createElement("div");
-    track.className = mirror ? "health-track health-track-mirror" : "health-track";
+    track.className = mirror
+      ? "health-track health-track-mirror"
+      : "health-track";
     track.appendChild(fill);
     return track;
   }
