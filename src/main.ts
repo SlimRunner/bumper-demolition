@@ -430,7 +430,7 @@ export class BumperCarsBase extends tiny.Component {
       0,
     );
     this.uniforms.lights = [
-      defs.Phong_Shader.light_source(light_dir, sunColor, 220),
+      defs.Phong_Shader.light_source(light_dir, sunColor, 280),
     ];
     for (const [x, z] of [
       [-1, -1],
@@ -442,7 +442,7 @@ export class BumperCarsBase extends tiny.Component {
         defs.Phong_Shader.light_source(
           math.vec4(x * 15, 10, z * 15, 1),
           math.color(1, 1, 1, 1),
-          370 * (1 - sunLuminance),
+          440 * (1 - sunLuminance),
         ),
       );
     }
