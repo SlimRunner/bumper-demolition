@@ -780,14 +780,11 @@ export class BumperCars extends BumperCarsBase {
     this.key_triggered_button("normal speed", ["v"], () => {
       this.globalProps.timeMultiplier = 1;
     });
-    this.key_triggered_button("2x slow-mo", ["b"], () => {
-      this.globalProps.timeMultiplier = 1 / 2;
-    });
     this.new_line();
-    this.key_triggered_button("10x slow-mo", ["n"], () => {
+    this.key_triggered_button("10x slow-mo", ["b"], () => {
       this.globalProps.timeMultiplier = 1 / 10;
     });
-    this.key_triggered_button("100x slow-mo", ["m"], () => {
+    this.key_triggered_button("100x slow-mo", ["n"], () => {
       this.globalProps.timeMultiplier = 1 / 100;
     });
     this.new_line();
