@@ -635,6 +635,7 @@ export class BumperCars extends BumperCarsBase {
       shape.draw(context, this.uniforms, this.transforms.identity, {
         ...material,
         ambient_color: this.colors.sumAmbient,
+        smoothness: 20,
       });
     });
     this.drawables.arenaWalls.draw(
