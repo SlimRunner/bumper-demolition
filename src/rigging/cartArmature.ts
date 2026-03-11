@@ -70,6 +70,7 @@ export class CartArmature {
       thrust: {
         target: 0,
         force: 0,
+        max: 120,
       },
     },
     spinRR: 0,
@@ -286,6 +287,14 @@ export class CartArmature {
     };
   }
 
+  set maxThrust(thrust: number) {
+    this._props.control.thrust.max = thrust;
+  }
+
+  get maxThrust() {
+    return this._props.control.thrust.max;
+  }
+
   resetState() {
     this._props = {
       armBlade: {
@@ -306,6 +315,7 @@ export class CartArmature {
         thrust: {
           target: 0,
           force: 0,
+          max: 120,
         },
       },
       spinRR: 0,
@@ -368,7 +378,7 @@ export class CartArmature {
 
       this.arcs.sawArmJoint1.setAngle(
         "rz",
-        lerp(armJointInitAngle1, -Math.PI * 0.9, t),
+        lerp(armJointInitAngle1, -Math.PI * 0.95, t),
       );
       this.arcs.sawArmJoint2.setAngle(
         "rz",
@@ -381,7 +391,7 @@ export class CartArmature {
     if (anim.enabled) {
       anim.bladeAngle =
         (anim.bladeAngle + anim.bladeAngSpeed * timeDelta) % PI2;
-      this.arcs.sawHub.setAngle("rz", -anim.bladeAngle);
+      this.arcs.sawHub.setAngle("rz", anim.bladeAngle);
     }
   }
 

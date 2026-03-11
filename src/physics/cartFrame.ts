@@ -11,17 +11,25 @@ import {
 import {
   affineTransform,
   basisChange,
+  getSpawnPoint,
   PlaneChoice,
   rotateAboutAxis,
   Vector2,
 } from "../utils/math";
-import { ArenaField, CartField, PlaneField } from "./contactFields";
+import {
+  ArenaField,
+  CartField,
+  ContactField,
+  PlaneField,
+} from "./contactFields";
 import {
   curryDyn,
+  FunctorSDF,
   sdOrientedCapsule2D,
   sdOrientedRect,
 } from "../linearAlgebra/sdfs";
 import { enumerate, range } from "../utils/iterators";
+import type { CarName, PowerUpKind } from "../components/types";
 
 export class CartFrame {
   msdSystem: SpringDamperSystem;
@@ -31,6 +39,7 @@ export class CartFrame {
   private initial: {
     locations: math.Vector3[];
     carNodeCount: number;
+    uniformMass: number;
   };
   private readonly dimensions: {
     frameWidth: number;
@@ -39,8 +48,32 @@ export class CartFrame {
   nodeRanges: {
     CarA: [number, number];
     CarB: [number, number];
+    orbitA: [number, number];
+    orbitB: [number, number];
+    powerUps: [number, number];
+    blades: [number, number];
+    // sparksA: [number, number]; // if we have time
+    // sparksB: [number, number]; // if we have time
+  };
+  SDFields: {
+    ground: ContactField;
+    arena: ContactField;
+    carA: ContactField;
+    carB: ContactField;
   };
   private orbitRandom: Array<[number, number, number, number]>;
+  private _orbitTimer: number = 0;
+
+  // accumulated contact force magnitudes.  When the integrator advances a
+  // timestep we will multiply by dt to convert to impulse and optionally
+  // fire a callback.  Values are reset every time the public step method
+  // is called.
+  collisionImpulse: { CarA: number; CarB: number } = { CarA: 0, CarB: 0 };
+
+  // optional client notification.  invoked after each physics substep with
+  // the impulse accrued by the named car during the step.  impulse has
+  // units kg·m/s (force * dt).
+  onCollision?: (player: CarName, impulse: number) => void;
 
   constructor(props: {
     dimensions: {
@@ -66,6 +99,7 @@ export class CartFrame {
     this.initial = {
       locations: [],
       carNodeCount: 0,
+      uniformMass: 0,
     };
 
     const y_disp = 0.1;
@@ -120,6 +154,7 @@ export class CartFrame {
 
     const targetMass = 36;
     const uniformMass = targetMass / carNodeCount;
+    this.initial.uniformMass = uniformMass;
 
     particles.container = pArr.map(([x, y, z, tags]) => {
       const p = new MSDParticle({
@@ -178,11 +213,13 @@ export class CartFrame {
       math.vec3(0, -9.8, 0),
     );
 
+    const orbitCount = 25;
+
     // initialize orbit particles and its randomizers
     this.orbitRandom = [];
-    for (const i of range(25)) {
+    for (const i of range(orbitCount)) {
       const p = new MSDParticle({
-        location: math.vec3(0, 0, 0),
+        location: math.vec3(0, -1, 0),
       });
       p.tags.add("free");
       p.disabled = true;
@@ -196,9 +233,9 @@ export class CartFrame {
         Math.random(),
       ]);
     }
-    for (const i of range(25)) {
+    for (const i of range(orbitCount)) {
       const p = new MSDParticle({
-        location: math.vec3(0, 0, 0),
+        location: math.vec3(0, -1, 0),
       });
       p.tags.add("free");
       p.disabled = true;
@@ -220,6 +257,30 @@ export class CartFrame {
       h *= dimensions.frameHeight;
       return [w, phi, rd, h];
     });
+
+    const boxCount = 2;
+    for (const i of range(boxCount)) {
+      const p = new MSDParticle({
+        location: math.vec3(0, 0, 0),
+      });
+      p.tags.add("free");
+      p.disabled = true;
+      particles.container.push(p);
+      this.msdSystem.addParticleToGroup(p, "CarB");
+      this.msdSystem.addParticleToGroup(p, "CarA");
+      this.msdSystem.addParticleToGroup(p, "powerup");
+    }
+
+    for (const name of ["CarA", "CarB"]) {
+      const p = new MSDParticle({
+        location: math.vec3(0, 0, 0),
+      });
+      p.tags.add("free");
+      p.disabled = false;
+      particles.container.push(p);
+      this.msdSystem.addParticleToGroup(p, name);
+      this.msdSystem.addParticleToGroup(p, "sawblade");
+    }
 
     // add particles to their appropriate groups
     for (const i of range(carNodeCount)) {
@@ -264,28 +325,8 @@ export class CartFrame {
     // pushes the "contact fields" which are the colliders in the game,
     // and allows them to manage an internal signed distance function
     // and it's derivative. Trust me... this could have been way uglier.
-    this.msdSystem.contactFields.push(
-      new PlaneField(new Set(["grounded"]), math.vec3(0, 1, 0), {
-        stiffness: 15000,
-        damping: 10,
-        traction: {
-          coeff: 1.8,
-          stiffness: {
-            cornering: 120,
-            longitudinal: 10,
-          },
-        },
-        // friction: {
-        //   kinetic: 0.9,
-        //   static: 1,
-        //   threshold: 1e-3,
-        // },
-        restitution: {
-          coefficient: 0.2,
-        },
-        height: 0,
-      }),
-      new ArenaField(
+    this.SDFields = {
+      arena: new ArenaField(
         new Set(["arenaBound"]),
         {
           bounds: [math.vec3(0, 0, -22.5), math.vec3(0, 0, 22.5)],
@@ -300,7 +341,7 @@ export class CartFrame {
           },
         },
       ),
-      new CartField(
+      carA: new CartField(
         new Set(["CarB"]), // affects CarB but follows CarA
         curryDyn(sdOrientedRect, () => {
           // this line is implicitly getting orientation of CarA
@@ -324,7 +365,7 @@ export class CartFrame {
           },
         },
       ),
-      new CartField(
+      carB: new CartField(
         new Set(["CarA"]), // affects CarA but follows CarB
         curryDyn(sdOrientedRect, () => {
           // this line is getting orientation of CarB (hence the shift
@@ -349,7 +390,49 @@ export class CartFrame {
           },
         },
       ),
+      ground: new PlaneField(new Set(["grounded"]), math.vec3(0, 1, 0), {
+        stiffness: 15000,
+        damping: 10,
+        // NOTE: particles themselves should have these parameters not
+        // the ground. But not enough time to make the change at this
+        // point.
+        traction: {
+          coeff: 2.8,
+          stiffness: {
+            cornering: 120,
+            longitudinal: 10,
+          },
+        },
+        // friction: {
+        //   kinetic: 0.9,
+        //   static: 1,
+        //   threshold: 1e-3,
+        // },
+        restitution: {
+          coefficient: 0.2,
+        },
+        height: 0,
+      }),
+    };
+
+    this.msdSystem.contactFields.push(
+      this.SDFields.arena,
+      this.SDFields.carA,
+      this.SDFields.carB,
+      this.SDFields.ground,
     );
+
+    // The callback is executed for each particle/field pair that
+    // produces a non‑zero normal force.
+    this.msdSystem.collisionCB = (p, field, forceMag) => {
+      if (field === this.SDFields.carA) {
+        // a particle belonging to carB is being pushed by carA's
+        // collision shape;
+        this.collisionImpulse.CarA += Math.abs(forceMag);
+      } else if (field === this.SDFields.carB) {
+        this.collisionImpulse.CarB += Math.abs(forceMag);
+      }
+    };
 
     // this was the best performing one
     this.integrator = new SymplecticEuler();
@@ -357,9 +440,21 @@ export class CartFrame {
     // this saves the state for resetting purposes
     this.initial.locations = particles.container.map((p) => p.location.copy());
     this.initial.carNodeCount = carNodeCount;
+    const sep1 = 0;
+    const sep2 = carNodeCount;
+    const sep3 = sep2 + carNodeCount;
+    const sep4 = sep3 + orbitCount;
+    const sep5 = sep4 + orbitCount;
+    const sep6 = sep5 + boxCount;
+    const sep7 = sep6 + 2;
+    // ranges are [inclusive, exclusive]
     this.nodeRanges = {
-      CarA: [0, carNodeCount - 1],
-      CarB: [carNodeCount, carNodeCount * 2 - 1],
+      CarA: [sep1, sep2],
+      CarB: [sep2, sep3],
+      orbitA: [sep3, sep4],
+      orbitB: [sep4, sep5],
+      powerUps: [sep5, sep6],
+      blades: [sep6, sep7],
     };
 
     this.updateTireVectors(0, 0, 0, 0);
@@ -367,10 +462,114 @@ export class CartFrame {
 
   resetState() {
     const pcs = this.msdSystem.particles.container;
-    const pCount = pcs.length;
-    for (let i = 0; i < pCount; ++i) {
+    this._orbitTimer = 0;
+    for (const i of range(...this.nodeRanges.CarA)) {
       pcs[i].location = this.initial.locations[i].copy();
       pcs[i].velocity = math.vec3(0, 0, 0);
+      pcs[i].metadata = undefined;
+      pcs[i].mass = this.initial.uniformMass;
+    }
+    for (const i of range(...this.nodeRanges.CarB)) {
+      pcs[i].location = this.initial.locations[i].copy();
+      pcs[i].velocity = math.vec3(0, 0, 0);
+      pcs[i].metadata = undefined;
+      pcs[i].mass = this.initial.uniformMass;
+    }
+    for (const i of range(...this.nodeRanges.orbitA)) {
+      pcs[i].location = math.vec3(0, -1, 0);
+      pcs[i].disabled = true;
+      pcs[i].metadata = undefined;
+    }
+    for (const i of range(...this.nodeRanges.orbitB)) {
+      pcs[i].location = math.vec3(0, -1, 0);
+      pcs[i].disabled = true;
+      pcs[i].metadata = undefined;
+    }
+    for (const i of range(...this.nodeRanges.powerUps)) {
+      pcs[i].location = math.vec3(0, -1, 0);
+      pcs[i].disabled = true;
+      pcs[i].metadata = undefined;
+    }
+  }
+
+  setOrbitStatus(player: CarName, disabled = false) {
+    const pts = this.msdSystem.particles.container;
+    switch (player) {
+      case "carA":
+        for (const i of range(...this.nodeRanges.orbitA)) {
+          pts[i].disabled = disabled;
+        }
+        break;
+      case "carB":
+        for (const i of range(...this.nodeRanges.orbitB)) {
+          pts[i].disabled = disabled;
+        }
+        break;
+    }
+  }
+
+  private changeMass(player: CarName, mass: number) {
+    const pts = this.msdSystem.particles.container;
+    switch (player) {
+      case "carA":
+        for (const i of range(...this.nodeRanges.orbitA)) {
+          pts[i].mass = mass;
+        }
+        break;
+      case "carB":
+        for (const i of range(...this.nodeRanges.orbitB)) {
+          pts[i].mass = mass;
+        }
+        break;
+    }
+  }
+
+  makeHeavy(player: CarName) {
+    this.changeMass(player, this.initial.uniformMass * 2);
+  }
+
+  makeLight(player: CarName) {
+    this.changeMass(player, this.initial.uniformMass);
+  }
+
+  spawnPowerup(power: PowerUpKind, location?: math.Vector3) {
+    location ??= getSpawnPoint(
+      this.SDFields.arena.sdfFunc,
+      this.SDFields.carA.sdfFunc,
+      this.SDFields.carB.sdfFunc,
+      {
+        x: { min: -15, max: 15 },
+        y: { min: 1, max: 1 },
+        z: { min: -22.5, max: 22.5 },
+      },
+      1,
+    );
+    for (const i of range(...this.nodeRanges.powerUps)) {
+      const p = this.msdSystem.particles.container[i];
+      if (p.disabled) {
+        p.disabled = false;
+        p.location = location;
+        p.metadata = power;
+        break;
+      }
+    }
+  }
+
+  setBlade(player: CarName, x: number, y: number, z: number) {
+    const pc = this.msdSystem.particles.container;
+    const iA = this.nodeRanges.blades[0];
+    const iB = iA + 1;
+    switch (player) {
+      case "carA":
+        pc[iA].location[0] = x;
+        pc[iA].location[1] = y;
+        pc[iA].location[2] = z;
+        break;
+      case "carB":
+        pc[iB].location[0] = x;
+        pc[iB].location[1] = y;
+        pc[iB].location[2] = z;
+        break;
     }
   }
 
@@ -466,18 +665,79 @@ export class CartFrame {
     };
   }
 
-  updateCarOrbits(time: number) {
+  updateCarOrbits(timeDelta: number, forceUpdate: boolean = false) {
+    this._orbitTimer += timeDelta;
     const sh = this.initial.carNodeCount;
     const centerA = this.getAverage([0, 3 + 1]);
     const centerB = this.getAverage([0 + sh, 3 + sh + 1]);
     for (const [i, p] of enumerate(this.msdSystem.getGroup("orbit"))) {
       let center = p.group.has("CarA") ? centerA : centerB;
-      if (p.disabled) continue;
+      if (p.disabled && !forceUpdate) continue;
       const [w, phi, rd, h] = this.orbitRandom[i];
-      const theta = w * time + phi;
+      const theta = w * this._orbitTimer + phi;
       p.location[0] = center[0] + Math.cos(theta) * rd;
       p.location[2] = center[2] + Math.sin(theta) * rd;
       p.location[1] = center[1] + h;
+    }
+  }
+
+  traverseOrbits(callback: (p: MSDParticle, owner: CarName) => void) {
+    for (const i of range(...this.nodeRanges.orbitA)) {
+      const p = this.msdSystem.particles.container[i];
+      if (p.disabled) continue;
+      callback(p, "carA");
+    }
+    for (const i of range(...this.nodeRanges.orbitB)) {
+      const p = this.msdSystem.particles.container[i];
+      if (p.disabled) continue;
+      callback(p, "carB");
+    }
+  }
+
+  traverseBoxes(callback: (p: MSDParticle, power: PowerUpKind | null) => void) {
+    for (const i of range(...this.nodeRanges.powerUps)) {
+      const p = this.msdSystem.particles.container[i];
+      if (p.disabled) continue;
+      let power: PowerUpKind | null;
+      switch (p.metadata) {
+        case "orbit":
+          power = p.metadata;
+          break;
+        case "heavy":
+          power = p.metadata;
+          break;
+        default:
+          power = null;
+          break;
+      }
+      callback(p, power);
+    }
+  }
+
+  
+  /**
+   * Advance the physics state by a single timestep and notify the
+   * `onCollision` listener with impulses incurred during the step.
+   *
+   * The caller previously had to drive the integrator directly; this helper
+   * makes it easier to reset the accumulator and package the force‑*‑time
+   * product in one place.  `dt` should be the same value passed to
+   * `integrator.step`.
+   */
+  step(dt: number) {
+    // clear the previous frame's tally
+    this.collisionImpulse.CarA = 0;
+    this.collisionImpulse.CarB = 0;
+
+    this.integrator.step(this.msdSystem, dt);
+
+    if (this.onCollision) {
+      if (this.collisionImpulse.CarA) {
+        this.onCollision("carA", this.collisionImpulse.CarA * dt);
+      }
+      if (this.collisionImpulse.CarB) {
+        this.onCollision("carB", this.collisionImpulse.CarB * dt);
+      }
     }
   }
 

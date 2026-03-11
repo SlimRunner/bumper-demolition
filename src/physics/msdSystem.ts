@@ -52,6 +52,7 @@ export class MSDParticle {
   tireForward?: math.Vector3;
   tireThrust?: number;
   disabled: boolean = false;
+  metadata?: unknown;
 
   tags: Set<ParticleTags>;
   group: Set<string>;
@@ -114,7 +115,18 @@ export class SpringDamperSystem {
   contactFields: ContactField[];
 
   particleGroups: Map<string, Set<MSDParticle>>;
-  trespassCB: (p: MSDParticle) => void = () => {};
+  trespassCB: (p: MSDParticle, f: ContactField) => void = () => {};
+
+  // invoked every time a non-free particle is pushed by a contact
+  // field. the third argument is the magnitude of the normal force that
+  // was computed for that particle / contact pair.  (positive =
+  // compressive) callers can integrate this over time to derive an
+  // impulse or use it directly for instantaneous effects.
+  collisionCB?: (
+    p: MSDParticle,
+    f: ContactField,
+    forceMag: number,
+  ) => void;
 
   cache: {
     // this pattern makes size and accesses static (i.e. you cannot use
@@ -257,7 +269,7 @@ export class SpringDamperSystem {
       if (isFree) {
         for (const field of this.contactFields) {
           if (field.affects(p) && field.sdf(p.location) < 0) {
-            this.trespassCB(p);
+            this.trespassCB(p, field);
           }
         }
         continue;
@@ -288,6 +300,11 @@ export class SpringDamperSystem {
         const normSpeed = p.velocity.dot(normal);
         const msdForceMag = -field.stiffness * dist - field.damping * normSpeed;
 
+        // notify interested parties before the force is added so the
+        // callback can record whatever it wants (impulse = force * dt is
+        // computed by the caller, which knows the timestep).
+        if (this.collisionCB) this.collisionCB(p, field, msdForceMag);
+
         p.force[0] += normal[0] * msdForceMag;
         p.force[1] += normal[1] * msdForceMag;
         p.force[2] += normal[2] * msdForceMag;
@@ -297,12 +314,6 @@ export class SpringDamperSystem {
           const forward = this.cache.tempVec[1];
           const forwardProj = this.cache.tempVec[2];
           const lateral = this.cache.tempVec[3];
-
-          // NOTE: these are too many checks, but I don't really want to
-          // mess with this at the moment. It needs fixing. Why does it
-          // have to be ground? Why does the field have to define the
-          // traction? Feels like it should be the particle, but then
-          // that is yet more data per particle.
 
           // slip angle friction
 

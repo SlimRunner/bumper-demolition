@@ -3,7 +3,7 @@
 
 newmtl asphalt
 Ns 40
-Ka 0.0 0.0 0.0
+Ka 0.2 0.2 0.2
 Kd 1.0 1.0 1.0
 Ks 0.5 0.5 0.5
 d 1

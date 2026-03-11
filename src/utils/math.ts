@@ -1,3 +1,4 @@
+import { FunctorSDF } from "../linearAlgebra/sdfs";
 import { math } from "../../tiny-graphics-math";
 
 export type tuple4 = [number, number, number];
@@ -26,6 +27,33 @@ export function smoothstep(t: number) {
   const t2 = t * t;
   const t3 = t2 * t;
   return 3 * t2 - 2 * t3;
+}
+
+export function getSpawnPoint(
+  fieldSDF: FunctorSDF<math.Vector3, number>,
+  carA_SDF: FunctorSDF<math.Vector3, number>,
+  carB_SDF: FunctorSDF<math.Vector3, number>,
+  bounds: {
+    x: { min: number; max: number };
+    y: { min: number; max: number };
+    z: { min: number; max: number };
+  },
+  probeRadius: number,
+  maxAttempts: number = 1000,
+) {
+  const probe: math.Vector3 = math.vec3(0, 0, 0);
+  for (let i = 0; i < maxAttempts; ++i) {
+    probe[0] = Math.random() * (bounds.x.max - bounds.x.min) + bounds.x.min;
+    probe[1] = Math.random() * (bounds.y.max - bounds.y.min) + bounds.y.min;
+    probe[2] = Math.random() * (bounds.z.max - bounds.z.min) + bounds.z.min;
+    if (fieldSDF(probe) < probeRadius) continue;
+    if (carA_SDF(probe) < probeRadius) continue;
+    if (carB_SDF(probe) < probeRadius) continue;
+    return probe;
+  }
+  
+  console.warn(`all ${maxAttempts} attempts to find spawn point failed`);
+  return probe;
 }
 
 export function transposeMatrix<T>(src: T[][]) {
