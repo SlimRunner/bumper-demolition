@@ -50,6 +50,7 @@ export class BumperCarsBase extends tiny.Component {
   transforms: {
     readonly identity: math.Mat4;
     readonly powerupBox: math.Mat4;
+    readonly background: math.Mat4;
   };
   materials: {
     uvSimple: {
@@ -88,6 +89,7 @@ export class BumperCarsBase extends tiny.Component {
     saw_arm2: ShapeCollection;
     arenaWalls: ShapeCollection;
     arenaFloor: ShapeCollection;
+    grassMound: ShapeCollection;
   };
 
   gameView: {
@@ -131,6 +133,9 @@ export class BumperCarsBase extends tiny.Component {
         .times(
           math.Mat4.scale(1 / Math.sqrt(3), 1 / Math.sqrt(3), 1 / Math.sqrt(3)),
         ),
+      background: math.Mat4.translation(0, -5, 0).times(
+        math.Mat4.scale(100, 20, 100),
+      ),
     };
 
     const uvShader = new UVShader();
@@ -212,6 +217,14 @@ export class BumperCarsBase extends tiny.Component {
       {
         preTransform: math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
         uvScaling: math.Vector.create(1, 1.2),
+        lightCount: this.lightCount,
+      },
+    );
+    const grassMound = new FileMesh(
+      "../assets/meshes/grass-mound.obj",
+      {
+        preTransform: math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
+        uvScaling: math.Vector.create(25, 25),
         lightCount: this.lightCount,
       },
     );
@@ -336,6 +349,7 @@ export class BumperCarsBase extends tiny.Component {
       saw_arm2: saw_arm2_mesh,
       arenaFloor,
       arenaWalls,
+      grassMound,
     };
     this.physics = {
       cartMSD,
@@ -621,6 +635,18 @@ export class BumperCars extends BumperCarsBase {
       this.materials.skybox,
     );
     GL.enable(GL.DEPTH_TEST);
+
+    this.drawables.grassMound.foreach((shape, material, name) => {
+      shape.draw(context, this.uniforms, this.transforms.background, {
+        ...material,
+        ambient_color: this.colors.sumAmbient,
+        smoothness: 10,
+        ambient: 0.7,
+        specularity: 0.2,
+        bumpiness: 1.2,
+        diffusivity: 0.8,
+      });
+    })
 
     this.drawables.arenaFloor.foreach((shape, material, name) => {
       shape.draw(context, this.uniforms, this.transforms.identity, {
