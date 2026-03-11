@@ -85,22 +85,20 @@ export class MatchManager {
     this.activeBoxes = 0;
   }
 
-  private get playerA() {
-    return this._players.get("carA")!;
-  }
-
-  private get playerB() {
-    return this._players.get("carA")!;
-  }
-
   linkGUI(gui: MatchGui) {
     this._gui = gui;
 
-    this._gui.updateHealth("carA", this.playerA.health);
-    this._gui.setPowerUp("carA", this.playerA.powerup?.kind ?? "none");
+    this._gui.updateHealth("carA", this._players.get("carA")!.health);
+    this._gui.setPowerUp(
+      "carA",
+      this._players.get("carA")?.powerup?.kind ?? "none",
+    );
 
-    this._gui.updateHealth("carB", this.playerB.health);
-    this._gui.setPowerUp("carB", this.playerB.powerup?.kind ?? "none");
+    this._gui.updateHealth("carB", this._players.get("carB")!.health);
+    this._gui.setPowerUp(
+      "carB",
+      this._players.get("carB")?.powerup?.kind ?? "none",
+    );
   }
 
   getHealth(player: CarName) {
