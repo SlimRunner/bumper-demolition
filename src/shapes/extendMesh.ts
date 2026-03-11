@@ -72,3 +72,10 @@ export function computeTangents(shape: tiny.Shape): void {
   shape.arrays.tangent = tangents;
   shape.arrays.bitangent = bitangents;
 }
+
+export function remapUVs(shape: tiny.Shape, uScale: number, vScale: number) {
+  for (const uv of shape.arrays.texture_coord!) {
+    uv[0] *= uScale;
+    uv[1] *= vScale;
+  }
+}
