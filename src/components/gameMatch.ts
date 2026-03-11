@@ -11,26 +11,31 @@ export type PlayerMetadata = {
   powerup?: PowerupMetadata;
 };
 
-export type MatchEvent = (
-  event:
-    | {
-        event: "suddentDeath";
-      }
-    | {
-        event: "gameOver";
-        loser: CarName;
-      }
-    | {
-        event: "powerSpawn";
-        kind: PowerUpKind;
-        count: number;
-      }
-    | {
-        event: "powerExpires";
-        player: CarName;
-        kind: PowerUpKind;
-      },
-) => void;
+export type MatchEventArgs =
+  | {
+      event: "suddentDeath";
+    }
+  | {
+      event: "gameOver";
+      loser: CarName;
+    }
+  | {
+      event: "powerSpawn";
+      kind: PowerUpKind;
+      count: number;
+    }
+  | {
+      event: "powerExpires";
+      player: CarName;
+      kind: PowerUpKind;
+    }
+  | {
+      event: "powerDepletes";
+      player: CarName;
+      kind: PowerUpKind;
+    };
+
+export type MatchEvent = (event: MatchEventArgs) => void;
 
 // in seconds
 const PowerupDurations: Record<PowerUpKind, number> = {
