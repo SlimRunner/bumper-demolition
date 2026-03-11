@@ -458,19 +458,6 @@ export class BumperCarsBase extends tiny.Component {
 }
 
 export class BumperCars extends BumperCarsBase {
-  private guiHealth = {
-    carA: 100,
-    carB: 100,
-  };
-
-  private guiPower: {
-    carA: "heavy" | "orbit" | "none";
-    carB: "heavy" | "orbit" | "none";
-  } = {
-    carA: "none",
-    carB: "none",
-  };
-
   gameMatch: MatchManager;
 
   constructor() {
