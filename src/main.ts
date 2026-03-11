@@ -624,14 +624,16 @@ export class BumperCars extends BumperCarsBase {
         ...material,
         ambient_color: this.colors.sumAmbient,
         smoothness: 20,
+        ambient: 0.4,
       });
     });
-    this.drawables.arenaWalls.draw(
-      context,
-      this.uniforms,
-      this.transforms.identity,
-      this.materials.uvSimple,
-    );
+    this.drawables.arenaWalls.foreach((shape, material, name) => {
+      shape.draw(context, this.uniforms, this.transforms.identity, {
+        ...material,
+        ambient_color: this.colors.sumAmbient,
+        ambient: 0.4,
+      });
+    });
 
     const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
     const carAPos = math.vec3(mtxCarA[0][3], mtxCarA[1][3], mtxCarA[2][3]);
