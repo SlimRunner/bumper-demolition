@@ -375,11 +375,11 @@ export class CartArmature {
 
       this.arcs.sawArmJoint1.setAngle(
         "rz",
-        lerp(armJointInitAngle1, -Math.PI * 0.95, t),
+        lerp(armJointInitAngle1, -Math.PI * 0.99, t),
       );
       this.arcs.sawArmJoint2.setAngle(
         "rz",
-        lerp(armJointInitAngle2, Math.PI * 0.6, t),
+        lerp(armJointInitAngle2, Math.PI * 0.7, t),
       );
       if (anim.timing > 5) {
         anim.swinging = false;
