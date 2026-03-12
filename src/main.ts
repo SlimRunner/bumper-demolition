@@ -20,6 +20,7 @@ import {
   calculateSunPosition,
   getAverageSkyColor,
   getGrayscale,
+  getHorizonColor,
   getSunColor,
 } from "./shaders/skyboxUtils";
 import { DrawableShape, ShapeCollection } from "./shapes/types";
@@ -45,7 +46,9 @@ export class BumperCarsBase extends tiny.Component {
     readonly white: math.Vector4;
     readonly heavyBox: math.Vector4;
     readonly orbitBox: math.Vector4;
-    sumAmbient: math.Vector4;
+    sunAmbient: math.Vector4;
+    sunColor: math.Vector4;
+    skyHorizon: math.Vector4;
   };
   transforms: {
     readonly identity: math.Mat4;
@@ -109,7 +112,7 @@ export class BumperCarsBase extends tiny.Component {
 
   gui?: GameGUI;
 
-  readonly lightCount = 5;
+  readonly lightCount = 6;
 
   constructor() {
     super();
@@ -121,7 +124,9 @@ export class BumperCarsBase extends tiny.Component {
       softBlue: math.color(0.176, 0.439, 0.702, 1),
       yellow: math.color(1, 1, 0, 1),
       white: math.color(1, 1, 1, 1),
-      sumAmbient: math.color(0, 0, 0, 0),
+      sunAmbient: math.color(0, 0, 0, 0),
+      sunColor: math.color(1, 1, 1, 0),
+      skyHorizon: math.color(0, 0, 0, 0),
       heavyBox: math.color(1, 1, 0, 0.4),
       orbitBox: math.color(1, 0, 1, 0.4),
     };
@@ -133,8 +138,8 @@ export class BumperCarsBase extends tiny.Component {
         .times(
           math.Mat4.scale(1 / Math.sqrt(3), 1 / Math.sqrt(3), 1 / Math.sqrt(3)),
         ),
-      background: math.Mat4.translation(0, -5, 0).times(
-        math.Mat4.scale(100, 20, 100),
+      background: math.Mat4.translation(0, -2, 0).times(
+        math.Mat4.scale(300, 40, 300),
       ),
     };
 
@@ -172,8 +177,11 @@ export class BumperCarsBase extends tiny.Component {
       [0, 2],
       [0, 1],
     ]);
-    const tireMesh = new FileMesh("../assets/meshes/TireMesh_1.obj", {
-      preTransform: math.Mat4.scale(3.49, 3.49, 3.49),
+    const tireMesh = new FileMesh("../assets/meshes/wheels-tire-mmc.obj", {
+      // preTransform: math.Mat4.scale(3.49, 3.49, 3.49),
+      preTransform: math.Mat4.rotation(-Math.PI / 2, 0, 1, 0)
+        .times(math.Mat4.scale(3.521, 2.255, 2.255))
+        .times(math.Mat4.translation(0, 0, -1)),
       lightCount: this.lightCount,
     });
     const chasisMeshRed = new FileMesh("../assets/meshes/CarChasis_Red.obj", {
@@ -220,14 +228,13 @@ export class BumperCarsBase extends tiny.Component {
         lightCount: this.lightCount,
       },
     );
-    const grassMound = new FileMesh(
-      "../assets/meshes/grass-mound.obj",
-      {
-        preTransform: math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
-        uvScaling: math.Vector.create(25, 25),
-        lightCount: this.lightCount,
-      },
-    );
+    const grassMound = new FileMesh("../assets/meshes/grass-mound.obj", {
+      preTransform: math.Mat4.translation(0, -0.2, 0).times(
+        math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
+      ),
+      uvScaling: math.Vector.create(75, 75),
+      lightCount: this.lightCount,
+    });
 
     this.shapes = {
       grid: grid,
@@ -433,16 +440,21 @@ export class BumperCarsBase extends tiny.Component {
     this.uniforms.projection_transform = math.Mat4.perspective(
       this.gameView.fov,
       this.gameView.aspectRatio,
-      0.2,
-      100,
+      0.02,
+      500,
     );
 
     const clockHour = lerp(5, 19, clamp(this.gui!.currentTime / 300, 0, 1));
     const { sun_azimuth, sun_zenith } = calculateSunPosition(clockHour, 0.3, 6);
     const sunColor = getSunColor({ sun_azimuth, sun_zenith });
-    this.colors.sumAmbient = getAverageSkyColor({ sun_azimuth, sun_zenith });
+    const sunAmbient = getAverageSkyColor({ sun_azimuth, sun_zenith });
+    const horizonColor = getHorizonColor({ sun_azimuth, sun_zenith });
+    this.colors.sunColor = sunColor;
+    this.colors.sunAmbient = sunAmbient;
+    this.colors.skyHorizon = horizonColor;
 
-    const sunLuminance = getGrayscale(sunColor);
+    // const sunLuminance = getGrayscale(sunColor);
+    const skyLuminance = getGrayscale(sunAmbient);
     this.materials.skybox.sun_azimuth = sun_azimuth;
     this.materials.skybox.sun_zenith = sun_zenith;
     const light_dir = math.vec4(
@@ -451,8 +463,15 @@ export class BumperCarsBase extends tiny.Component {
       10 * Math.sin(sun_zenith) * Math.sin(sun_azimuth),
       0,
     );
+    const backdrop_dir = math.vec4(
+      10 * Math.sin(-sun_zenith) * Math.cos(sun_azimuth),
+      10 * Math.cos(sun_zenith),
+      10 * Math.sin(sun_zenith) * Math.sin(sun_azimuth),
+      0,
+    );
     this.uniforms.lights = [
       defs.Phong_Shader.light_source(light_dir, sunColor, 620),
+      defs.Phong_Shader.light_source(backdrop_dir, sunAmbient, 100),
     ];
     for (const [x, z] of [
       [-1, -1],
@@ -464,7 +483,7 @@ export class BumperCarsBase extends tiny.Component {
         defs.Phong_Shader.light_source(
           math.vec4(x * 15, 10, z * 15, 1),
           math.color(1, 1, 1, 1),
-          440 * (1 - sunLuminance),
+          lerp(440, 0, clamp((skyLuminance - 0.25) * 5, 0, 1)),
         ),
       );
     }
@@ -516,10 +535,11 @@ export class BumperCars extends BumperCarsBase {
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
     super.render_layout(div, options);
 
-    this.gameMatch.linkGUI(this.gui!);
-
     // free particle collision detection
     const cartMSD = this.physics.cartMSD;
+    const gmMatch = this.gameMatch;
+
+    gmMatch.linkGUI(this.gui!);
 
     // notify main component when the two cars exchange forces
     cartMSD.onCollision = (player, impulse) => {
@@ -527,33 +547,32 @@ export class BumperCars extends BumperCarsBase {
       // damage is scaled arbitrarily; tune to taste or convert to energy
       // later if you prefer (0.5*m*v^2 loss etc.)
       const other: CarTarget = player === "carA" ? "carB" : "carA";
-      this.gameMatch.makeDamage(other, impulse * 0.05);
+      gmMatch.makeDamage(other, impulse * 0.05);
     };
 
     cartMSD.msdSystem.trespassCB = (p, field) => {
       let target: CarTarget | undefined;
 
-      if (field.group.has("CarA")) {
+      if (field.group.has("carA")) {
         target = "carB";
-      } else if (field.group.has("CarB")) {
+      } else if (field.group.has("carB")) {
         target = "carA";
+      } else {
+        console.warn("target is neither carA or carB");
+        return;
       }
 
-      if (p.group.has("orbit") && target) {
+      if (p.group.has("orbit")) {
         p.disabled = true;
-        this.gameMatch.makeDamage(target, 1);
-      } else if (p.group.has("sawblade") && target) {
-        this.gameMatch.makeDamage(target, 0.013);
-      } else if (
-        p.group.has("powerup") &&
-        target &&
-        !this.gameMatch.getPowerup(target)
-      ) {
+        gmMatch.makeDamage(target, 1);
+      } else if (p.group.has("sawblade")) {
+        gmMatch.makeDamage(target, 0.013);
+      } else if (p.group.has("powerup") && !gmMatch.getPowerup(target)) {
         p.disabled = true;
         this.gui?.showMessage(
           `Car ${target.slice(-1)} picked up ${p.metadata}`,
         );
-        this.gameMatch.setPowerup(target, p.metadata as PowerUpKind);
+        gmMatch.setPowerup(target, p.metadata as PowerUpKind);
         if ((p.metadata as PowerUpKind) === "orbit") {
           this.physics.cartMSD.updateCarOrbits(0, true);
           this.physics.cartMSD.setOrbitStatus(target);
@@ -629,10 +648,10 @@ export class BumperCars extends BumperCarsBase {
       }
 
       const groundSpeeds = this.physics.cartMSD.getTireGroundSpeed();
-      cartA.updateTires(groundSpeeds.CarA, timeDelta * timeMult);
-      cartB.updateTires(groundSpeeds.CarB, timeDelta * timeMult);
-      cartA.updateFrontWheels(tires.CarA.frontLeft, tires.CarA.frontRight);
-      cartB.updateFrontWheels(tires.CarB.frontLeft, tires.CarB.frontRight);
+      cartA.updateTires(groundSpeeds.carA, timeDelta * timeMult);
+      cartB.updateTires(groundSpeeds.carB, timeDelta * timeMult);
+      cartA.updateFrontWheels(tires.carA.frontLeft, tires.carA.frontRight);
+      cartB.updateFrontWheels(tires.carB.frontLeft, tires.carB.frontRight);
       cartA.updateArm(timeDelta * timeMult);
       cartB.updateArm(timeDelta * timeMult);
     }
@@ -650,19 +669,21 @@ export class BumperCars extends BumperCarsBase {
     this.drawables.grassMound.foreach((shape, material, name) => {
       shape.draw(context, this.uniforms, this.transforms.background, {
         ...material,
-        ambient_color: this.colors.sumAmbient,
+        ambient_color: this.colors.sunAmbient,
+        fog_color: this.colors.skyHorizon,
         smoothness: 10,
         ambient: 0.7,
         specularity: 0.2,
         bumpiness: 1.2,
         diffusivity: 0.8,
       });
-    })
+    });
 
     this.drawables.arenaFloor.foreach((shape, material, name) => {
       shape.draw(context, this.uniforms, this.transforms.identity, {
         ...material,
-        ambient_color: this.colors.sumAmbient,
+        ambient_color: this.colors.sunAmbient,
+        fog_color: this.colors.skyHorizon,
         smoothness: 20,
         ambnient: 0.4,
         specularity: 0.6,
@@ -671,7 +692,8 @@ export class BumperCars extends BumperCarsBase {
     this.drawables.arenaWalls.foreach((shape, material, name) => {
       shape.draw(context, this.uniforms, this.transforms.identity, {
         ...material,
-        ambient_color: this.colors.sumAmbient,
+        ambient_color: this.colors.sunAmbient,
+        fog_color: this.colors.skyHorizon,
         ambient: 0.4,
       });
     });
@@ -756,7 +778,18 @@ export class BumperCars extends BumperCarsBase {
         }
       }, mtxCarB);
     } else {
-      // TODO: remove frame rending on finished game
+      cartA.arcs.root.traverse((joint, node, matrix) => {
+        const name = node.name as CartNodeNames;
+        if (name === "saw") {
+          cartMSD.setBlade("carA", matrix[0][3], matrix[1][3], matrix[2][3]);
+        }
+      }, mtxCarA)
+      cartB.arcs.root.traverse((joint, node, matrix) => {
+        const name = node.name as CartNodeNames;
+        if (name === "saw") {
+          cartMSD.setBlade("carB", matrix[0][3], matrix[1][3], matrix[2][3]);
+        }
+      }, mtxCarB)
       this.drawables.cartFrame.draw(
         context,
         this.uniforms,
@@ -792,6 +825,8 @@ export class BumperCars extends BumperCarsBase {
   }
 
   render_controls(): void {
+    const { cartA, cartB } = this.armatures;
+
     // controls for car A
     this.live_string((elem) => {
       elem.textContent = "Car A";
@@ -800,50 +835,49 @@ export class BumperCars extends BumperCarsBase {
       "accelerate",
       ["w"],
       () => {
-        this.armatures.cartA.thrustForce = this.armatures.cartA.maxThrust;
+        cartA.thrustForce = cartA.maxThrust;
       },
       undefined,
       () => {
-        this.armatures.cartA.thrustForce = 0;
+        cartA.thrustForce = 0;
       },
     );
     this.key_triggered_button(
       "brake",
       ["s"],
       () => {
-        this.armatures.cartA.thrustForce = -this.armatures.cartA.maxThrust;
+        cartA.thrustForce = -cartA.maxThrust;
       },
       undefined,
       () => {
-        this.armatures.cartA.thrustForce = 0;
+        cartA.thrustForce = 0;
       },
     );
     this.key_triggered_button(
       "steer left",
       ["a"],
       () => {
-        this.armatures.cartA.steerTarget = -1;
+        cartA.steerTarget = -1;
       },
       undefined,
       () => {
-        this.armatures.cartA.steerTarget = 0;
+        cartA.steerTarget = 0;
       },
     );
     this.key_triggered_button(
       "steer right",
       ["d"],
       () => {
-        this.armatures.cartA.steerTarget = 1;
+        cartA.steerTarget = 1;
       },
       undefined,
       () => {
-        this.armatures.cartA.steerTarget = 0;
+        cartA.steerTarget = 0;
       },
     );
     this.key_triggered_button("swing blade", ["e"], () => {
       // TODO: remove setBladeStatus once power-up system is implemented
-      this.armatures.cartA.setBladeStatus(true);
-      this.armatures.cartA.swingArm();
+      cartA.swingArm();
     });
     this.new_line();
 
@@ -855,50 +889,48 @@ export class BumperCars extends BumperCarsBase {
       "accelerate",
       ["8"],
       () => {
-        this.armatures.cartB.thrustForce = this.armatures.cartB.maxThrust;
+        cartB.thrustForce = cartB.maxThrust;
       },
       undefined,
       () => {
-        this.armatures.cartB.thrustForce = 0;
+        cartB.thrustForce = 0;
       },
     );
     this.key_triggered_button(
       "brake",
       ["5"],
       () => {
-        this.armatures.cartB.thrustForce = -this.armatures.cartB.maxThrust;
+        cartB.thrustForce = -cartB.maxThrust;
       },
       undefined,
       () => {
-        this.armatures.cartB.thrustForce = 0;
+        cartB.thrustForce = 0;
       },
     );
     this.key_triggered_button(
       "steer left",
       ["4"],
       () => {
-        this.armatures.cartB.steerTarget = -1;
+        cartB.steerTarget = -1;
       },
       undefined,
       () => {
-        this.armatures.cartB.steerTarget = 0;
+        cartB.steerTarget = 0;
       },
     );
     this.key_triggered_button(
       "steer right",
       ["6"],
       () => {
-        this.armatures.cartB.steerTarget = 1;
+        cartB.steerTarget = 1;
       },
       undefined,
       () => {
-        this.armatures.cartB.steerTarget = 0;
+        cartB.steerTarget = 0;
       },
     );
     this.key_triggered_button("swing blade", ["7"], () => {
-      // TODO: remove setBladeStatus once power-up system is implemented
-      this.armatures.cartB.setBladeStatus(true);
-      this.armatures.cartB.swingArm();
+      cartB.swingArm();
     });
     this.new_line();
 

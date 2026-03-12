@@ -7,7 +7,7 @@ to get an "averaged sky color" that we can use to dynamically change the
 ambient color of the scene along with lighting color and intensity.
 */
 
-import { clamp, clampV3, linearTransform, matrix3x3 } from "../utils/math";
+import { clamp, clampV3, lerp, linearTransform, matrix3x3 } from "../utils/math";
 import { math } from "../../tiny-graphics-math";
 
 const ALBEDO = 1;
@@ -272,6 +272,48 @@ function tonemap(color: math.Vector3, exposure: number) {
   return divide_pairwise(two, colorDiv).minus(one);
 }
 
+export function getHorizonColor(props: {
+  // high noon at 0, horizon at pi/2
+  sun_zenith: number;
+  // starts at x-axis moves clockwise towards z at pi/2
+  sun_azimuth: number;
+}) {
+  const { sun_zenith, sun_azimuth } = props;
+  // built using Desmos
+  // https://www.desmos.com/3d/912f2ca12c
+  const N_SAMPLES = 12;
+  const AVG_SAMPLE_RATE = 1 / N_SAMPLES;
+  const sun_zenith_safe = clamp(sun_zenith, 0.0, H_PI);
+  let t = 0;
+  let view_azimuth = 0;
+  let sample,
+    sum_of_samples = math.vec3(0, 0, 0);
+  for (let i = 0; i < N_SAMPLES; ++i) {
+    t = i / N_SAMPLES;
+    view_azimuth = 11 * M_PI * 2 * t;
+    sample = sample_sky(
+      H_PI,
+      view_azimuth,
+      sun_zenith_safe,
+      sun_azimuth,
+    );
+    sample.scale_by(AVG_SAMPLE_RATE);
+    sum_of_samples.add_by(sample);
+  }
+
+  const RGB = math.vec3(...XYZ_to_RGB(sum_of_samples));
+  // adjust brightness gain
+  const col = tonemap(RGB, 0.1);
+
+  if (sun_zenith > H_PI) {
+    let alpha = 1.0 / (10.0 * (sun_zenith - H_PI) + 1.0);
+    col.scale_by(alpha);
+  }
+
+  // assign final color
+  return clampV3(col, 0, 1).to4(1.0);
+}
+
 export function getAverageSkyColor(props: {
   // high noon at 0, horizon at pi/2
   sun_zenith: number;
@@ -301,7 +343,8 @@ export function getAverageSkyColor(props: {
       sun_zenith_safe,
       sun_azimuth,
     );
-    sum_of_samples.add_by(sample.times(AVG_SAMPLE_RATE));
+    sample.scale_by(AVG_SAMPLE_RATE)
+    sum_of_samples.add_by(sample);
   }
 
   const RGB = math.vec3(...XYZ_to_RGB(sum_of_samples));

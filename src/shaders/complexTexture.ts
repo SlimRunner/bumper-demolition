@@ -21,12 +21,15 @@ export type CplxMats = MaterialRecord & {
   diffuse_color?: math.Vector4;
   specular_color?: math.Vector4;
   ambient_color?: math.Vector4;
+  fog_color?: math.Vector4;
 
   ambient?: number;
   diffusivity?: number;
   specularity?: number;
   smoothness?: number;
   bumpiness?: number;
+
+  fog_density?: number;
 };
 
 export type PhongUniforms = Uniforms & {
@@ -48,6 +51,7 @@ export class ComplexTextured extends tiny.Shader {
       precision highp float;
       const int N_LIGHTS = ${this.lightCount};
       uniform float ambient, diffusivity, specularity, smoothness, bumpiness;
+      uniform float fog_density;
       uniform vec4 light_positions_or_vectors[N_LIGHTS], light_colors[N_LIGHTS];
       uniform float light_attenuation_factors[N_LIGHTS];
       uniform vec4 ambient_color;
@@ -57,19 +61,11 @@ export class ComplexTextured extends tiny.Shader {
       varying vec3 N, vertex_worldspace;
       varying mat3 TBN;
 
-      // might implement this later (Fresnel): https://stackoverflow.com/a/9901654
-      // ***** PHONG SHADING HAPPENS HERE: *****
       vec3 phong_model_lights( vec3 N, vec3 vertex_worldspace, vec3 diffuse_color, float specular_intensity ){
-        // phong_model_lights():  Add up the lights' contributions.
         vec3 E = normalize( camera_center - vertex_worldspace );
         vec3 result = vec3( 0.0 );
+
         for(int i = 0; i < N_LIGHTS; i++) {
-          // Lights store homogeneous coords - either a position or vector.  If w is 0, the
-          // light will appear directional (uniform direction from all points), and we
-          // simply obtain a vector towards the light by directly using the stored value.
-          // Otherwise if w is 1 it will appear as a point light -- compute the vector to
-          // the point light's location from the current surface point.  In either case,
-          // fade (attenuate) the light as the vector needed to reach it gets longer.
           vec3 surface_to_light_vector = light_positions_or_vectors[i].xyz -
                                         light_positions_or_vectors[i].w * vertex_worldspace;
           float distance_to_light = length( surface_to_light_vector );
@@ -86,7 +82,7 @@ export class ComplexTextured extends tiny.Shader {
             diffuse_color.xyz * light_colors[i].xyz * diffusivity * diffuse +
             light_colors[i].xyz * specular_intensity * specularity * specular;
           result += attenuation * light_contribution;
-        } // for loop end
+        }
 
         return result;
       }
@@ -132,6 +128,7 @@ export class ComplexTextured extends tiny.Shader {
 
       uniform vec4 diffuse_color;
       uniform vec4 specular_color;
+      uniform vec4 fog_color;
 
       void main(){
         // Sample the texture image in the correct place:
@@ -146,17 +143,22 @@ export class ComplexTextured extends tiny.Shader {
         vec3 tangent_normal = texture2D(bump_map, f_tex_coord).xyz * 2.0 - 1.0;
         vec3 N_bumped = normalize(mix(N, normalize(TBN * tangent_normal), bumpiness));
 
-        gl_FragColor = vec4(
-          diffuse * ambient_color.rgb * ambient,
-          alpha
-        );
+        vec3 color = 
+          diffuse * ambient_color.rgb * ambient +
+          phong_model_lights(
+            normalize(N_bumped),
+            vertex_worldspace,
+            diffuse,
+            dot(spec_color, vec3(0.299,0.587,0.114))
+          );
 
-        gl_FragColor.xyz += phong_model_lights(
-          normalize(N_bumped),
-          vertex_worldspace,
-          diffuse,
-          dot(spec_color, vec3(0.299,0.587,0.114))
-        );
+        float dist = length(camera_center - vertex_worldspace);
+        float fog_alpha = fog_color.a;
+        float fog = clamp(exp(-0.005 * dist), 0.0, 1.0);
+        float fog_inv = 1.0 - fog;
+        vec3 final_color = mix(color, fog_color.rgb, fog_alpha * fog_inv);
+
+        gl_FragColor = vec4(final_color, alpha);
       }
     `;
   }
@@ -174,6 +176,7 @@ export class ComplexTextured extends tiny.Shader {
     gl.uniform4fv(gpu.diffuse_color, material.diffuse_color!);
     gl.uniform4fv(gpu.specular_color, material.specular_color!);
     gl.uniform4fv(gpu.ambient_color, material.ambient_color!);
+    gl.uniform4fv(gpu.fog_color, material.fog_color!);
 
     // send scalars properties
     gl.uniform1f(gpu.ambient, material.ambient!);
@@ -181,6 +184,8 @@ export class ComplexTextured extends tiny.Shader {
     gl.uniform1f(gpu.specularity, material.specularity!);
     gl.uniform1f(gpu.smoothness, material.smoothness!);
     gl.uniform1f(gpu.bumpiness, material.bumpiness!);
+
+    gl.uniform1f(gpu.fog_density, material.fog_density!);
 
     // notify shader whether texture were actuall loaded
     gl.uniform1i(gpu.use_texture, material.texture ? 1 : 0);
@@ -272,11 +277,13 @@ export class ComplexTextured extends tiny.Shader {
       diffuse_color: math.color(1, 1, 1, 1),
       specular_color: math.color(1, 1, 1, 1),
       ambient_color: math.color(0, 0, 0, 1),
+      fog_color: math.color(0, 0, 0, 0),
       ambient: 0,
       diffusivity: 1,
       specularity: 1,
       smoothness: 40,
       bumpiness: 1,
+      fog_density: 0.005,
     };
     material = Object.assign({}, defaults, material);
 
