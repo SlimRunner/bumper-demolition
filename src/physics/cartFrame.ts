@@ -631,11 +631,6 @@ export class CartFrame {
       // tireRR, tireRL, tireFL are invalidated in basisChangeMut
       invertOrthonormalMut(car.matrix, car.inverse);
     }
-    const foo = this.getOrientation(0);
-    const bar = this.getOrientation(this.initial.carNodeCount);
-    if (bar.side.minus(this.transforms.carB.side).norm() > 0) {
-      debugger;
-    }
   }
 
   setOrbitStatus(player: CarName, disabled = false) {
@@ -786,47 +781,9 @@ export class CartFrame {
   }
 
   getTransforms() {
-    const pc = this.msdSystem.particles.container;
-    const sh = this.initial.carNodeCount;
-    const shRoof = 8; // tires + 8 -> roof index (assumes a box)
-    const [i0, i1, i2, i3] = [0, 1, 2, 3];
-    const [j0, j1, j2, j3] = [i0 + sh, i1 + sh, i2 + sh, i3 + sh];
-
-    const Ma = basisChange(
-      pc[i3].location.plus(pc[i3 + shRoof].location).times(0.5),
-      pc[i2].location.plus(pc[i2 + shRoof].location).times(0.5),
-      pc[i1].location.plus(pc[i1 + shRoof].location).times(0.5),
-      pc
-        .slice(0, 4)
-        .map((p) => p.location)
-        .reduce((acc, cv) => acc.plus(cv))
-        .times(1 / 4),
-    );
-
-    const Mb = basisChange(
-      pc[j3].location.plus(pc[j3 + shRoof].location).times(0.5),
-      pc[j2].location.plus(pc[j2 + shRoof].location).times(0.5),
-      pc[j1].location.plus(pc[j1 + shRoof].location).times(0.5),
-      pc
-        .slice(0 + sh, 4 + sh)
-        .map((p) => p.location)
-        .reduce((acc, cv) => acc.plus(cv))
-        .times(1 / 4),
-    );
-
     return {
-      mtxCarA: Ma,
-      mtxCarB: Mb,
-    };
-  }
-
-  getOrientation(sh: number = 0) {
-    const pc = this.msdSystem.particles.container;
-    const [i0, i1, i2, i3] = [0 + sh, 1 + sh, 2 + sh, 3 + sh];
-    return {
-      fwd: pc[i1].location.minus(pc[i2].location).normalized(),
-      side: pc[i3].location.minus(pc[i2].location).normalized(),
-      mid: this.getAverage([i0, i3 + 1]),
+      mtxCarA: this.transforms.carA.matrix,
+      mtxCarB: this.transforms.carB.matrix,
     };
   }
 
