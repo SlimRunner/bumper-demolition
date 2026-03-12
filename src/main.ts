@@ -778,7 +778,18 @@ export class BumperCars extends BumperCarsBase {
         }
       }, mtxCarB);
     } else {
-      // TODO: remove frame rending on finished game
+      cartA.arcs.root.traverse((joint, node, matrix) => {
+        const name = node.name as CartNodeNames;
+        if (name === "saw") {
+          cartMSD.setBlade("carA", matrix[0][3], matrix[1][3], matrix[2][3]);
+        }
+      }, mtxCarA)
+      cartB.arcs.root.traverse((joint, node, matrix) => {
+        const name = node.name as CartNodeNames;
+        if (name === "saw") {
+          cartMSD.setBlade("carB", matrix[0][3], matrix[1][3], matrix[2][3]);
+        }
+      }, mtxCarB)
       this.drawables.cartFrame.draw(
         context,
         this.uniforms,
