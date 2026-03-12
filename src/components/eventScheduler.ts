@@ -1,4 +1,4 @@
-type SchedulerEvent<K extends string> =
+export type SchedulerEvent<K extends string> =
   | { type: "timed"; ident: K; duration: number }
   | { type: "event"; ident: K; isExpired: (time: number) => boolean };
 

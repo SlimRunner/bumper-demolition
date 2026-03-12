@@ -47,6 +47,7 @@ export class MatchManager {
   // this map pattern is to take advantage of string narrowing
   private _players: Map<CarName, PlayerMetadata>;
   private _gui?: MatchGui;
+  private _endFlag = false;
 
   private readonly timeEvents = {
     suddenDeath: (t: number) => t >= 4 * 60,
@@ -66,6 +67,7 @@ export class MatchManager {
   }
 
   resetState() {
+    this._endFlag = false;
     this.makeDamage("carA", -100);
     this.makeDamage("carB", -100);
     this.unsetPowerup("carA");
@@ -119,15 +121,13 @@ export class MatchManager {
   }
 
   makeDamage(player: CarName, amount: number) {
+    if (this._endFlag) return;
     const pl = this._players.get(player)!;
     pl.health = clamp(pl.health - amount, 0, 100);
     this._gui?.updateHealth(player, pl.health);
     if (pl.health <= 0) {
-      console.log("gameOver");
-      this.callback({
-        event: "gameOver",
-        loser: player,
-      });
+      this.callback({ event: "gameOver", loser: player });
+      this._endFlag = true;
     }
   }
 
