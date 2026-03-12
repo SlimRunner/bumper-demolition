@@ -27,6 +27,7 @@ import { DrawableShape, ShapeCollection } from "./shapes/types";
 import { MatchManager } from "./components/gameMatch";
 import type { CarName, PowerUpKind } from "./components/types";
 import { Scheduler, SchedulerEvent } from "./components/eventScheduler";
+import { CarNameLabels } from "./utils/text";
 
 type CarTarget = "carA" | "carB";
 
@@ -570,7 +571,13 @@ export class BumperCars extends BumperCarsBase {
             this.physics.cartMSD.enable = true;
             break;
           case "match_loop":
-            console.log(winner);
+            if (winner) {
+              this.gui?.showMessage(
+                `Player ${CarNameLabels[winner].colorName} WINS!!`,
+              );
+            } else {
+              console.warn(`winner is undefined during win toast`);
+            }
             break;
           case "outro":
             // nothing to do yet
@@ -627,7 +634,7 @@ export class BumperCars extends BumperCarsBase {
       } else if (p.group.has("powerup") && !gmMatch.getPowerup(target)) {
         p.disabled = true;
         this.gui?.showMessage(
-          `Car ${target.slice(-1)} picked up ${p.metadata}`,
+          `${CarNameLabels[target].labelName} picked up ${p.metadata}`,
         );
         gmMatch.setPowerup(target, p.metadata as PowerUpKind);
         if ((p.metadata as PowerUpKind) === "orbit") {
