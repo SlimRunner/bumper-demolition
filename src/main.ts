@@ -20,6 +20,7 @@ import {
   calculateSunPosition,
   getAverageSkyColor,
   getGrayscale,
+  getHorizonColor,
   getSunColor,
 } from "./shaders/skyboxUtils";
 import { DrawableShape, ShapeCollection } from "./shapes/types";
@@ -45,7 +46,9 @@ export class BumperCarsBase extends tiny.Component {
     readonly white: math.Vector4;
     readonly heavyBox: math.Vector4;
     readonly orbitBox: math.Vector4;
-    sumAmbient: math.Vector4;
+    sunAmbient: math.Vector4;
+    sunColor: math.Vector4;
+    skyHorizon: math.Vector4;
   };
   transforms: {
     readonly identity: math.Mat4;
@@ -109,7 +112,7 @@ export class BumperCarsBase extends tiny.Component {
 
   gui?: GameGUI;
 
-  readonly lightCount = 5;
+  readonly lightCount = 6;
 
   constructor() {
     super();
@@ -121,7 +124,9 @@ export class BumperCarsBase extends tiny.Component {
       softBlue: math.color(0.176, 0.439, 0.702, 1),
       yellow: math.color(1, 1, 0, 1),
       white: math.color(1, 1, 1, 1),
-      sumAmbient: math.color(0, 0, 0, 0),
+      sunAmbient: math.color(0, 0, 0, 0),
+      sunColor: math.color(1, 1, 1, 0),
+      skyHorizon: math.color(0, 0, 0, 0),
       heavyBox: math.color(1, 1, 0, 0.4),
       orbitBox: math.color(1, 0, 1, 0.4),
     };
@@ -133,8 +138,8 @@ export class BumperCarsBase extends tiny.Component {
         .times(
           math.Mat4.scale(1 / Math.sqrt(3), 1 / Math.sqrt(3), 1 / Math.sqrt(3)),
         ),
-      background: math.Mat4.translation(0, -5, 0).times(
-        math.Mat4.scale(100, 20, 100),
+      background: math.Mat4.translation(0, -2, 0).times(
+        math.Mat4.scale(300, 40, 300),
       ),
     };
 
@@ -172,8 +177,11 @@ export class BumperCarsBase extends tiny.Component {
       [0, 2],
       [0, 1],
     ]);
-    const tireMesh = new FileMesh("../assets/meshes/TireMesh_1.obj", {
-      preTransform: math.Mat4.scale(3.49, 3.49, 3.49),
+    const tireMesh = new FileMesh("../assets/meshes/wheels-tire-mmc.obj", {
+      // preTransform: math.Mat4.scale(3.49, 3.49, 3.49),
+      preTransform: math.Mat4.rotation(-Math.PI / 2, 0, 1, 0)
+        .times(math.Mat4.scale(3.521, 2.255, 2.255))
+        .times(math.Mat4.translation(0, 0, -1)),
       lightCount: this.lightCount,
     });
     const chasisMeshRed = new FileMesh("../assets/meshes/CarChasis_Red.obj", {
@@ -221,8 +229,10 @@ export class BumperCarsBase extends tiny.Component {
       },
     );
     const grassMound = new FileMesh("../assets/meshes/grass-mound.obj", {
-      preTransform: math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
-      uvScaling: math.Vector.create(25, 25),
+      preTransform: math.Mat4.translation(0, -0.2, 0).times(
+        math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
+      ),
+      uvScaling: math.Vector.create(75, 75),
       lightCount: this.lightCount,
     });
 
@@ -430,16 +440,21 @@ export class BumperCarsBase extends tiny.Component {
     this.uniforms.projection_transform = math.Mat4.perspective(
       this.gameView.fov,
       this.gameView.aspectRatio,
-      0.2,
-      100,
+      0.02,
+      500,
     );
 
     const clockHour = lerp(5, 19, clamp(this.gui!.currentTime / 300, 0, 1));
     const { sun_azimuth, sun_zenith } = calculateSunPosition(clockHour, 0.3, 6);
     const sunColor = getSunColor({ sun_azimuth, sun_zenith });
-    this.colors.sumAmbient = getAverageSkyColor({ sun_azimuth, sun_zenith });
+    const sunAmbient = getAverageSkyColor({ sun_azimuth, sun_zenith });
+    const horizonColor = getHorizonColor({ sun_azimuth, sun_zenith });
+    this.colors.sunColor = sunColor;
+    this.colors.sunAmbient = sunAmbient;
+    this.colors.skyHorizon = horizonColor;
 
-    const sunLuminance = getGrayscale(sunColor);
+    // const sunLuminance = getGrayscale(sunColor);
+    const skyLuminance = getGrayscale(sunAmbient);
     this.materials.skybox.sun_azimuth = sun_azimuth;
     this.materials.skybox.sun_zenith = sun_zenith;
     const light_dir = math.vec4(
@@ -448,8 +463,15 @@ export class BumperCarsBase extends tiny.Component {
       10 * Math.sin(sun_zenith) * Math.sin(sun_azimuth),
       0,
     );
+    const backdrop_dir = math.vec4(
+      10 * Math.sin(-sun_zenith) * Math.cos(sun_azimuth),
+      10 * Math.cos(sun_zenith),
+      10 * Math.sin(sun_zenith) * Math.sin(sun_azimuth),
+      0,
+    );
     this.uniforms.lights = [
       defs.Phong_Shader.light_source(light_dir, sunColor, 620),
+      defs.Phong_Shader.light_source(backdrop_dir, sunAmbient, 100),
     ];
     for (const [x, z] of [
       [-1, -1],
@@ -461,7 +483,7 @@ export class BumperCarsBase extends tiny.Component {
         defs.Phong_Shader.light_source(
           math.vec4(x * 15, 10, z * 15, 1),
           math.color(1, 1, 1, 1),
-          440 * (1 - sunLuminance),
+          lerp(440, 0, clamp((skyLuminance - 0.25) * 5, 0, 1)),
         ),
       );
     }
@@ -647,7 +669,8 @@ export class BumperCars extends BumperCarsBase {
     this.drawables.grassMound.foreach((shape, material, name) => {
       shape.draw(context, this.uniforms, this.transforms.background, {
         ...material,
-        ambient_color: this.colors.sumAmbient,
+        ambient_color: this.colors.sunAmbient,
+        fog_color: this.colors.skyHorizon,
         smoothness: 10,
         ambient: 0.7,
         specularity: 0.2,
@@ -659,7 +682,8 @@ export class BumperCars extends BumperCarsBase {
     this.drawables.arenaFloor.foreach((shape, material, name) => {
       shape.draw(context, this.uniforms, this.transforms.identity, {
         ...material,
-        ambient_color: this.colors.sumAmbient,
+        ambient_color: this.colors.sunAmbient,
+        fog_color: this.colors.skyHorizon,
         smoothness: 20,
         ambnient: 0.4,
         specularity: 0.6,
@@ -668,7 +692,8 @@ export class BumperCars extends BumperCarsBase {
     this.drawables.arenaWalls.foreach((shape, material, name) => {
       shape.draw(context, this.uniforms, this.transforms.identity, {
         ...material,
-        ambient_color: this.colors.sumAmbient,
+        ambient_color: this.colors.sunAmbient,
+        fog_color: this.colors.skyHorizon,
         ambient: 0.4,
       });
     });
