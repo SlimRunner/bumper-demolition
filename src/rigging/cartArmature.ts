@@ -355,12 +355,9 @@ export class CartArmature {
     this.arcs.wheelHubRR.setAngle("rz", this._props.spinRR % PI2);
   }
 
-  setBladeStatus(enable: boolean) {
-    this._props.armBlade.enabled = enable;
-  }
-
   swingArm() {
     const anim = this._props.armBlade;
+    anim.enabled = true;
     if (anim.enabled && !anim.swinging) {
       anim.timing = 0;
       anim.swinging = true;
@@ -386,6 +383,7 @@ export class CartArmature {
       );
       if (anim.timing > 5) {
         anim.swinging = false;
+        anim.enabled = false;
       }
     }
     if (anim.enabled) {

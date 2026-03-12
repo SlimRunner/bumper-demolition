@@ -789,6 +789,8 @@ export class BumperCars extends BumperCarsBase {
   }
 
   render_controls(): void {
+    const { cartA, cartB } = this.armatures;
+
     // controls for car A
     this.live_string((elem) => {
       elem.textContent = "Car A";
@@ -797,50 +799,49 @@ export class BumperCars extends BumperCarsBase {
       "accelerate",
       ["w"],
       () => {
-        this.armatures.cartA.thrustForce = this.armatures.cartA.maxThrust;
+        cartA.thrustForce = cartA.maxThrust;
       },
       undefined,
       () => {
-        this.armatures.cartA.thrustForce = 0;
+        cartA.thrustForce = 0;
       },
     );
     this.key_triggered_button(
       "brake",
       ["s"],
       () => {
-        this.armatures.cartA.thrustForce = -this.armatures.cartA.maxThrust;
+        cartA.thrustForce = -cartA.maxThrust;
       },
       undefined,
       () => {
-        this.armatures.cartA.thrustForce = 0;
+        cartA.thrustForce = 0;
       },
     );
     this.key_triggered_button(
       "steer left",
       ["a"],
       () => {
-        this.armatures.cartA.steerTarget = -1;
+        cartA.steerTarget = -1;
       },
       undefined,
       () => {
-        this.armatures.cartA.steerTarget = 0;
+        cartA.steerTarget = 0;
       },
     );
     this.key_triggered_button(
       "steer right",
       ["d"],
       () => {
-        this.armatures.cartA.steerTarget = 1;
+        cartA.steerTarget = 1;
       },
       undefined,
       () => {
-        this.armatures.cartA.steerTarget = 0;
+        cartA.steerTarget = 0;
       },
     );
     this.key_triggered_button("swing blade", ["e"], () => {
       // TODO: remove setBladeStatus once power-up system is implemented
-      this.armatures.cartA.setBladeStatus(true);
-      this.armatures.cartA.swingArm();
+      cartA.swingArm();
     });
     this.new_line();
 
@@ -852,50 +853,48 @@ export class BumperCars extends BumperCarsBase {
       "accelerate",
       ["8"],
       () => {
-        this.armatures.cartB.thrustForce = this.armatures.cartB.maxThrust;
+        cartB.thrustForce = cartB.maxThrust;
       },
       undefined,
       () => {
-        this.armatures.cartB.thrustForce = 0;
+        cartB.thrustForce = 0;
       },
     );
     this.key_triggered_button(
       "brake",
       ["5"],
       () => {
-        this.armatures.cartB.thrustForce = -this.armatures.cartB.maxThrust;
+        cartB.thrustForce = -cartB.maxThrust;
       },
       undefined,
       () => {
-        this.armatures.cartB.thrustForce = 0;
+        cartB.thrustForce = 0;
       },
     );
     this.key_triggered_button(
       "steer left",
       ["4"],
       () => {
-        this.armatures.cartB.steerTarget = -1;
+        cartB.steerTarget = -1;
       },
       undefined,
       () => {
-        this.armatures.cartB.steerTarget = 0;
+        cartB.steerTarget = 0;
       },
     );
     this.key_triggered_button(
       "steer right",
       ["6"],
       () => {
-        this.armatures.cartB.steerTarget = 1;
+        cartB.steerTarget = 1;
       },
       undefined,
       () => {
-        this.armatures.cartB.steerTarget = 0;
+        cartB.steerTarget = 0;
       },
     );
     this.key_triggered_button("swing blade", ["7"], () => {
-      // TODO: remove setBladeStatus once power-up system is implemented
-      this.armatures.cartB.setBladeStatus(true);
-      this.armatures.cartB.swingArm();
+      cartB.swingArm();
     });
     this.new_line();
 
