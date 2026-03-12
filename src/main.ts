@@ -552,10 +552,13 @@ export class BumperCars extends BumperCarsBase {
 
     cartMSD.msdSystem.trespassCB = (p, field) => {
       let target: CarTarget | undefined;
+      let source: CarTarget | undefined;
 
       if (field.group.has("carA")) {
+        source = "carA";
         target = "carB";
       } else if (field.group.has("carB")) {
+        source = "carB";
         target = "carA";
       } else {
         console.warn("target is neither carA or carB");
@@ -566,7 +569,7 @@ export class BumperCars extends BumperCarsBase {
         p.disabled = true;
         gmMatch.makeDamage(target, 1);
       } else if (p.group.has("sawblade")) {
-        if (this.armatures[target].isArmSpinning()) {
+        if (this.armatures[source].isArmSpinning()) {
           gmMatch.makeDamage(target, 0.013);
         }
       } else if (p.group.has("powerup") && !gmMatch.getPowerup(target)) {
