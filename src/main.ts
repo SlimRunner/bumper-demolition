@@ -26,6 +26,7 @@ import {
 import { DrawableShape, ShapeCollection } from "./shapes/types";
 import { MatchManager } from "./components/gameMatch";
 import type { CarName, PowerUpKind } from "./components/types";
+import { Scheduler, SchedulerEvent } from "./components/eventScheduler";
 
 type CarTarget = "carA" | "carB";
 
@@ -490,11 +491,18 @@ export class BumperCarsBase extends tiny.Component {
   }
 }
 
+type EventNamespace = "intro_look_up" | "match_loop" | "outro";
+
 export class BumperCars extends BumperCarsBase {
   gameMatch: MatchManager;
+  scheduler: Scheduler<SchedulerEvent<EventNamespace>>;
 
   constructor() {
     super();
+
+    let isMatchOver = false;
+    let winner: CarName | undefined;
+
     this.gameMatch = new MatchManager((evt) => {
       switch (evt.event) {
         case "suddentDeath":
@@ -502,8 +510,13 @@ export class BumperCars extends BumperCarsBase {
           console.log(evt.event);
           break;
         case "gameOver":
-          console.log(evt.loser);
-          // TODO: game end logic
+          isMatchOver = true;
+          switch (evt.loser) {
+            case "carA":
+              winner = "carB";
+            case "carB":
+              winner = "carA";
+          }
           break;
         case "powerSpawn":
           switch (evt.count) {
@@ -530,6 +543,45 @@ export class BumperCars extends BumperCarsBase {
           break;
       }
     });
+
+    const gameEvents: SchedulerEvent<EventNamespace>[] = [
+      // TODO: camera looking to the sky to let the meshes load out of sight
+      { type: "timed", ident: "intro_look_up", duration: 4 },
+
+      /* TODO: cinematic pan over the players
+      { type: "timed", ident: "intro_line_up_A", duration: 2 },
+      { type: "timed", ident: "intro_line_up_B", duration: 2 },
+      */
+
+      /* TODO: show off skybox and time management
+      { type: "timed", ident: "intro_day_cycle", duration: 2 },
+      */
+
+      // main match event
+      { type: "event", ident: "match_loop", isExpired: () => isMatchOver },
+      // TODO: outro animation with slow motion and winner toast
+      { type: "timed", ident: "outro", duration: 3 },
+    ];
+    this.scheduler = new Scheduler(
+      [...gameEvents],
+      (ident, elapsed) => {
+        switch (ident) {
+          case "intro_look_up":
+            this.physics.cartMSD.enable = true;
+            break;
+          case "match_loop":
+            console.log(winner);
+            break;
+          case "outro":
+            // nothing to do yet
+            break;
+        }
+      },
+      () => {
+        // game finished
+        this.resetGame();
+      },
+    );
   }
 
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
@@ -613,6 +665,8 @@ export class BumperCars extends BumperCarsBase {
     const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
     const timeMult = this.globalProps.timeMultiplier;
     const gblTimer = this.globalProps.timer;
+
+    this.scheduler.update(timeDelta);
 
     const GL = context.context!;
 
@@ -788,13 +842,13 @@ export class BumperCars extends BumperCarsBase {
         if (name === "saw") {
           cartMSD.setBlade("carA", matrix[0][3], matrix[1][3], matrix[2][3]);
         }
-      }, mtxCarA)
+      }, mtxCarA);
       cartB.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
         if (name === "saw") {
           cartMSD.setBlade("carB", matrix[0][3], matrix[1][3], matrix[2][3]);
         }
-      }, mtxCarB)
+      }, mtxCarB);
       this.drawables.cartFrame.draw(
         context,
         this.uniforms,
