@@ -355,6 +355,10 @@ export class CartArmature {
     this.arcs.wheelHubRR.setAngle("rz", this._props.spinRR % PI2);
   }
 
+  isArmSpinning() {
+    return this._props.armBlade.enabled;
+  }
+
   swingArm() {
     const anim = this._props.armBlade;
     anim.enabled = true;
