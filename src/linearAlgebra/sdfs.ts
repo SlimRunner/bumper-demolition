@@ -24,6 +24,13 @@ export function curryDyn<T, R, Args extends Arr>(
   return (p: T) => sdf(p, ...args());
 }
 
+export function curryDynP<T, R, Args extends Arr>(
+  sdf: (...args: [T, ...Args]) => R,
+  args: (p: T) => [T, ...Args],
+): FunctorSDF<T, R> {
+  return (p: T) => sdf(...args(p));
+}
+
 export function sdGradient3D(
   pt: math.Vector3,
   sdf: FunctorSDF<math.Vector3, number>,
