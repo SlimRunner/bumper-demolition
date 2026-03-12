@@ -220,14 +220,11 @@ export class BumperCarsBase extends tiny.Component {
         lightCount: this.lightCount,
       },
     );
-    const grassMound = new FileMesh(
-      "../assets/meshes/grass-mound.obj",
-      {
-        preTransform: math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
-        uvScaling: math.Vector.create(25, 25),
-        lightCount: this.lightCount,
-      },
-    );
+    const grassMound = new FileMesh("../assets/meshes/grass-mound.obj", {
+      preTransform: math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
+      uvScaling: math.Vector.create(25, 25),
+      lightCount: this.lightCount,
+    });
 
     this.shapes = {
       grid: grid,
@@ -516,10 +513,11 @@ export class BumperCars extends BumperCarsBase {
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
     super.render_layout(div, options);
 
-    this.gameMatch.linkGUI(this.gui!);
-
     // free particle collision detection
     const cartMSD = this.physics.cartMSD;
+    const gmMatch = this.gameMatch;
+
+    gmMatch.linkGUI(this.gui!);
 
     // notify main component when the two cars exchange forces
     cartMSD.onCollision = (player, impulse) => {
@@ -527,33 +525,32 @@ export class BumperCars extends BumperCarsBase {
       // damage is scaled arbitrarily; tune to taste or convert to energy
       // later if you prefer (0.5*m*v^2 loss etc.)
       const other: CarTarget = player === "carA" ? "carB" : "carA";
-      this.gameMatch.makeDamage(other, impulse * 0.05);
+      gmMatch.makeDamage(other, impulse * 0.05);
     };
 
     cartMSD.msdSystem.trespassCB = (p, field) => {
       let target: CarTarget | undefined;
 
-      if (field.group.has("CarA")) {
+      if (field.group.has("carA")) {
         target = "carB";
-      } else if (field.group.has("CarB")) {
+      } else if (field.group.has("carB")) {
         target = "carA";
+      } else {
+        console.warn("target is neither carA or carB");
+        return;
       }
 
-      if (p.group.has("orbit") && target) {
+      if (p.group.has("orbit")) {
         p.disabled = true;
-        this.gameMatch.makeDamage(target, 1);
-      } else if (p.group.has("sawblade") && target) {
-        this.gameMatch.makeDamage(target, 0.013);
-      } else if (
-        p.group.has("powerup") &&
-        target &&
-        !this.gameMatch.getPowerup(target)
-      ) {
+        gmMatch.makeDamage(target, 1);
+      } else if (p.group.has("sawblade")) {
+        gmMatch.makeDamage(target, 0.013);
+      } else if (p.group.has("powerup") && !gmMatch.getPowerup(target)) {
         p.disabled = true;
         this.gui?.showMessage(
           `Car ${target.slice(-1)} picked up ${p.metadata}`,
         );
-        this.gameMatch.setPowerup(target, p.metadata as PowerUpKind);
+        gmMatch.setPowerup(target, p.metadata as PowerUpKind);
         if ((p.metadata as PowerUpKind) === "orbit") {
           this.physics.cartMSD.updateCarOrbits(0, true);
           this.physics.cartMSD.setOrbitStatus(target);
@@ -629,10 +626,10 @@ export class BumperCars extends BumperCarsBase {
       }
 
       const groundSpeeds = this.physics.cartMSD.getTireGroundSpeed();
-      cartA.updateTires(groundSpeeds.CarA, timeDelta * timeMult);
-      cartB.updateTires(groundSpeeds.CarB, timeDelta * timeMult);
-      cartA.updateFrontWheels(tires.CarA.frontLeft, tires.CarA.frontRight);
-      cartB.updateFrontWheels(tires.CarB.frontLeft, tires.CarB.frontRight);
+      cartA.updateTires(groundSpeeds.carA, timeDelta * timeMult);
+      cartB.updateTires(groundSpeeds.carB, timeDelta * timeMult);
+      cartA.updateFrontWheels(tires.carA.frontLeft, tires.carA.frontRight);
+      cartB.updateFrontWheels(tires.carB.frontLeft, tires.carB.frontRight);
       cartA.updateArm(timeDelta * timeMult);
       cartB.updateArm(timeDelta * timeMult);
     }
@@ -657,7 +654,7 @@ export class BumperCars extends BumperCarsBase {
         bumpiness: 1.2,
         diffusivity: 0.8,
       });
-    })
+    });
 
     this.drawables.arenaFloor.foreach((shape, material, name) => {
       shape.draw(context, this.uniforms, this.transforms.identity, {

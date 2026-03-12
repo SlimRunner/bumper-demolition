@@ -46,8 +46,8 @@ export class CartFrame {
     wheelbase: number;
   };
   nodeRanges: {
-    CarA: [number, number];
-    CarB: [number, number];
+    carA: [number, number];
+    carB: [number, number];
     orbitA: [number, number];
     orbitB: [number, number];
     powerUps: [number, number];
@@ -68,7 +68,7 @@ export class CartFrame {
   // timestep we will multiply by dt to convert to impulse and optionally
   // fire a callback.  Values are reset every time the public step method
   // is called.
-  collisionImpulse: { CarA: number; CarB: number } = { CarA: 0, CarB: 0 };
+  collisionImpulse: { carA: number; carB: number } = { carA: 0, carB: 0 };
 
   // optional client notification.  invoked after each physics substep with
   // the impulse accrued by the named car during the step.  impulse has
@@ -224,7 +224,7 @@ export class CartFrame {
       p.tags.add("free");
       p.disabled = true;
       particles.container.push(p);
-      this.msdSystem.addParticleToGroup(p, "CarA");
+      this.msdSystem.addParticleToGroup(p, "carA");
       this.msdSystem.addParticleToGroup(p, "orbit");
       this.orbitRandom.push([
         Math.random(),
@@ -240,7 +240,7 @@ export class CartFrame {
       p.tags.add("free");
       p.disabled = true;
       particles.container.push(p);
-      this.msdSystem.addParticleToGroup(p, "CarB");
+      this.msdSystem.addParticleToGroup(p, "carB");
       this.msdSystem.addParticleToGroup(p, "orbit");
       this.orbitRandom.push([
         Math.random(),
@@ -266,12 +266,12 @@ export class CartFrame {
       p.tags.add("free");
       p.disabled = true;
       particles.container.push(p);
-      this.msdSystem.addParticleToGroup(p, "CarB");
-      this.msdSystem.addParticleToGroup(p, "CarA");
+      this.msdSystem.addParticleToGroup(p, "carB");
+      this.msdSystem.addParticleToGroup(p, "carA");
       this.msdSystem.addParticleToGroup(p, "powerup");
     }
 
-    for (const name of ["CarA", "CarB"]) {
+    for (const name of ["carA", "carB"]) {
       const p = new MSDParticle({
         location: math.vec3(0, 0, 0),
       });
@@ -284,24 +284,24 @@ export class CartFrame {
 
     // add particles to their appropriate groups
     for (const i of range(carNodeCount)) {
-      this.msdSystem.addParticleToGroup(particles.container[i], "CarA");
+      this.msdSystem.addParticleToGroup(particles.container[i], "carA");
       this.msdSystem.addParticleToGroup(particles.container[i], "grounded");
       this.msdSystem.addParticleToGroup(particles.container[i], "arenaBound");
     }
     for (const i of range(carNodeCount, carNodeCount * 2)) {
-      this.msdSystem.addParticleToGroup(particles.container[i], "CarB");
+      this.msdSystem.addParticleToGroup(particles.container[i], "carB");
       this.msdSystem.addParticleToGroup(particles.container[i], "grounded");
       this.msdSystem.addParticleToGroup(particles.container[i], "arenaBound");
     }
 
     // apply initial transform to all particles.
-    for (const p of this.msdSystem.getGroup("CarA")) {
+    for (const p of this.msdSystem.getGroup("carA")) {
       if (p.tags.has("free")) continue;
       p.location = math.vec3(
         ...affineTransform(transforms.cartA, p.location, 1),
       );
     }
-    for (const p of this.msdSystem.getGroup("CarB")) {
+    for (const p of this.msdSystem.getGroup("carB")) {
       if (p.tags.has("free")) continue;
       p.location = math.vec3(
         ...affineTransform(transforms.cartB, p.location, 1),
@@ -342,9 +342,9 @@ export class CartFrame {
         },
       ),
       carA: new CartField(
-        new Set(["CarB"]), // affects CarB but follows CarA
+        new Set(["carB"]), // affects carB but follows carA
         curryDyn(sdOrientedRect, () => {
-          // this line is implicitly getting orientation of CarA
+          // this line is implicitly getting orientation of carA
           const dir = this.getOrientation();
           const rear = Vector2.from3d(
             dir.mid.minus(dir.fwd.times(pillLength)),
@@ -366,9 +366,9 @@ export class CartFrame {
         },
       ),
       carB: new CartField(
-        new Set(["CarA"]), // affects CarA but follows CarB
+        new Set(["carA"]), // affects carA but follows carB
         curryDyn(sdOrientedRect, () => {
-          // this line is getting orientation of CarB (hence the shift
+          // this line is getting orientation of carB (hence the shift
           // by carNodeCount)
           const dir = this.getOrientation(carNodeCount);
           const rear = Vector2.from3d(
@@ -428,9 +428,9 @@ export class CartFrame {
       if (field === this.SDFields.carA) {
         // a particle belonging to carB is being pushed by carA's
         // collision shape;
-        this.collisionImpulse.CarA += Math.abs(forceMag);
+        this.collisionImpulse.carA += Math.abs(forceMag);
       } else if (field === this.SDFields.carB) {
-        this.collisionImpulse.CarB += Math.abs(forceMag);
+        this.collisionImpulse.carB += Math.abs(forceMag);
       }
     };
 
@@ -449,8 +449,8 @@ export class CartFrame {
     const sep7 = sep6 + 2;
     // ranges are [inclusive, exclusive]
     this.nodeRanges = {
-      CarA: [sep1, sep2],
-      CarB: [sep2, sep3],
+      carA: [sep1, sep2],
+      carB: [sep2, sep3],
       orbitA: [sep3, sep4],
       orbitB: [sep4, sep5],
       powerUps: [sep5, sep6],
@@ -463,13 +463,13 @@ export class CartFrame {
   resetState() {
     const pcs = this.msdSystem.particles.container;
     this._orbitTimer = 0;
-    for (const i of range(...this.nodeRanges.CarA)) {
+    for (const i of range(...this.nodeRanges.carA)) {
       pcs[i].location = this.initial.locations[i].copy();
       pcs[i].velocity = math.vec3(0, 0, 0);
       pcs[i].metadata = undefined;
       pcs[i].mass = this.initial.uniformMass;
     }
-    for (const i of range(...this.nodeRanges.CarB)) {
+    for (const i of range(...this.nodeRanges.carB)) {
       pcs[i].location = this.initial.locations[i].copy();
       pcs[i].velocity = math.vec3(0, 0, 0);
       pcs[i].metadata = undefined;
@@ -671,7 +671,7 @@ export class CartFrame {
     const centerA = this.getAverage([0, 3 + 1]);
     const centerB = this.getAverage([0 + sh, 3 + sh + 1]);
     for (const [i, p] of enumerate(this.msdSystem.getGroup("orbit"))) {
-      let center = p.group.has("CarA") ? centerA : centerB;
+      let center = p.group.has("carA") ? centerA : centerB;
       if (p.disabled && !forceUpdate) continue;
       const [w, phi, rd, h] = this.orbitRandom[i];
       const theta = w * this._orbitTimer + phi;
@@ -726,17 +726,17 @@ export class CartFrame {
    */
   step(dt: number) {
     // clear the previous frame's tally
-    this.collisionImpulse.CarA = 0;
-    this.collisionImpulse.CarB = 0;
+    this.collisionImpulse.carA = 0;
+    this.collisionImpulse.carB = 0;
 
     this.integrator.step(this.msdSystem, dt);
 
     if (this.onCollision) {
-      if (this.collisionImpulse.CarA) {
-        this.onCollision("carA", this.collisionImpulse.CarA * dt);
+      if (this.collisionImpulse.carA) {
+        this.onCollision("carA", this.collisionImpulse.carA * dt);
       }
-      if (this.collisionImpulse.CarB) {
-        this.onCollision("carB", this.collisionImpulse.CarB * dt);
+      if (this.collisionImpulse.carB) {
+        this.onCollision("carB", this.collisionImpulse.carB * dt);
       }
     }
   }
@@ -807,8 +807,8 @@ export class CartFrame {
     }
 
     return {
-      CarA: out[0],
-      CarB: out[1],
+      carA: out[0],
+      carB: out[1],
     };
   }
 
@@ -821,13 +821,13 @@ export class CartFrame {
     const fwdB = pc[j1].location.minus(pc[j2].location).normalized();
 
     return {
-      CarA: {
+      carA: {
         frontRight: pc[i0].velocity.dot(pc[i0].tireForward ?? fwdA),
         frontLeft: pc[i1].velocity.dot(pc[i1].tireForward ?? fwdA),
         rearLeft: pc[i2].velocity.dot(pc[i2].tireForward ?? fwdA),
         rearRight: pc[i3].velocity.dot(pc[i3].tireForward ?? fwdA),
       },
-      CarB: {
+      carB: {
         frontRight: pc[j0].velocity.dot(pc[j0].tireForward ?? fwdB),
         frontLeft: pc[j1].velocity.dot(pc[j1].tireForward ?? fwdB),
         rearLeft: pc[j2].velocity.dot(pc[j2].tireForward ?? fwdB),
