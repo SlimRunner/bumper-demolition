@@ -17,6 +17,7 @@ import { ComplexTextured, CplxMats } from "./shaders/complexTexture";
 import { SkyboxWH } from "./shaders/skyboxShader";
 import { GameGUI } from "./components/gameGui";
 import { CarSound } from "./components/carSound";
+import { CollisionSound } from "./components/collisionSound";
 import {
   calculateSunPosition,
   getAverageSkyColor,
@@ -115,6 +116,7 @@ export class BumperCarsBase extends tiny.Component {
 
   gui?: GameGUI;
   sound?: CarSound;
+  collisionSound?: CollisionSound;
 
   readonly lightCount = 6;
 
@@ -427,7 +429,13 @@ export class BumperCarsBase extends tiny.Component {
     this.gui.resetState();
 
     if (!this.sound) {
-      this.sound = new CarSound("../assets/motor-sound3.mp3");
+      this.sound = new CarSound("../assets/sounds/motor-sound3.mp3");
+    }
+    if (!this.collisionSound) {
+      this.collisionSound = new CollisionSound(
+        "../assets/sounds/car-collision-slow.mp3",
+        "../assets/sounds/car-collision-fast.mp3",
+      );
     }
   }
 
@@ -630,6 +638,7 @@ export class BumperCars extends BumperCarsBase {
       // later if you prefer (0.5*m*v^2 loss etc.)
       const other: CarTarget = player === "carA" ? "carB" : "carA";
       gmMatch.makeDamage(other, impulse * 0.05);
+      this.collisionSound!.play(impulse);
     };
 
     cartMSD.msdSystem.trespassCB = (p, field) => {
