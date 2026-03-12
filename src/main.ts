@@ -18,6 +18,7 @@ import { SkyboxWH } from "./shaders/skyboxShader";
 import { GameGUI } from "./components/gameGui";
 import { CarSound } from "./components/carSound";
 import { CollisionSound } from "./components/collisionSound";
+import { BladeSlashSound } from "./components/bladeSlashSound";
 import {
   calculateSunPosition,
   getAverageSkyColor,
@@ -117,6 +118,7 @@ export class BumperCarsBase extends tiny.Component {
   gui?: GameGUI;
   sound?: CarSound;
   collisionSound?: CollisionSound;
+  bladeSlashSound?: BladeSlashSound;
 
   readonly lightCount = 6;
 
@@ -437,6 +439,14 @@ export class BumperCarsBase extends tiny.Component {
         "../assets/sounds/car-collision-fast.mp3",
       );
     }
+    if (!this.bladeSlashSound) {
+      this.bladeSlashSound = new BladeSlashSound(
+        "../assets/sounds/blade-slash1.mp3",
+        "../assets/sounds/blade-slash2.mp3",
+      );
+      this.armatures.carA.onSlash = () => this.bladeSlashSound?.play();
+      this.armatures.carB.onSlash = () => this.bladeSlashSound?.play();
+    }
   }
 
   render_animation(context: tiny.Component): void {
@@ -638,7 +648,7 @@ export class BumperCars extends BumperCarsBase {
       // later if you prefer (0.5*m*v^2 loss etc.)
       const other: CarTarget = player === "carA" ? "carB" : "carA";
       gmMatch.makeDamage(other, impulse * 0.05);
-      this.collisionSound!.play(impulse);
+      this.collisionSound?.accumulate(impulse);
     };
 
     cartMSD.msdSystem.trespassCB = (p, field) => {
@@ -716,8 +726,10 @@ export class BumperCars extends BumperCarsBase {
     const cartMSD = this.physics.cartMSD;
     const { carA: cartA, carB: cartB } = this.armatures;
 
+    const paused = !cartMSD.enable || this.globalProps.isIdling;
+
     // do all time related oerations inside this if statement
-    if (cartMSD.enable && !this.globalProps.isIdling) {
+    if (!paused) {
       this.gui?.updateTimer(timeDelta * timeMult);
       this.gameMatch.updateExpiry(timeDelta * timeMult);
       this.gameMatch.checkTime();
@@ -780,6 +792,8 @@ export class BumperCars extends BumperCarsBase {
       const panB = -clamp(toB.dot(camRight) / distB, -1, 1);
       this.sound?.update(speedA, speedB, panA, panB);
     }
+
+    this.collisionSound?.flush(paused);
 
     // this pattern can be used to create a sky texture later
     GL.disable(GL.DEPTH_TEST);
