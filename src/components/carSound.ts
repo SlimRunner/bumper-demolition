@@ -3,10 +3,10 @@ export class CarSound {
   private readonly audioB: HTMLAudioElement;
   private playingA = false;
   private playingB = false;
-  private readonly minVolume = 0.15;
-  private readonly maxVolume = 0.6;
+  private readonly minVolume = 0.05;
+  private readonly maxVolume = 0.3;
   private readonly minRate = 0.8;
-  private readonly maxRate = 2.4;
+  private readonly maxRate = 3.5;
   private readonly maxSpeed: number;
   private ctx: AudioContext | null = null;
   private pannerA: StereoPannerNode | null = null;
