@@ -11,10 +11,13 @@ import {
 import {
   affineTransform,
   basisChange,
+  basisChangeMut,
   getSpawnPoint,
+  invertOrthonormalMut,
   PlaneChoice,
   rotateAboutAxis,
-  Vector2,
+  setVector,
+  VectorKind,
 } from "../utils/math";
 import {
   ArenaField,
@@ -22,14 +25,24 @@ import {
   ContactField,
   PlaneField,
 } from "./contactFields";
-import {
-  curryDyn,
-  FunctorSDF,
-  sdOrientedCapsule2D,
-  sdOrientedRect,
-} from "../linearAlgebra/sdfs";
+import { curryDynP, sdRoundBox } from "../linearAlgebra/sdfs";
 import { enumerate, range } from "../utils/iterators";
 import type { CarName, PowerUpKind } from "../components/types";
+
+// reference: https://stackoverflow.com/a/59906630
+type ArrayLengthMutationKeys =
+  | "splice"
+  | "push"
+  | "pop"
+  | "shift"
+  | "unshift"
+  | number;
+type ArrayItems<T extends Array<any>> =
+  T extends Array<infer TItems> ? TItems : never;
+type FixedLengthArray<T extends any[]> = Pick<
+  T,
+  Exclude<keyof T, ArrayLengthMutationKeys>
+> & { [Symbol.iterator]: () => IterableIterator<ArrayItems<T>> };
 
 export class CartFrame {
   msdSystem: SpringDamperSystem;
@@ -61,6 +74,33 @@ export class CartFrame {
     carA: ContactField;
     carB: ContactField;
   };
+  readonly transforms: {
+    readonly carA: {
+      readonly matrix: math.Mat4;
+      readonly inverse: math.Mat4;
+      readonly center: math.Vector3;
+      readonly forward: math.Vector3;
+      readonly side: math.Vector3;
+      readonly up: math.Vector3;
+      readonly midFloor: math.Vector3;
+    };
+    readonly carB: {
+      readonly matrix: math.Mat4;
+      readonly inverse: math.Mat4;
+      readonly center: math.Vector3;
+      readonly forward: math.Vector3;
+      readonly side: math.Vector3;
+      readonly up: math.Vector3;
+      readonly midFloor: math.Vector3;
+    };
+  };
+  readonly cache: {
+    // this pattern makes size and accesses static (i.e. you cannot use
+    // an index of type number). Arbitrarily 10
+    tempVec: FixedLengthArray<
+      [math.Vector3, math.Vector3, math.Vector3, math.Vector3, math.Vector3]
+    >;
+  };
   private orbitRandom: Array<[number, number, number, number]>;
   private _orbitTimer: number = 0;
 
@@ -87,6 +127,16 @@ export class CartFrame {
       cartB: math.Mat4;
     };
   }) {
+    this.cache = {
+      tempVec: [
+        math.vec3(0, 0, 0),
+        math.vec3(0, 0, 0),
+        math.vec3(0, 0, 0),
+        math.vec3(0, 0, 0),
+        math.vec3(0, 0, 0),
+      ],
+    };
+
     props.transforms ??= {
       cartA: math.Mat4.identity(),
       cartB: math.Mat4.identity(),
@@ -102,7 +152,7 @@ export class CartFrame {
       uniformMass: 0,
     };
 
-    const y_disp = 0.1;
+    const y_disp = 0.02;
     const particles = new ParticleCollection(0);
     const wx = dimensions.wheelbase / 2;
     const wx2 = dimensions.frameLength / 2;
@@ -317,9 +367,12 @@ export class CartFrame {
     });
 
     const plChoice: PlaneChoice = "xz";
-    // adjust as needed to improve node enclosure
-    const pillLength = wx2 * 1.0;
-    const pillWidth = dimensions.frameWidth;
+    const dims = math.vec3(
+      dimensions.frameLength,
+      dimensions.frameHeight,
+      dimensions.frameWidth,
+    );
+    dims.scale_by(0.5);
 
     // this pattern is a clusterfuck ngl, but it is a necessary evil. It
     // pushes the "contact fields" which are the colliders in the game,
@@ -343,19 +396,26 @@ export class CartFrame {
       ),
       carA: new CartField(
         new Set(["carB"]), // affects carB but follows carA
-        curryDyn(sdOrientedRect, () => {
-          // this line is implicitly getting orientation of carA
-          const dir = this.getOrientation();
-          const rear = Vector2.from3d(
-            dir.mid.minus(dir.fwd.times(pillLength)),
-            plChoice,
+        curryDynP(sdRoundBox, (p) => {
+          const pout = affineTransform(
+            this.transforms.carA.inverse,
+            p,
+            VectorKind.point,
           );
-          const front = Vector2.from3d(
-            dir.mid.plus(dir.fwd.times(pillLength)),
-            plChoice,
+          const center = affineTransform(
+            this.transforms.carA.inverse,
+            this.transforms.carA.center,
+            VectorKind.point,
           );
-
-          return [rear, front, pillWidth, plChoice];
+          return [
+            math.vec3(
+              pout[0] - center[0],
+              pout[1] - center[1],
+              pout[2] - center[2],
+            ),
+            dims,
+            0.1,
+          ];
         }),
         {
           stiffness: 15000,
@@ -367,20 +427,26 @@ export class CartFrame {
       ),
       carB: new CartField(
         new Set(["carA"]), // affects carA but follows carB
-        curryDyn(sdOrientedRect, () => {
-          // this line is getting orientation of carB (hence the shift
-          // by carNodeCount)
-          const dir = this.getOrientation(carNodeCount);
-          const rear = Vector2.from3d(
-            dir.mid.minus(dir.fwd.times(pillLength)),
-            plChoice,
+        curryDynP(sdRoundBox, (p) => {
+          const pout = affineTransform(
+            this.transforms.carB.inverse,
+            p,
+            VectorKind.point,
           );
-          const front = Vector2.from3d(
-            dir.mid.plus(dir.fwd.times(pillLength)),
-            plChoice,
+          const center = affineTransform(
+            this.transforms.carB.inverse,
+            this.transforms.carB.center,
+            VectorKind.point,
           );
-
-          return [rear, front, pillWidth, plChoice];
+          return [
+            math.vec3(
+              pout[0] - center[0],
+              pout[1] - center[1],
+              pout[2] - center[2],
+            ),
+            dims,
+            0.1,
+          ];
         }),
         {
           stiffness: 15000,
@@ -457,6 +523,27 @@ export class CartFrame {
       blades: [sep6, sep7],
     };
 
+    this.transforms = {
+      carA: {
+        matrix: math.Mat4.identity(),
+        inverse: math.Mat4.identity(),
+        center: math.vec3(0, 0, 0),
+        forward: math.vec3(0, 0, 0),
+        side: math.vec3(0, 0, 0),
+        up: math.vec3(0, 0, 0),
+        midFloor: math.vec3(0, 0, 0),
+      },
+      carB: {
+        matrix: math.Mat4.identity(),
+        inverse: math.Mat4.identity(),
+        center: math.vec3(0, 0, 0),
+        forward: math.vec3(0, 0, 0),
+        side: math.vec3(0, 0, 0),
+        up: math.vec3(0, 0, 0),
+        midFloor: math.vec3(0, 0, 0),
+      },
+    };
+    this.updateOrientation();
     this.updateTireVectors(0, 0, 0, 0);
   }
 
@@ -489,6 +576,60 @@ export class CartFrame {
       pcs[i].location = math.vec3(0, -1, 0);
       pcs[i].disabled = true;
       pcs[i].metadata = undefined;
+    }
+    this.updateOrientation();
+  }
+
+  updateOrientation() {
+    const pc = this.msdSystem.particles.container;
+    const sh = this.initial.carNodeCount;
+    const shRoof = 8;
+
+    const iters: Array<[number, CarName]> = [
+      [0, "carA"],
+      [sh, "carB"],
+    ];
+
+    for (const [ish, key] of iters) {
+      const [i0, i1, i2, i3] = [0 + ish, 1 + ish, 2 + ish, 3 + ish];
+      const car = this.transforms[key];
+      const carRange = this.nodeRanges[key];
+
+      this.getAverageMut(carRange, car.center);
+      setVector(car.forward, pc[i1].location);
+      car.forward.subtract_by(pc[i2].location);
+      car.forward.normalize();
+      setVector(car.side, pc[i3].location);
+      car.side.subtract_by(pc[i2].location);
+      car.side.normalize();
+      setVector(car.up, pc[i0 + shRoof].location);
+      car.up.subtract_by(pc[i0].location);
+      car.up.normalize();
+
+      const floorCenter = this.cache.tempVec[3];
+      setVector(floorCenter, pc[i0].location);
+      floorCenter.add_by(pc[i1].location);
+      floorCenter.add_by(pc[i2].location);
+      floorCenter.add_by(pc[i3].location);
+      floorCenter.scale_by(0.25);
+      setVector(car.midFloor, floorCenter);
+
+      const tireFL = this.cache.tempVec[0];
+      const tireRL = this.cache.tempVec[1];
+      const tireRR = this.cache.tempVec[2];
+      setVector(tireFL, pc[i1].location);
+      tireFL.add_by(pc[i1 + shRoof].location);
+      tireFL.scale_by(0.5);
+      setVector(tireRL, pc[i2].location);
+      tireRL.add_by(pc[i2 + shRoof].location);
+      tireRL.scale_by(0.5);
+      setVector(tireRR, pc[i3].location);
+      tireRR.add_by(pc[i3 + shRoof].location);
+      tireRR.scale_by(0.5);
+
+      basisChangeMut(tireRR, tireRL, tireFL, floorCenter, car.matrix);
+      // tireRR, tireRL, tireFL are invalidated in basisChangeMut
+      invertOrthonormalMut(car.matrix, car.inverse);
     }
   }
 
@@ -590,6 +731,25 @@ export class CartFrame {
     return math.vec3(x, y, z);
   }
 
+  getAverageMut(nodeRange: [number, number], out: math.Vector3) {
+    const [a, b] = nodeRange;
+    let x = 0;
+    let y = 0;
+    let z = 0;
+    for (let i = a; i < b; ++i) {
+      const loc = this.msdSystem.particles.container[i].location;
+      x += loc[0];
+      y += loc[1];
+      z += loc[2];
+    }
+    x /= b - a;
+    y /= b - a;
+    z /= b - a;
+    out[0] = x;
+    out[1] = y;
+    out[2] = z;
+  }
+
   getBoundingBox(nodeRange: [number, number]) {
     const [a, b] = nodeRange;
     let xm: number | undefined;
@@ -621,47 +781,9 @@ export class CartFrame {
   }
 
   getTransforms() {
-    const pc = this.msdSystem.particles.container;
-    const sh = this.initial.carNodeCount;
-    const shRoof = 8; // tires + 8 -> roof index (assumes a box)
-    const [i0, i1, i2, i3] = [0, 1, 2, 3];
-    const [j0, j1, j2, j3] = [i0 + sh, i1 + sh, i2 + sh, i3 + sh];
-
-    const Ma = basisChange(
-      pc[i3].location.plus(pc[i3 + shRoof].location).times(0.5),
-      pc[i2].location.plus(pc[i2 + shRoof].location).times(0.5),
-      pc[i1].location.plus(pc[i1 + shRoof].location).times(0.5),
-      pc
-        .slice(0, 4)
-        .map((p) => p.location)
-        .reduce((acc, cv) => acc.plus(cv))
-        .times(1 / 4),
-    );
-
-    const Mb = basisChange(
-      pc[j3].location.plus(pc[j3 + shRoof].location).times(0.5),
-      pc[j2].location.plus(pc[j2 + shRoof].location).times(0.5),
-      pc[j1].location.plus(pc[j1 + shRoof].location).times(0.5),
-      pc
-        .slice(0 + sh, 4 + sh)
-        .map((p) => p.location)
-        .reduce((acc, cv) => acc.plus(cv))
-        .times(1 / 4),
-    );
-
     return {
-      mtxCarA: Ma,
-      mtxCarB: Mb,
-    };
-  }
-
-  getOrientation(sh: number = 0) {
-    const pc = this.msdSystem.particles.container;
-    const [i0, i1, i2, i3] = [0 + sh, 1 + sh, 2 + sh, 3 + sh];
-    return {
-      fwd: pc[i1].location.minus(pc[i2].location).normalized(),
-      side: pc[i3].location.minus(pc[i2].location).normalized(),
-      mid: this.getAverage([i0, i3 + 1]),
+      mtxCarA: this.transforms.carA.matrix,
+      mtxCarB: this.transforms.carB.matrix,
     };
   }
 
@@ -714,7 +836,6 @@ export class CartFrame {
     }
   }
 
-  
   /**
    * Advance the physics state by a single timestep and notify the
    * `onCollision` listener with impulses incurred during the step.
@@ -729,6 +850,7 @@ export class CartFrame {
     this.collisionImpulse.carA = 0;
     this.collisionImpulse.carB = 0;
 
+    this.updateOrientation();
     this.integrator.step(this.msdSystem, dt);
 
     if (this.onCollision) {
@@ -754,16 +876,16 @@ export class CartFrame {
       frontRight: number;
     }[] = [];
 
-    const props: Array<[number, number, number]> = [
-      [0, angleA, thrustA],
-      [this.initial.carNodeCount, angleB, thrustB],
+    const props: Array<[number, number, number, CarName]> = [
+      [0, angleA, thrustA, "carA"],
+      [this.initial.carNodeCount, angleB, thrustB, "carB"],
     ];
 
-    for (const [sh, angle, thrust] of props) {
-      const [i0, i1, i2, i3, i4] = [0 + sh, 1 + sh, 2 + sh, 3 + sh, 8 + sh];
-      const upVec = pc[i0].location.minus(pc[i4].location).normalized();
-      const fwdVec = pc[i1].location.minus(pc[i2].location).normalized();
-      const innerAngle = angle;
+    for (const [sh, angle, thrust, name] of props) {
+      const [i0, i1, i2, i3] = [0 + sh, 1 + sh, 2 + sh, 3 + sh];
+      const upVec = this.transforms[name].up;
+      const fwdVec = this.transforms[name].forward;
+      const innerAngle = -angle;
       const outerAngle =
         Math.sign(innerAngle) *
         Math.atan(

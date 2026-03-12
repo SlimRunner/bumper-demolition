@@ -130,7 +130,7 @@ export class ArcJoint {
     const dofStack: DOFRef[] = [];
     this._traverse(
       this,
-      matrix ?? math.Mat4.identity(),
+      matrix?.copy() ?? math.Mat4.identity(),
       callback,
       [],
       dofStack,

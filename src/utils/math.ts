@@ -51,7 +51,7 @@ export function getSpawnPoint(
     if (carB_SDF(probe) < probeRadius) continue;
     return probe;
   }
-  
+
   console.warn(`all ${maxAttempts} attempts to find spawn point failed`);
   return probe;
 }
@@ -149,6 +149,77 @@ export function basisChange(
     [u[2], v[2], w[2], loc[2]],
     [0, 0, 0, 1],
   );
+}
+
+export function basisChangeMut(
+  forward: math.Vector3,
+  center: math.Vector3,
+  right: math.Vector3,
+  loc: math.Vector3,
+  out: math.Mat4,
+) {
+  const w = forward;
+  w.subtract_by(center);
+  w.normalize();
+  const v = right;
+  v.subtract_by(center);
+  // crossMut does not clober its args
+  crossMut(w, v, v);
+  v.normalize();
+  const u = center;
+  crossMut(v, w, u);
+
+  out[0][0] = u[0];
+  out[1][0] = u[1];
+  out[2][0] = u[2];
+  out[3][0] = 0;
+  out[0][1] = v[0];
+  out[1][1] = v[1];
+  out[2][1] = v[2];
+  out[3][1] = 0;
+  out[0][2] = w[0];
+  out[1][2] = w[1];
+  out[2][2] = w[2];
+  out[3][2] = 0;
+  out[0][3] = loc[0];
+  out[1][3] = loc[1];
+  out[2][3] = loc[2];
+  out[3][3] = 1;
+}
+
+export function invertOrthonormalMut(
+  matrix: math.Mat4 | matrix4x4,
+  out: math.Mat4 | matrix4x4,
+) {
+  // transpose rotation part
+  out[0][0] = matrix[0][0];
+  out[0][1] = matrix[1][0];
+  out[0][2] = matrix[2][0];
+
+  out[1][0] = matrix[0][1];
+  out[1][1] = matrix[1][1];
+  out[1][2] = matrix[2][1];
+
+  out[2][0] = matrix[0][2];
+  out[2][1] = matrix[1][2];
+  out[2][2] = matrix[2][2];
+
+  // translation
+  const tx = matrix[0][3];
+  const ty = matrix[1][3];
+  const tz = matrix[2][3];
+
+  out[0][3] = -(out[0][0] * tx + out[0][1] * ty + out[0][2] * tz);
+  out[1][3] = -(out[1][0] * tx + out[1][1] * ty + out[1][2] * tz);
+  out[2][3] = -(out[2][0] * tx + out[2][1] * ty + out[2][2] * tz);
+
+  // bottom row
+  out[3][0] = 0;
+  out[3][1] = 0;
+  out[3][2] = 0;
+  out[3][3] = 1;
+
+  return out;
 }
 
 export function linearTransform(

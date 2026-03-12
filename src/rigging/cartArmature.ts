@@ -355,6 +355,10 @@ export class CartArmature {
     this.arcs.wheelHubRR.setAngle("rz", this._props.spinRR % PI2);
   }
 
+  isArmSpinning() {
+    return this._props.armBlade.enabled;
+  }
+
   swingArm() {
     const anim = this._props.armBlade;
     anim.enabled = true;
@@ -431,7 +435,7 @@ export class CartArmature {
 
   updateFrontWheels(angleLeft: number, angleRight: number) {
     // negated so that < 0 means left and vice-versa
-    this.arcs.wheelHubFL.setAngle("ry", -angleLeft);
-    this.arcs.wheelHubFR.setAngle("ry", -angleRight);
+    this.arcs.wheelHubFL.setAngle("ry", angleLeft);
+    this.arcs.wheelHubFR.setAngle("ry", angleRight);
   }
 }

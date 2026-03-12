@@ -77,8 +77,8 @@ export class BumperCarsBase extends tiny.Component {
     };
   };
   armatures: {
-    cartA: CartArmature;
-    cartB: CartArmature;
+    carA: CartArmature;
+    carB: CartArmature;
   };
   physics: {
     cartMSD: CartFrame;
@@ -290,11 +290,11 @@ export class BumperCarsBase extends tiny.Component {
     };
 
     this.armatures = {
-      cartA: new CartArmature({
+      carA: new CartArmature({
         dimensions: cartDims,
         meshes: cartMeshesA,
       }),
-      cartB: new CartArmature({
+      carB: new CartArmature({
         dimensions: cartDims,
         meshes: cartMeshesB,
       }),
@@ -376,8 +376,8 @@ export class BumperCarsBase extends tiny.Component {
     // this is just one function right now but keep it because we may
     // need to reset other things later.
     this.physics.cartMSD.resetState();
-    this.armatures.cartA.resetState();
-    this.armatures.cartB.resetState();
+    this.armatures.carA.resetState();
+    this.armatures.carB.resetState();
     this.gui?.resetState();
     this.globalProps.timer = 0;
   }
@@ -566,7 +566,9 @@ export class BumperCars extends BumperCarsBase {
         p.disabled = true;
         gmMatch.makeDamage(target, 1);
       } else if (p.group.has("sawblade")) {
-        gmMatch.makeDamage(target, 0.013);
+        if (this.armatures[target].isArmSpinning()) {
+          gmMatch.makeDamage(target, 0.013);
+        }
       } else if (p.group.has("powerup") && !gmMatch.getPowerup(target)) {
         p.disabled = true;
         this.gui?.showMessage(
@@ -592,9 +594,9 @@ export class BumperCars extends BumperCarsBase {
   protected setThrust(car: CarName, value: number) {
     switch (car) {
       case "carA":
-        this.armatures.cartB.maxThrust = value;
+        this.armatures.carB.maxThrust = value;
       case "carB":
-        this.armatures.cartB.maxThrust = value;
+        this.armatures.carB.maxThrust = value;
     }
   }
 
@@ -615,7 +617,7 @@ export class BumperCars extends BumperCarsBase {
     const cam_loc = CMT.sub_block([0, 3], [3, 4]).flat();
 
     const cartMSD = this.physics.cartMSD;
-    const { cartA, cartB } = this.armatures;
+    const { carA: cartA, carB: cartB } = this.armatures;
 
     // do all time related oerations inside this if statement
     if (cartMSD.enable && !this.globalProps.isIdling) {
@@ -825,7 +827,7 @@ export class BumperCars extends BumperCarsBase {
   }
 
   render_controls(): void {
-    const { cartA, cartB } = this.armatures;
+    const { carA: cartA, carB: cartB } = this.armatures;
 
     // controls for car A
     this.live_string((elem) => {
