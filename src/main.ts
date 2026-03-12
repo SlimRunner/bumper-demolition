@@ -429,32 +429,6 @@ export class BumperCarsBase extends tiny.Component {
     if (!this.sound) {
       this.sound = new CarSound("../assets/motor-sound3.mp3");
     }
-
-    if (div.querySelector("#sound-debug")) return;
-
-    const soundDebug = document.createElement("div");
-    soundDebug.id = "sound-debug";
-    soundDebug.style.cssText =
-      "position:absolute;bottom:8px;left:8px;display:flex;gap:6px;z-index:10;";
-    const btnMuteA = document.createElement("button");
-    btnMuteA.textContent = "Mute Car A";
-    btnMuteA.type = "button";
-    const btnMuteB = document.createElement("button");
-    btnMuteB.textContent = "Mute Car B";
-    btnMuteB.type = "button";
-    btnMuteA.addEventListener("click", () => {
-      const next = !this.sound?.getMuteA();
-      this.sound?.setMuteA(next);
-      btnMuteA.textContent = next ? "Unmute Car A" : "Mute Car A";
-    });
-    btnMuteB.addEventListener("click", () => {
-      const next = !this.sound?.getMuteB();
-      this.sound?.setMuteB(next);
-      btnMuteB.textContent = next ? "Unmute Car B" : "Mute Car B";
-    });
-    soundDebug.append(btnMuteA, btnMuteB);
-    div.style.position = div.style.position || "relative";
-    div.appendChild(soundDebug);
   }
 
   render_animation(context: tiny.Component): void {
@@ -1021,6 +995,17 @@ export class BumperCars extends BumperCarsBase {
       cartA.swingArm();
     });
     this.new_line();
+
+    this.key_triggered_button("mute Car A", ["["], () => {
+      if (!this.sound) return;
+      const next = !this.sound.getMuteA();
+      this.sound.setMuteA(next);
+    });
+    this.key_triggered_button("mute Car B", ["]"], () => {
+      if (!this.sound) return;
+      const next = !this.sound.getMuteB();
+      this.sound.setMuteB(next);
+    });
 
     // controls for car B
     this.live_string((elem) => {
