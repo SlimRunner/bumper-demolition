@@ -837,7 +837,9 @@ export class CartFrame {
       p.location[0] = center[0] + Math.cos(theta) * rd;
       p.location[2] = center[2] + Math.sin(theta) * rd;
       p.location[1] = center[1] + h;
-      this.shapes[carType].orbitShape.addParticles(p.location);
+      if (!p.disabled) {
+        this.shapes[carType].orbitShape.addParticles(p.location);
+      }
     }
   }
 
