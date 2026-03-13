@@ -690,12 +690,12 @@ export class CartFrame {
     const pts = this.msdSystem.particles.container;
     switch (player) {
       case "carA":
-        for (const i of range(...this.nodeRanges.orbitA)) {
+        for (const i of range(...this.nodeRanges.carA)) {
           pts[i].mass = mass;
         }
         break;
       case "carB":
-        for (const i of range(...this.nodeRanges.orbitB)) {
+        for (const i of range(...this.nodeRanges.carB)) {
           pts[i].mass = mass;
         }
         break;
