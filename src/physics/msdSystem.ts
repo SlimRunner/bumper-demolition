@@ -431,7 +431,7 @@ export class SymplecticEuler implements Integrator {
     system.computeForces();
 
     for (const p of system.particles.container) {
-      if (p.tags.has("kinematic") || p.tags.has("free")) continue;
+      if (p.tags.has("kinematic") || p.tags.has("free") || p.disabled) continue;
 
       const massInv = 1 / p.mass;
       const accX = p.force[0] * massInv;
