@@ -28,6 +28,7 @@ import { MatchManager } from "./components/gameMatch";
 import type { CarName, PowerUpKind } from "./components/types";
 import { Scheduler, SchedulerEvent } from "./components/eventScheduler";
 import { CarNameLabels } from "./utils/text";
+import { splatMats, SplatShader } from "./shaders/splatShader";
 
 type CarTarget = "carA" | "carB";
 
@@ -46,6 +47,8 @@ export class BumperCarsBase extends tiny.Component {
     readonly softBlue: math.Vector4;
     readonly yellow: math.Vector4;
     readonly white: math.Vector4;
+    readonly brightOrange: math.Vector4;
+    readonly electricBlue: math.Vector4;
     readonly heavyBox: math.Vector4;
     readonly orbitBox: math.Vector4;
     sunAmbient: math.Vector4;
@@ -77,6 +80,9 @@ export class BumperCarsBase extends tiny.Component {
       sun_zenith: number;
       sun_azimuth: number;
     };
+    splats: {
+      shader: SplatShader;
+    } & splatMats;
   };
   armatures: {
     carA: CartArmature;
@@ -126,6 +132,8 @@ export class BumperCarsBase extends tiny.Component {
       softBlue: math.color(0.176, 0.439, 0.702, 1),
       yellow: math.color(1, 1, 0, 1),
       white: math.color(1, 1, 1, 1),
+      brightOrange: math.color(1, 0.36, 0, 1),
+      electricBlue: math.color(0, 0.94, 1, 1),
       sunAmbient: math.color(0, 0, 0, 0),
       sunColor: math.color(1, 1, 1, 0),
       skyHorizon: math.color(0, 0, 0, 0),
@@ -172,6 +180,11 @@ export class BumperCarsBase extends tiny.Component {
         shader: new SkyboxWH(),
         sun_azimuth: Math.PI * 0.4,
         sun_zenith: Math.PI * 0.35,
+      },
+      splats: {
+        shader: new SplatShader(),
+        color: this.colors.white,
+        point_size: 100,
       },
     };
 
@@ -796,19 +809,6 @@ export class BumperCars extends BumperCarsBase {
         break;
     }
 
-    cartMSD.traverseOrbits((p, owner) => {
-      const [x, y, z] = p.location;
-      this.shapes.ball.draw(
-        context,
-        this.uniforms,
-        math.Mat4.translation(x, y, z).times(math.Mat4.scale(0.1, 0.1, 0.1)),
-        {
-          ...this.materials.plastic,
-          color: owner === "carA" ? this.colors.red : this.colors.blue,
-        },
-      );
-    });
-
     if (this.globalProps.showMeshes) {
       cartA.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
@@ -899,6 +899,18 @@ export class BumperCars extends BumperCarsBase {
         },
       );
     });
+    cartMSD
+      .orbitShape("carA")
+      .draw(context, this.uniforms, this.transforms.identity, {
+        ...this.materials.splats,
+        color: this.colors.brightOrange,
+      });
+    cartMSD
+      .orbitShape("carB")
+      .draw(context, this.uniforms, this.transforms.identity, {
+        ...this.materials.splats,
+        color: this.colors.electricBlue,
+      });
     GL.depthMask(true);
 
     // do this at the very end always

@@ -28,6 +28,7 @@ import {
 import { curryDynP, sdRoundBox } from "../linearAlgebra/sdfs";
 import { enumerate, range } from "../utils/iterators";
 import type { CarName, PowerUpKind } from "../components/types";
+import { ParticleShape } from "../shapes/particleShape";
 
 // reference: https://stackoverflow.com/a/59906630
 type ArrayLengthMutationKeys =
@@ -49,6 +50,14 @@ export class CartFrame {
   integrator: Integrator;
   enable: boolean = false;
   timeStep: number = 0.001;
+  shapes: {
+    carA: {
+      orbitShape: ParticleShape;
+    },
+    carB: {
+      orbitShape: ParticleShape;
+    },
+  };
   private initial: {
     locations: math.Vector3[];
     carNodeCount: number;
@@ -536,6 +545,15 @@ export class CartFrame {
       blades: [sep6, sep7],
     };
 
+    this.shapes = {
+      carA: {
+        orbitShape: new ParticleShape(sep4 - sep3),
+      },
+      carB: {
+        orbitShape: new ParticleShape(sep5 - sep4),
+      }
+    };
+
     this.transforms = {
       carA: {
         matrix: math.Mat4.identity(),
@@ -806,7 +824,10 @@ export class CartFrame {
     const sh = this.initial.carNodeCount;
     const centerA = this.getAverage([0, 3 + 1]);
     const centerB = this.getAverage([0 + sh, 3 + sh + 1]);
+    this.shapes.carA.orbitShape.clearParticles();
+    this.shapes.carB.orbitShape.clearParticles();
     for (const [i, p] of enumerate(this.msdSystem.getGroup("orbit"))) {
+      const carType: CarName = p.group.has("carA") ? "carA" : "carB";
       let center = p.group.has("carA") ? centerA : centerB;
       if (p.disabled && !forceUpdate) continue;
       const [w, phi, rd, h] = this.orbitRandom[i];
@@ -814,6 +835,14 @@ export class CartFrame {
       p.location[0] = center[0] + Math.cos(theta) * rd;
       p.location[2] = center[2] + Math.sin(theta) * rd;
       p.location[1] = center[1] + h;
+      this.shapes[carType].orbitShape.addParticles(p.location);
+    }
+  }
+
+  orbitShape(car: CarName) {
+    switch (car) {
+      case "carA": return this.shapes.carA.orbitShape;
+      case "carB": return this.shapes.carB.orbitShape;
     }
   }
 
