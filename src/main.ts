@@ -712,7 +712,7 @@ export class BumperCars extends BumperCarsBase {
   protected setThrust(car: CarName, value: number) {
     switch (car) {
       case "carA":
-        this.armatures.carB.maxThrust = value;
+        this.armatures.carA.maxThrust = value;
       case "carB":
         this.armatures.carB.maxThrust = value;
     }
