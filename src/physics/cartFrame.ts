@@ -178,38 +178,38 @@ export class CartFrame {
     // prettier-ignore
     const pArr: Array<[number, number, number, ParticleTags[]]> = [
       // floor nodes
-      [ wx,    0,  wz, ["tire", "structural"]],
-      [ wx,    0, -wz, ["tire", "structural"]],
-      [-wx,    0, -wz, ["tire", "structural"]],
-      [-wx,    0,  wz, ["tire", "structural"]],
+      [ wx,    0,  wz, ["tire", "regular"]],
+      [ wx,    0, -wz, ["tire", "regular"]],
+      [-wx,    0, -wz, ["tire", "regular"]],
+      [-wx,    0,  wz, ["tire", "regular"]],
       // mid section
-      [ wx, wy/2,   0, ["structural"]],
-      [  0, wy/2, -wz, ["structural"]],
-      [-wx, wy/2,   0, ["structural"]],
-      [  0, wy/2,  wz, ["structural"]],
+      [ wx, wy/2,   0, ["regular"]],
+      [  0, wy/2, -wz, ["regular"]],
+      [-wx, wy/2,   0, ["regular"]],
+      [  0, wy/2,  wz, ["regular"]],
       // top section
-      [ wx,   wy,  wz, ["structural"]],
-      [ wx,   wy, -wz, ["structural"]],
-      [-wx,   wy, -wz, ["structural"]],
-      [-wx,   wy,  wz, ["structural"]],
+      [ wx,   wy,  wz, ["regular"]],
+      [ wx,   wy, -wz, ["regular"]],
+      [-wx,   wy, -wz, ["regular"]],
+      [-wx,   wy,  wz, ["regular"]],
       // front bumper
-      [ wx2, wy2 + wy3,  wz2, ["structural"]],
-      [ wx2, wy2 + wy3, -wz2, ["structural"]],
-      [ wx2, wy2 - wy3, -wz2, ["structural"]],
-      [ wx2, wy2 - wy3,  wz2, ["structural"]],
+      [ wx2, wy2 + wy3,  wz2, ["regular"]],
+      [ wx2, wy2 + wy3, -wz2, ["regular"]],
+      [ wx2, wy2 - wy3, -wz2, ["regular"]],
+      [ wx2, wy2 - wy3,  wz2, ["regular"]],
       // rear bumper
-      [-wx2, wy2 + wy3,  wz2, ["structural"]],
-      [-wx2, wy2 + wy3, -wz2, ["structural"]],
-      [-wx2, wy2 - wy3, -wz2, ["structural"]],
-      [-wx2, wy2 - wy3,  wz2, ["structural"]],
+      [-wx2, wy2 + wy3,  wz2, ["regular"]],
+      [-wx2, wy2 + wy3, -wz2, ["regular"]],
+      [-wx2, wy2 - wy3, -wz2, ["regular"]],
+      [-wx2, wy2 - wy3,  wz2, ["regular"]],
       // apex
-      [-wx2, wy2, 0, ["structural"]],
-      [ wx2, wy2, 0, ["structural"]],
+      [-wx2, wy2, 0, ["regular"]],
+      [ wx2, wy2, 0, ["regular"]],
       // mid section
-      [ wx, wy2,  wz, ["structural"]],
-      [ wx, wy2, -wz, ["structural"]],
-      [-wx, wy2, -wz, ["structural"]],
-      [-wx, wy2,  wz, ["structural"]],
+      [ wx, wy2,  wz, ["regular"]],
+      [ wx, wy2, -wz, ["regular"]],
+      [-wx, wy2, -wz, ["regular"]],
+      [-wx, wy2,  wz, ["regular"]],
     ];
     const carNodeCount = pArr.length;
     pArr.push(...pArr); // car B is identical
@@ -329,6 +329,7 @@ export class CartFrame {
       return [w, phi, rd, h];
     });
 
+    // add powerup particles to their groups
     const boxCount = 2;
     for (const i of range(boxCount)) {
       const p = new MSDParticle({
@@ -342,6 +343,7 @@ export class CartFrame {
       this.msdSystem.addParticleToGroup(p, "powerup");
     }
 
+    // add sawblade particles to their groups
     for (const name of ["carA", "carB"]) {
       const p = new MSDParticle({
         location: math.vec3(0, 0, 0),
@@ -353,7 +355,7 @@ export class CartFrame {
       this.msdSystem.addParticleToGroup(p, "sawblade");
     }
 
-    // add particles to their appropriate groups
+    // add car particles to their appropriate groups
     for (const i of range(carNodeCount)) {
       this.msdSystem.addParticleToGroup(particles.container[i], "carA");
       this.msdSystem.addParticleToGroup(particles.container[i], "grounded");

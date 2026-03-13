@@ -35,10 +35,10 @@ type SpringProperties = {
 };
 
 // - tire: uses slip-angle friction model
-// - structural: reserved for future use
+// - regular: reserved for future use
 // - kinematic: ignores all forces and fields
 // - free: ignores all forces but tracks field penetrations
-export type ParticleTags = "tire" | "structural" | "kinematic" | "free";
+export type ParticleTags = "tire" | "regular" | "kinematic" | "free";
 
 export interface Collection<T> {
   container: T[];
