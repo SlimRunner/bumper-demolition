@@ -53,6 +53,7 @@ export class ParticleShape extends tiny.Shape {
     model_transform: math.Mat4,
     material: MaterialRecord,
   ): void {
+    if (this.count === 0) return;
     const GL = webgl_manager.context!;
     this.copy_onto_graphics_card(GL, ["position"], false);
 

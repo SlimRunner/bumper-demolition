@@ -609,6 +609,8 @@ export class CartFrame {
       pcs[i].disabled = true;
       pcs[i].metadata = undefined;
     }
+    this.shapes.carA.orbitShape.clearParticles();
+    this.shapes.carB.orbitShape.clearParticles();
     this.updateOrientation();
   }
 
