@@ -16,6 +16,9 @@ import { ActionCamera } from "./components/actionCamera";
 import { ComplexTextured, CplxMats } from "./shaders/complexTexture";
 import { SkyboxWH } from "./shaders/skyboxShader";
 import { GameGUI } from "./components/gameGui";
+import { CarSound } from "./audio/carSound";
+import { CollisionSound } from "./audio/collisionSound";
+import { BladeSlashSound } from "./audio/bladeSlashSound";
 import {
   calculateSunPosition,
   getAverageSkyColor,
@@ -119,6 +122,9 @@ export class BumperCarsBase extends tiny.Component {
   };
 
   gui?: GameGUI;
+  sound?: CarSound;
+  collisionSound?: CollisionSound;
+  bladeSlashSound?: BladeSlashSound;
 
   readonly lightCount = 6;
 
@@ -436,6 +442,24 @@ export class BumperCarsBase extends tiny.Component {
       this.gui = new GameGUI(canvas);
     }
     this.gui.resetState();
+
+    if (!this.sound) {
+      this.sound = new CarSound("../assets/sounds/motor-sound3.mp3");
+    }
+    if (!this.collisionSound) {
+      this.collisionSound = new CollisionSound(
+        "../assets/sounds/car-collision-slow.mp3",
+        "../assets/sounds/car-collision-fast.mp3",
+      );
+    }
+    if (!this.bladeSlashSound) {
+      this.bladeSlashSound = new BladeSlashSound(
+        "../assets/sounds/blade-slash1.mp3",
+        "../assets/sounds/blade-slash2.mp3",
+      );
+      this.armatures.carA.onSlash = () => this.bladeSlashSound?.play();
+      this.armatures.carB.onSlash = () => this.bladeSlashSound?.play();
+    }
   }
 
   render_animation(context: tiny.Component): void {
@@ -637,6 +661,7 @@ export class BumperCars extends BumperCarsBase {
       // later if you prefer (0.5*m*v^2 loss etc.)
       const other: CarTarget = player === "carA" ? "carB" : "carA";
       gmMatch.makeDamage(other, impulse * 0.05);
+      this.collisionSound?.accumulate(impulse);
     };
 
     cartMSD.msdSystem.trespassCB = (p, field) => {
@@ -714,8 +739,10 @@ export class BumperCars extends BumperCarsBase {
     const cartMSD = this.physics.cartMSD;
     const { carA: cartA, carB: cartB } = this.armatures;
 
+    const paused = !cartMSD.enable || this.globalProps.isIdling;
+
     // do all time related oerations inside this if statement
-    if (cartMSD.enable && !this.globalProps.isIdling) {
+    if (!paused) {
       this.gui?.updateTimer(timeDelta * timeMult);
       this.gameMatch.updateExpiry(timeDelta * timeMult);
       this.gameMatch.checkTime();
@@ -751,7 +778,35 @@ export class BumperCars extends BumperCarsBase {
       cartB.updateFrontWheels(tires.carB.frontLeft, tires.carB.frontRight);
       cartA.updateArm(timeDelta * timeMult);
       cartB.updateArm(timeDelta * timeMult);
+      // TODO: possibly use thrust (pitch) and speed (volume)
+      const speedA =
+        (Math.abs(groundSpeeds.carA.frontLeft) +
+          Math.abs(groundSpeeds.carA.frontRight) +
+          Math.abs(groundSpeeds.carA.rearLeft) +
+          Math.abs(groundSpeeds.carA.rearRight)) /
+        4;
+      const speedB =
+        (Math.abs(groundSpeeds.carB.frontLeft) +
+          Math.abs(groundSpeeds.carB.frontRight) +
+          Math.abs(groundSpeeds.carB.rearLeft) +
+          Math.abs(groundSpeeds.carB.rearRight)) /
+        4;
+      // TODO: Can this be re-factored out?
+      const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
+      const carAPos = math.vec3(mtxCarA[0][3], mtxCarA[1][3], mtxCarA[2][3]);
+      const carBPos = math.vec3(mtxCarB[0][3], mtxCarB[1][3], mtxCarB[2][3]);
+      const camPos = math.vec3(cam_loc[0], cam_loc[1], cam_loc[2]);
+      const camRight = math.vec3(CMT[0][0], CMT[0][1], CMT[0][2]);
+      const toA = carAPos.minus(camPos);
+      const toB = carBPos.minus(camPos);
+      const distA = Math.max(toA.norm(), 0.001);
+      const distB = Math.max(toB.norm(), 0.001);
+      const panA = -clamp(toA.dot(camRight) / distA, -1, 1);
+      const panB = -clamp(toB.dot(camRight) / distB, -1, 1);
+      this.sound?.update(speedA, speedB, panA, panB);
     }
+
+    this.collisionSound?.flush(paused);
 
     // this pattern can be used to create a sky texture later
     GL.disable(GL.DEPTH_TEST);
@@ -975,6 +1030,17 @@ export class BumperCars extends BumperCarsBase {
       cartA.swingArm();
     });
     this.new_line();
+
+    this.key_triggered_button("mute Car A", ["["], () => {
+      if (!this.sound) return;
+      const next = !this.sound.getMuteA();
+      this.sound.setMuteA(next);
+    });
+    this.key_triggered_button("mute Car B", ["]"], () => {
+      if (!this.sound) return;
+      const next = !this.sound.getMuteB();
+      this.sound.setMuteB(next);
+    });
 
     // controls for car B
     this.live_string((elem) => {
