@@ -1010,4 +1010,34 @@ export class CartFrame {
       },
     };
   }
+
+  static averageGroundSpeeds(
+    carA: {
+      frontRight: number;
+      frontLeft: number;
+      rearLeft: number;
+      rearRight: number;
+    },
+    carB: {
+      frontRight: number;
+      frontLeft: number;
+      rearLeft: number;
+      rearRight: number;
+    },
+  ) {
+    const speedA =
+      (Math.abs(carA.frontLeft) +
+        Math.abs(carA.frontRight) +
+        Math.abs(carA.rearLeft) +
+        Math.abs(carA.rearRight)) /
+      4;
+    const speedB =
+      (Math.abs(carB.frontLeft) +
+        Math.abs(carB.frontRight) +
+        Math.abs(carB.rearLeft) +
+        Math.abs(carB.rearRight)) /
+      4;
+
+    return { carA: speedA, carB: speedB };
+  }
 }

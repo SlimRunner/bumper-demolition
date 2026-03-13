@@ -17,7 +17,7 @@ export class CollisionSound {
     thresholdImpulse = 4,
     minImpulse = 0.8,
     maxImpulse = 7,
-    maxVolume = 0.8,
+    maxVolume = 0.6,
   ) {
     this.audioSlow = new Audio(slowSrc);
     this.audioFast = new Audio(fastSrc);

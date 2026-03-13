@@ -1,114 +1,154 @@
+import { clamp } from "../utils/math";
+import { math } from "../../tiny-graphics-math";
+import { CarName } from "../components/types";
+import { enumerate } from "../utils/iterators";
+
 export class CarSound {
-  private readonly audioA: HTMLAudioElement;
-  private readonly audioB: HTMLAudioElement;
-  private playingA = false;
-  private playingB = false;
+  private readonly audio: HTMLAudioElement[];
+  private readonly playing = [false, false];
+  private readonly muted = [false, false];
+  private readonly panners: (StereoPannerNode | null)[] = [null, null];
+
+  private ctx: AudioContext | null = null;
+  private paused = false;
+
   private readonly minVolume = 0.05;
-  private readonly maxVolume = 0.3;
+  private readonly maxVolume = 0.35;
+
   private readonly minRate = 0.8;
   private readonly maxRate = 3.5;
-  private readonly maxSpeed: number;
-  private ctx: AudioContext | null = null;
-  private pannerA: StereoPannerNode | null = null;
-  private pannerB: StereoPannerNode | null = null;
-  private muteA = false;
-  private muteB = false;
 
-  constructor(src: string, maxSpeed = 20) {
-    this.audioA = new Audio(src);
-    this.audioB = new Audio(src);
-    this.audioA.loop = true;
-    this.audioB.loop = true;
-    this.audioA.volume = 0;
-    this.audioB.volume = 0;
-    this.audioA.playbackRate = this.minRate;
-    this.audioB.playbackRate = this.minRate;
+  constructor(
+    src: string,
+    private readonly maxSpeed = 10,
+    private readonly maxThrust = 240,
+  ) {
+    this.audio = [new Audio(src), new Audio(src)];
+
+    for (const a of this.audio) {
+      a.loop = true;
+      a.volume = 0;
+      a.playbackRate = this.minRate;
+    }
+
     this.maxSpeed = Math.max(1, Math.abs(maxSpeed));
   }
 
+  private carIndex(car: CarName): number {
+    return car === "carA" ? 0 : 1;
+  }
+
   private ensureContext(): void {
-    if (this.ctx?.state === "suspended") {
-      this.ctx.resume();
+    if (!this.ctx) {
+      this.ctx = new AudioContext();
+
+      for (let i = 0; i < 2; i++) {
+        const src = this.ctx.createMediaElementSource(this.audio[i]);
+        const panner = this.ctx.createStereoPanner();
+
+        this.panners[i] = panner;
+        src.connect(panner).connect(this.ctx.destination);
+      }
     }
-    if (this.ctx) return;
-    this.ctx = new AudioContext();
-    const srcA = this.ctx.createMediaElementSource(this.audioA);
-    const srcB = this.ctx.createMediaElementSource(this.audioB);
-    this.pannerA = this.ctx.createStereoPanner();
-    this.pannerB = this.ctx.createStereoPanner();
-    this.pannerA.pan.value = -1;
-    this.pannerB.pan.value = 1;
-    srcA.connect(this.pannerA).connect(this.ctx.destination);
-    srcB.connect(this.pannerB).connect(this.ctx.destination);
-  }
 
-  setMuteA(mute: boolean): void {
-    this.muteA = mute;
-  }
-
-  setMuteB(mute: boolean): void {
-    this.muteB = mute;
-  }
-
-  getMuteA(): boolean {
-    return this.muteA;
-  }
-
-  getMuteB(): boolean {
-    return this.muteB;
-  }
-
-  update(speedA: number, speedB: number, panA = 0, panB = 0): void {
-    if (this.pannerA) this.pannerA.pan.value = panA;
-    if (this.pannerB) this.pannerB.pan.value = panB;
-    const normA = this.normalize(speedA);
-    const normB = this.normalize(speedB);
-    this.applyToChannel(this.audioA, normA, "A");
-    this.applyToChannel(this.audioB, normB, "B");
-  }
-
-  private normalize(speed: number): number {
-    const value = Math.abs(speed) / this.maxSpeed;
-    if (!isFinite(value)) {
-      return 0;
+    if (this.ctx.state === "suspended") {
+      void this.ctx.resume();
     }
-    if (value <= 0) {
-      return 0;
-    }
-    if (value >= 1) {
-      return 1;
-    }
-    return value;
   }
 
-  private applyToChannel(
-    audio: HTMLAudioElement,
-    normalized: number,
-    channel: "A" | "B",
-  ): void {
-    const muted = channel === "A" ? this.muteA : this.muteB;
-    const volume = muted
+  setMute(car: CarName, mute: boolean) {
+    this.muted[this.carIndex(car)] = mute;
+  }
+
+  getMute(car: CarName) {
+    return this.muted[this.carIndex(car)];
+  }
+
+  get paused2() {
+    return this.paused;
+  }
+
+  setPaused(paused: boolean) {
+    this.paused = paused;
+
+    if (paused) {
+      for (const a of this.audio) {
+        a.volume = 0;
+      }
+    }
+  }
+
+  update(state: {
+    carA: { speed: number; thrust: number; pos: math.Vector3 };
+    carB: { speed: number; thrust: number; pos: math.Vector3 };
+    camera: { pos: math.Vector3; right: math.Vector3 };
+  }): void {
+    const iters: Array<[number, CarName]> = [
+      [
+        CarSound.computePan(
+          state.carA.pos,
+          state.camera.pos,
+          state.camera.right,
+        ),
+        "carA",
+      ],
+      [
+        CarSound.computePan(
+          state.carB.pos,
+          state.camera.pos,
+          state.camera.right,
+        ),
+        "carB",
+      ],
+    ];
+
+    const normalize = (v: number, max: number) => {
+      return clamp(Math.abs(v) / max, 0, 1);
+    }
+
+    for (const [i, [pan, carname]] of enumerate(iters)) {
+      const normSpeed = normalize(state[carname].speed, this.maxSpeed);
+      const normThrust = normalize(state[carname].thrust, this.maxThrust);
+
+      this.apply(i, normSpeed, normThrust, pan);
+    }
+  }
+
+  static computePan(
+    carPos: math.Vector3,
+    camPos: math.Vector3,
+    camRight: math.Vector3,
+  ): number {
+    const toCar = carPos.minus(camPos);
+    const dist = Math.max(toCar.norm(), 0.001);
+    return -clamp(toCar.dot(camRight) / dist, -1, 1);
+  }
+
+  private apply(i: number, speedNorm: number, thrustNorm: number, pan: number) {
+    if (this.paused) return;
+
+    if (this.panners[i]) {
+      this.panners[i]!.pan.value = pan;
+    }
+
+    const audio = this.audio[i];
+
+    const volume = this.muted[i]
       ? 0
-      : this.minVolume +
-        (this.maxVolume - this.minVolume) * normalized;
-    const rate =
-      this.minRate +
-      (this.maxRate - this.minRate) * normalized;
+      : this.minVolume + (this.maxVolume - this.minVolume) * thrustNorm;
+
+    const rate = this.minRate + (this.maxRate - this.minRate) * speedNorm;
 
     audio.volume = volume;
     audio.playbackRate = rate;
 
-    const playing = channel === "A" ? this.playingA : this.playingB;
-    if (!playing) {
+    if (!this.playing[i]) {
       this.ensureContext();
+
       audio
         .play()
         .then(() => {
-          if (channel === "A") {
-            this.playingA = true;
-          } else {
-            this.playingB = true;
-          }
+          this.playing[i] = true;
         })
         .catch(() => {});
     }

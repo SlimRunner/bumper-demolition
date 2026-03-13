@@ -122,7 +122,7 @@ export class BumperCarsBase extends tiny.Component {
   };
 
   gui?: GameGUI;
-  sound?: CarSound;
+  engineSound?: CarSound;
   collisionSound?: CollisionSound;
   bladeSlashSound?: BladeSlashSound;
 
@@ -443,8 +443,8 @@ export class BumperCarsBase extends tiny.Component {
     }
     this.gui.resetState();
 
-    if (!this.sound) {
-      this.sound = new CarSound("../assets/sounds/motor-sound3.mp3");
+    if (!this.engineSound) {
+      this.engineSound = new CarSound("../assets/sounds/motor-sound3.mp3");
     }
     if (!this.collisionSound) {
       this.collisionSound = new CollisionSound(
@@ -778,34 +778,32 @@ export class BumperCars extends BumperCarsBase {
       cartB.updateFrontWheels(tires.carB.frontLeft, tires.carB.frontRight);
       cartA.updateArm(timeDelta * timeMult);
       cartB.updateArm(timeDelta * timeMult);
-      // TODO: possibly use thrust (pitch) and speed (volume)
-      const speedA =
-        (Math.abs(groundSpeeds.carA.frontLeft) +
-          Math.abs(groundSpeeds.carA.frontRight) +
-          Math.abs(groundSpeeds.carA.rearLeft) +
-          Math.abs(groundSpeeds.carA.rearRight)) /
-        4;
-      const speedB =
-        (Math.abs(groundSpeeds.carB.frontLeft) +
-          Math.abs(groundSpeeds.carB.frontRight) +
-          Math.abs(groundSpeeds.carB.rearLeft) +
-          Math.abs(groundSpeeds.carB.rearRight)) /
-        4;
-      // TODO: Can this be re-factored out?
-      const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
-      const carAPos = math.vec3(mtxCarA[0][3], mtxCarA[1][3], mtxCarA[2][3]);
-      const carBPos = math.vec3(mtxCarB[0][3], mtxCarB[1][3], mtxCarB[2][3]);
+
       const camPos = math.vec3(cam_loc[0], cam_loc[1], cam_loc[2]);
       const camRight = math.vec3(CMT[0][0], CMT[0][1], CMT[0][2]);
-      const toA = carAPos.minus(camPos);
-      const toB = carBPos.minus(camPos);
-      const distA = Math.max(toA.norm(), 0.001);
-      const distB = Math.max(toB.norm(), 0.001);
-      const panA = -clamp(toA.dot(camRight) / distA, -1, 1);
-      const panB = -clamp(toB.dot(camRight) / distB, -1, 1);
-      this.sound?.update(speedA, speedB, panA, panB);
+      const avgWheelSpeed = CartFrame.averageGroundSpeeds(
+        groundSpeeds.carA,
+        groundSpeeds.carB,
+      );
+      this.engineSound?.update({
+        carA: {
+          speed: avgWheelSpeed.carA,
+          pos: cartMSD.transforms.carA.center,
+          thrust: cartA.thrustForce,
+        },
+        carB: {
+          speed: avgWheelSpeed.carB,
+          pos: cartMSD.transforms.carB.center,
+          thrust: cartB.thrustForce,
+        },
+        camera: {
+          pos: camPos,
+          right: camRight,
+        },
+      });
     }
 
+    this.engineSound?.setPaused(paused);
     this.collisionSound?.flush(paused);
 
     // this pattern can be used to create a sky texture later
@@ -1030,17 +1028,6 @@ export class BumperCars extends BumperCarsBase {
       cartA.swingArm();
     });
     this.new_line();
-
-    this.key_triggered_button("mute Car A", ["["], () => {
-      if (!this.sound) return;
-      const next = !this.sound.getMuteA();
-      this.sound.setMuteA(next);
-    });
-    this.key_triggered_button("mute Car B", ["]"], () => {
-      if (!this.sound) return;
-      const next = !this.sound.getMuteB();
-      this.sound.setMuteB(next);
-    });
 
     // controls for car B
     this.live_string((elem) => {
