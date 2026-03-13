@@ -361,22 +361,24 @@ export class CartFrame {
       this.msdSystem.addParticleToGroup(particles.container[i], "carA");
       this.msdSystem.addParticleToGroup(particles.container[i], "grounded");
       this.msdSystem.addParticleToGroup(particles.container[i], "arenaBound");
+      this.msdSystem.addParticleToGroup(particles.container[i], "vehicle");
     }
     for (const i of range(carNodeCount, carNodeCount * 2)) {
       this.msdSystem.addParticleToGroup(particles.container[i], "carB");
       this.msdSystem.addParticleToGroup(particles.container[i], "grounded");
       this.msdSystem.addParticleToGroup(particles.container[i], "arenaBound");
+      this.msdSystem.addParticleToGroup(particles.container[i], "vehicle");
     }
 
     // apply initial transform to all particles.
     for (const p of this.msdSystem.getGroup("carA")) {
-      if (p.tags.has("free")) continue;
+      if (!p.group.has("vehicle")) continue;
       p.location = math.vec3(
         ...affineTransform(transforms.cartA, p.location, 1),
       );
     }
     for (const p of this.msdSystem.getGroup("carB")) {
-      if (p.tags.has("free")) continue;
+      if (!p.group.has("vehicle")) continue;
       p.location = math.vec3(
         ...affineTransform(transforms.cartB, p.location, 1),
       );
