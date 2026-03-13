@@ -409,7 +409,10 @@ export class SpringDamperSystem {
           }
 
         if (field.restitution && normSpeed < 0) {
-          const eScaled = normSpeed * (1 + field.restitution.coefficient);
+          const e =
+            p.contactOverrides?.restitution?.coefficient ??
+            field.restitution.coefficient;
+          const eScaled = normSpeed * (1 + e);
           p.velocity[0] -= normal[0] * eScaled;
           p.velocity[1] -= normal[1] * eScaled;
           p.velocity[2] -= normal[2] * eScaled;
