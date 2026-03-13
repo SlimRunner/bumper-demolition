@@ -960,13 +960,13 @@ export class BumperCars extends BumperCarsBase {
       .draw(context, this.uniforms, this.transforms.identity, {
         ...this.materials.splats,
         color: this.colors.brightOrange,
-      });
+      }, "POINTS");
     cartMSD
       .orbitShape("carB")
       .draw(context, this.uniforms, this.transforms.identity, {
         ...this.materials.splats,
         color: this.colors.electricBlue,
-      });
+      }, "POINTS");
     GL.depthMask(true);
 
     // do this at the very end always

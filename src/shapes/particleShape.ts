@@ -52,11 +52,13 @@ export class ParticleShape extends tiny.Shape {
     uniforms: Uniforms,
     model_transform: math.Mat4,
     material: MaterialRecord,
+    type: keyof WebGL2RenderingContext,
   ): void {
     if (this.count === 0) return;
     const GL = webgl_manager.context!;
     this.copy_onto_graphics_card(GL, ["position"], false);
 
+    GL.POINTS;
     material.shader!.activate(
       GL,
       this.gpu_instances.get(GL)?.webGL_buffer_pointers!,
@@ -65,6 +67,6 @@ export class ParticleShape extends tiny.Shape {
       material,
     );
 
-    GL.drawArrays(GL.POINTS, 0, this.count);
+    GL.drawArrays(GL[type] as GLenum, 0, this.count);
   }
 }
