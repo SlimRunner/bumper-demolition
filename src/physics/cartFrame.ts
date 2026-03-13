@@ -334,6 +334,7 @@ export class CartFrame {
     for (const i of range(boxCount)) {
       const p = new MSDParticle({
         location: math.vec3(0, 0, 0),
+        radius: 0.65,
       });
       p.tags.add("free");
       p.disabled = true;
@@ -727,6 +728,7 @@ export class CartFrame {
         p.disabled = false;
         p.location = location;
         p.metadata = power;
+
         break;
       }
     }

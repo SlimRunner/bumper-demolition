@@ -600,6 +600,9 @@ export class BumperCars extends BumperCarsBase {
               this.gui?.showMessage(
                 `Player ${CarNameLabels[winner].colorName} WINS!!`,
               );
+              // Do nothing for now, since you said MatchManager tracks score.
+              // We'll increment the score in MatchManager instead of through GUI directly.
+              this.gameMatch.addScore(winner);
             } else {
               console.warn(`winner is undefined during win toast`);
             }

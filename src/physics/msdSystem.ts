@@ -1,6 +1,5 @@
 import { range } from "../utils/iterators";
 import { math } from "../../tiny-graphics-math";
-import { getOrInsertCond } from "../utils/polyfills";
 import {
   ContactField,
   ImpulseRestitution,
@@ -31,6 +30,7 @@ type ParticleProperties = {
   mass: number;
   location: math.Vector3;
   velocity: math.Vector3;
+  radius: number;
 };
 
 type SpringProperties = {
@@ -58,6 +58,7 @@ export class MSDParticle {
   tireThrust?: number;
   disabled: boolean = false;
   metadata?: unknown;
+  radius?: number;
   contactOverrides?: {
     traction?: ReactiveTraction;
     friction?: TangentialFriction;
@@ -74,6 +75,8 @@ export class MSDParticle {
     this.velocity = props.velocity ?? math.vec3(0, 0, 0);
     this.tags = new Set();
     this.group = new Set();
+
+    this.radius = props.radius ?? 0;
   }
 
   reset(props: ParticleProperties) {
@@ -274,7 +277,7 @@ export class SpringDamperSystem {
 
       if (isFree) {
         for (const field of this.contactFields) {
-          if (field.affects(p) && field.sdf(p.location) < 0) {
+          if (field.affects(p) && field.sdf(p.location) < (p.radius ?? 0)) {
             this.trespassCB(p, field);
           }
         }
@@ -294,7 +297,7 @@ export class SpringDamperSystem {
         if (!field.affects(p)) continue;
         // apply contact forces
 
-        const dist = field.sdf(p.location);
+        const dist = field.sdf(p.location) - (p.radius ?? 0);
         if (dist >= 0) continue;
 
         // cache alias for normal
