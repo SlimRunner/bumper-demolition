@@ -363,7 +363,6 @@ export class BumperCarsBase extends tiny.Component {
     this.physics = {
       cartMSD,
     };
-    cartMSD.enable = false;
 
     document.addEventListener("visibilitychange", () => {
       // this prevents the window from hanging due to the physics loop
@@ -511,13 +510,15 @@ export class BumperCars extends BumperCarsBase {
           console.log(evt.event);
           break;
         case "gameOver":
-          isMatchOver = true;
           switch (evt.loser) {
             case "carA":
               winner = "carB";
+              break;
             case "carB":
               winner = "carA";
+              break;
           }
+          isMatchOver = true;
           break;
         case "powerSpawn":
           switch (evt.count) {
@@ -571,6 +572,7 @@ export class BumperCars extends BumperCarsBase {
             this.physics.cartMSD.enable = true;
             break;
           case "match_loop":
+            // swap to ActionCamera in prev step (if multiple cameras)
             if (winner) {
               this.gui?.showMessage(
                 `Player ${CarNameLabels[winner].colorName} WINS!!`,
@@ -587,6 +589,8 @@ export class BumperCars extends BumperCarsBase {
       () => {
         // game finished
         this.resetGame();
+        isMatchOver = false;
+        winner = undefined;
       },
     );
   }
@@ -651,6 +655,7 @@ export class BumperCars extends BumperCarsBase {
   protected resetGame(): void {
     super.resetGame();
     this.gameMatch.resetState();
+    this.scheduler.reset();
   }
 
   protected setThrust(car: CarName, value: number) {
@@ -942,7 +947,6 @@ export class BumperCars extends BumperCarsBase {
       },
     );
     this.key_triggered_button("swing blade", ["e"], () => {
-      // TODO: remove setBladeStatus once power-up system is implemented
       cartA.swingArm();
     });
     this.new_line();
@@ -1051,7 +1055,7 @@ export class BumperCars extends BumperCarsBase {
       elem.textContent = `meshes: ${this.globalProps.showMeshes ? "ON" : "OFF"}`;
     });
     this.new_line();
-    this.key_triggered_button("reset", ["t"], () => {
+    this.key_triggered_button("hard reset", ["t"], () => {
       this.resetGame();
     });
   }
