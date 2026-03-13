@@ -694,7 +694,7 @@ export class CartFrame {
       this.SDFields.carB.sdfFunc,
       {
         x: { min: -15, max: 15 },
-        y: { min: 1, max: 1 },
+        y: { min: 0.75, max: 0.75 },
         z: { min: -22.5, max: 22.5 },
       },
       1,

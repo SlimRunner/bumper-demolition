@@ -138,7 +138,11 @@ export class BumperCarsBase extends tiny.Component {
       powerupBox: math.Mat4.rotation((7 * Math.PI) / 36, 0, 0, 1)
         .times(math.Mat4.rotation(Math.PI / 4, 1, 0, 0))
         .times(
-          math.Mat4.scale(1 / Math.sqrt(3), 1 / Math.sqrt(3), 1 / Math.sqrt(3)),
+          math.Mat4.scale(
+            1.5 / Math.sqrt(12),
+            1.5 / Math.sqrt(12),
+            1.5 / Math.sqrt(12),
+          ),
         ),
       background: math.Mat4.translation(0, -2, 0).times(
         math.Mat4.scale(300, 40, 300),
@@ -523,10 +527,16 @@ export class BumperCars extends BumperCarsBase {
         case "powerSpawn":
           switch (evt.count) {
             case 0:
-              this.physics.cartMSD.spawnPowerup(evt.kind, math.vec3(0, 1, 10));
+              this.physics.cartMSD.spawnPowerup(
+                evt.kind,
+                math.vec3(0, 0.75, 10),
+              );
               break;
             case 1:
-              this.physics.cartMSD.spawnPowerup(evt.kind, math.vec3(0, 1, -10));
+              this.physics.cartMSD.spawnPowerup(
+                evt.kind,
+                math.vec3(0, 0.75, -10),
+              );
               break;
             default:
               this.physics.cartMSD.spawnPowerup(evt.kind);
