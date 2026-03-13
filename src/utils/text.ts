@@ -1,3 +1,22 @@
+import { CarName } from "../components/types";
+
+export const CarNameLabels: Record<
+  CarName,
+  {
+    colorName: string;
+    labelName: string;
+  }
+> = {
+  carA: {
+    colorName: "Red",
+    labelName: "Car A",
+  },
+  carB: {
+    colorName: "Blue",
+    labelName: "Car B",
+  },
+};
+
 export interface StringParsable {
   toString(radix?: number): string;
 }

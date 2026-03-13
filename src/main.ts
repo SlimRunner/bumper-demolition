@@ -26,6 +26,8 @@ import {
 import { DrawableShape, ShapeCollection } from "./shapes/types";
 import { MatchManager } from "./components/gameMatch";
 import type { CarName, PowerUpKind } from "./components/types";
+import { Scheduler, SchedulerEvent } from "./components/eventScheduler";
+import { CarNameLabels } from "./utils/text";
 
 type CarTarget = "carA" | "carB";
 
@@ -361,7 +363,6 @@ export class BumperCarsBase extends tiny.Component {
     this.physics = {
       cartMSD,
     };
-    cartMSD.enable = false;
 
     document.addEventListener("visibilitychange", () => {
       // this prevents the window from hanging due to the physics loop
@@ -490,20 +491,34 @@ export class BumperCarsBase extends tiny.Component {
   }
 }
 
+type EventNamespace = "intro_look_up" | "match_loop" | "outro";
+
 export class BumperCars extends BumperCarsBase {
   gameMatch: MatchManager;
+  scheduler: Scheduler<SchedulerEvent<EventNamespace>>;
 
   constructor() {
     super();
+
+    let isMatchOver = false;
+    let winner: CarName | undefined;
+
     this.gameMatch = new MatchManager((evt) => {
       switch (evt.event) {
-        case "suddentDeath":
+        case "suddenDeath":
           // TODO: start sudden death stage
           console.log(evt.event);
           break;
         case "gameOver":
-          console.log(evt.loser);
-          // TODO: game end logic
+          switch (evt.loser) {
+            case "carA":
+              winner = "carB";
+              break;
+            case "carB":
+              winner = "carA";
+              break;
+          }
+          isMatchOver = true;
           break;
         case "powerSpawn":
           switch (evt.count) {
@@ -530,6 +545,54 @@ export class BumperCars extends BumperCarsBase {
           break;
       }
     });
+
+    const gameEvents: SchedulerEvent<EventNamespace>[] = [
+      // TODO: camera looking to the sky to let the meshes load out of sight
+      { type: "timed", ident: "intro_look_up", duration: 4 },
+
+      /* TODO: cinematic pan over the players
+      { type: "timed", ident: "intro_line_up_A", duration: 2 },
+      { type: "timed", ident: "intro_line_up_B", duration: 2 },
+      */
+
+      /* TODO: show off skybox and time management
+      { type: "timed", ident: "intro_day_cycle", duration: 2 },
+      */
+
+      // main match event
+      { type: "event", ident: "match_loop", isExpired: () => isMatchOver },
+      // TODO: outro animation with slow motion and winner toast
+      { type: "timed", ident: "outro", duration: 3 },
+    ];
+    this.scheduler = new Scheduler(
+      [...gameEvents],
+      (ident, elapsed) => {
+        switch (ident) {
+          case "intro_look_up":
+            this.physics.cartMSD.enable = true;
+            break;
+          case "match_loop":
+            // swap to ActionCamera in prev step (if multiple cameras)
+            if (winner) {
+              this.gui?.showMessage(
+                `Player ${CarNameLabels[winner].colorName} WINS!!`,
+              );
+            } else {
+              console.warn(`winner is undefined during win toast`);
+            }
+            break;
+          case "outro":
+            // nothing to do yet
+            break;
+        }
+      },
+      () => {
+        // game finished
+        this.resetGame();
+        isMatchOver = false;
+        winner = undefined;
+      },
+    );
   }
 
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
@@ -552,10 +615,13 @@ export class BumperCars extends BumperCarsBase {
 
     cartMSD.msdSystem.trespassCB = (p, field) => {
       let target: CarTarget | undefined;
+      let source: CarTarget | undefined;
 
       if (field.group.has("carA")) {
+        source = "carA";
         target = "carB";
       } else if (field.group.has("carB")) {
+        source = "carB";
         target = "carA";
       } else {
         console.warn("target is neither carA or carB");
@@ -566,13 +632,13 @@ export class BumperCars extends BumperCarsBase {
         p.disabled = true;
         gmMatch.makeDamage(target, 1);
       } else if (p.group.has("sawblade")) {
-        if (this.armatures[target].isArmSpinning()) {
+        if (this.armatures[source].isArmSpinning()) {
           gmMatch.makeDamage(target, 0.013);
         }
       } else if (p.group.has("powerup") && !gmMatch.getPowerup(target)) {
         p.disabled = true;
         this.gui?.showMessage(
-          `Car ${target.slice(-1)} picked up ${p.metadata}`,
+          `${CarNameLabels[target].labelName} picked up ${p.metadata}`,
         );
         gmMatch.setPowerup(target, p.metadata as PowerUpKind);
         if ((p.metadata as PowerUpKind) === "orbit") {
@@ -589,6 +655,7 @@ export class BumperCars extends BumperCarsBase {
   protected resetGame(): void {
     super.resetGame();
     this.gameMatch.resetState();
+    this.scheduler.reset();
   }
 
   protected setThrust(car: CarName, value: number) {
@@ -610,6 +677,8 @@ export class BumperCars extends BumperCarsBase {
     const timeDelta = (this.uniforms.animation_delta_time ?? 0) / 1000;
     const timeMult = this.globalProps.timeMultiplier;
     const gblTimer = this.globalProps.timer;
+
+    this.scheduler.update(timeDelta);
 
     const GL = context.context!;
 
@@ -785,13 +854,13 @@ export class BumperCars extends BumperCarsBase {
         if (name === "saw") {
           cartMSD.setBlade("carA", matrix[0][3], matrix[1][3], matrix[2][3]);
         }
-      }, mtxCarA)
+      }, mtxCarA);
       cartB.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
         if (name === "saw") {
           cartMSD.setBlade("carB", matrix[0][3], matrix[1][3], matrix[2][3]);
         }
-      }, mtxCarB)
+      }, mtxCarB);
       this.drawables.cartFrame.draw(
         context,
         this.uniforms,
@@ -878,7 +947,6 @@ export class BumperCars extends BumperCarsBase {
       },
     );
     this.key_triggered_button("swing blade", ["e"], () => {
-      // TODO: remove setBladeStatus once power-up system is implemented
       cartA.swingArm();
     });
     this.new_line();
@@ -987,7 +1055,7 @@ export class BumperCars extends BumperCarsBase {
       elem.textContent = `meshes: ${this.globalProps.showMeshes ? "ON" : "OFF"}`;
     });
     this.new_line();
-    this.key_triggered_button("reset", ["t"], () => {
+    this.key_triggered_button("hard reset", ["t"], () => {
       this.resetGame();
     });
   }

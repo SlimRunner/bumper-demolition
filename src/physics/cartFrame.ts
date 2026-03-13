@@ -548,6 +548,7 @@ export class CartFrame {
   }
 
   resetState() {
+    this.enable = false;
     const pcs = this.msdSystem.particles.container;
     this._orbitTimer = 0;
     for (const i of range(...this.nodeRanges.carA)) {

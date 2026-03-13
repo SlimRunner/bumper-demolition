@@ -34,7 +34,7 @@ A tentative and non-exhaustive TODO list
   - [x] timer for game cycle
   - [x] health of each car
   - [x] allow game to be reset
-  - [ ] manage game cycling transition
+  - [x] manage game cycling transition
   - [ ] add a sudden death circle of death
 - [x] add a library to manage mass-spring-damper (MSD) frame
   - [x] add a way to assign signed distance fields to nodes (search Inigo Quilez)
@@ -46,7 +46,7 @@ A tentative and non-exhaustive TODO list
   - [x] show health bars above (fighter game-like)
   - [x] allow printing text to screen
     - [x] show timer in between health bars
-    - [ ] show WIN toast at the end
+    - [x] show WIN toast at the end
   - [ ] tracking score
 - [ ] prettify game
   - [ ] find nice meshes
@@ -60,8 +60,8 @@ A tentative and non-exhaustive TODO list
   - [ ] add texturing
     - [x] arena floor
     - [x] arena walls
-    - [ ] wheels
-      - [ ] add texture (optional currently you can barely see they spin)
+    - [x] wheels
+      - [x] add texture (optional currently you can barely see they spin)
     - [x] arm-links
     - [x] body
     - [x] saw
@@ -92,16 +92,16 @@ Proposals for implementation
 Our game will be based on Bumper Cars. It is a 2-player game where the goal of the game is to damage your opponent to deplete their health to 0 first. The arena is a square with rounded sides and the camera is a fixed top down view to allow both players to see their car. Crashing mindlessly depletes both your and the other car's health. The game provides randomly generated power-ups which can be collected and provide the player different powers which can be:
 
 1. mass increase for a few seconds
-2. instant speed boost
-3. a mechanic arm with a saw: it appears on top of the car while active for 20 seconds, and during that time it requires user input to "pound" in front it.
-4. particle cloud: a cluster of orbiting particles that lasts for 20 seconds, and it causes damage to the opponent if these hit. Each hit "consumes" the particle.
+2. particle cloud: a cluster of orbiting particles that lasts for 20 seconds, and it causes damage to the opponent if these hit. Each hit "consumes" the particle.
 
-The game has a 5 minute time limit. If at the end of that time no player has won, two large circular saws being to close-in from the sides until they meet in the middle. Touching causes great damage. The saws take 1 minute from the time they appear until they meet at the middle.
+In addition each car is equipped with a mechanic arm with a saw. Unlike the power ups which automatically enable on pick up, this one is user controlled. It swings right in front of the car.
+
+The game has a 4 minute time limit. If at the end of that time no player has won, a sudden death stage begins where a circle closes on the arena. Standing outside the cirlce makes constant damage. Only one can come out victorious!
 
 The gameplay cycle:
 1. Game starts with both cars looking at each other on opposite ends of the arena (they both have a power up in front)
 2. 3 second countdown to start game
-3. The game continues for 5 minutes until one player dies
+3. The game continues for 4 minutes until one player dies
 4. After time limit the arena starts closing for a extra 1 minute
 5. After winner is announced return to 1
 
