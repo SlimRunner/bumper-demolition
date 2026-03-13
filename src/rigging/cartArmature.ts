@@ -70,6 +70,7 @@ export class CartArmature {
       thrust: {
         target: 0,
         force: 0,
+        animRate: 360,
         max: 120,
       },
     },
@@ -317,6 +318,7 @@ export class CartArmature {
         thrust: {
           target: 0,
           force: 0,
+          animRate: 360,
           max: 120,
         },
       },
@@ -417,7 +419,17 @@ export class CartArmature {
       );
     }
     // add animation if need smooth thrust
-    thrust.force = thrust.target;
+    if (thrust.force < thrust.target) {
+      thrust.force = Math.min(
+        thrust.target,
+        thrust.force + thrust.animRate * timeDelta,
+      );
+    } else {
+      thrust.force = Math.max(
+        thrust.target,
+        thrust.force - thrust.animRate * timeDelta,
+      );
+    }
   }
 
   get steerAngle() {
