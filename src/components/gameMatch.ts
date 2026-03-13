@@ -73,7 +73,7 @@ export class MatchManager {
     this.makeDamage("carB", -100);
     this.unsetPowerup("carA");
     this.unsetPowerup("carB");
-    
+
     // Ensure the GUI re-syncs the persistent score upon reset
     this._gui?.updateScore("carA", this._players.get("carA")!.score);
     this._gui?.updateScore("carB", this._players.get("carB")!.score);
@@ -188,7 +188,7 @@ export class MatchManager {
       });
     }
   }
-  
+
   addScore(player: CarName) {
     const pl = this._players.get(player)!;
     pl.score += 1;

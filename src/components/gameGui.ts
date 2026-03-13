@@ -1,4 +1,3 @@
-import { MatchManager } from "./gameMatch";
 import type { CarName as CarName, MatchGui, PowerUpState } from "./types";
 
 export class GameGUI implements MatchGui {
@@ -184,8 +183,8 @@ export class GameGUI implements MatchGui {
 
   showMessage(msg: string): void {
     this.messageBox.textContent = msg;
-    this.messageBox.classList.remove('hidden');
-  
+    this.messageBox.classList.remove("hidden");
+
     setTimeout(() => {
       this.hideMessage();
     }, 3000);
@@ -204,7 +203,7 @@ export class GameGUI implements MatchGui {
     this.setPowerUp("carB", "none");
     this.hideMessage();
   }
-  
+
   updateScore(car: CarName, value: number): void {
     switch (car) {
       case "carA":
@@ -215,7 +214,6 @@ export class GameGUI implements MatchGui {
         break;
     }
   }
-
 
   private applyPowerupState(
     icon: HTMLImageElement,

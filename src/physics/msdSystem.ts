@@ -1,6 +1,5 @@
 import { range } from "../utils/iterators";
 import { math } from "../../tiny-graphics-math";
-import { getOrInsertCond } from "../utils/polyfills";
 import { ContactField } from "./contactFields";
 import { clamp, crossMut, projMut, setVector } from "../utils/math";
 
@@ -126,11 +125,7 @@ export class SpringDamperSystem {
   // was computed for that particle / contact pair.  (positive =
   // compressive) callers can integrate this over time to derive an
   // impulse or use it directly for instantaneous effects.
-  collisionCB?: (
-    p: MSDParticle,
-    f: ContactField,
-    forceMag: number,
-  ) => void;
+  collisionCB?: (p: MSDParticle, f: ContactField, forceMag: number) => void;
 
   cache: {
     // this pattern makes size and accesses static (i.e. you cannot use
@@ -379,7 +374,6 @@ export class SpringDamperSystem {
           // tangVel.scale_by(-normSpeed);
           // tangVel.add_by(p.velocity);
           // const tangSpeed = tangVel.norm();
-
           // if (tangSpeed < field.friction.threshold) {
           //   // static
           //   const fMax = Math.max(0, msdForceMag * field.friction.static);
@@ -388,7 +382,6 @@ export class SpringDamperSystem {
           //   tangForce.subtract_by(tangForce.dot(normal))
           //   const tangFormceMag = tangForce.dot(normal);
           //   const frictionForce = Math.min();
-
           //   if (tangForce.norm() <= fMax) {
           //     // zero out tangential force
           //     FNet = FNet.minus(tangForce);
@@ -404,7 +397,7 @@ export class SpringDamperSystem {
           //   p.force[1] -= tangVel[1] * normalLoad;
           //   p.force[2] -= tangVel[2] * normalLoad;
           // }
-          }
+        }
 
         if (field.restitution && normSpeed < 0) {
           const eScaled = normSpeed * (1 + field.restitution.coefficient);
