@@ -358,7 +358,7 @@ export class SpringDamperSystem {
           forceLat.scale_by(forceLatMag);
 
           const eInit = Math.exp(-spdFwd);
-          const eEnd = Math.exp(3 * (10 - spdFwd));
+          const eEnd = Math.exp(3 * (20 - spdFwd));
           const scaling = (eEnd - eInit) / (1 + eInit) / (1 + eEnd);
           const cFwd = field.traction.stiffness.longitudinal;
           const forceFwdMag = scaling * (p.tireThrust ?? 0) - cFwd * velFwd;
