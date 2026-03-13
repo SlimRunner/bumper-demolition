@@ -8,6 +8,7 @@ export type PowerupMetadata = {
 
 export type PlayerMetadata = {
   health: number;
+  score: number;
   powerup?: PowerupMetadata;
 };
 
@@ -58,8 +59,8 @@ export class MatchManager {
 
   constructor(private callback: MatchEvent) {
     this._players = new Map<CarName, PlayerMetadata>([
-      ["carA", { health: 100 }],
-      ["carB", { health: 100 }],
+      ["carA", { health: 100, score: 0 }],
+      ["carB", { health: 100, score: 0 }],
     ]);
     this.spawnQueue = [];
     this.activeBoxes = 0;
@@ -72,6 +73,11 @@ export class MatchManager {
     this.makeDamage("carB", -100);
     this.unsetPowerup("carA");
     this.unsetPowerup("carB");
+
+    // Ensure the GUI re-syncs the persistent score upon reset
+    this._gui?.updateScore("carA", this._players.get("carA")!.score);
+    this._gui?.updateScore("carB", this._players.get("carB")!.score);
+
     this.spawnQueue = [
       {
         kind: "orbit",
@@ -91,12 +97,14 @@ export class MatchManager {
     this._gui = gui;
 
     this._gui.updateHealth("carA", this._players.get("carA")!.health);
+    this._gui.updateScore("carA", this._players.get("carA")!.score);
     this._gui.setPowerUp(
       "carA",
       this._players.get("carA")?.powerup?.kind ?? "none",
     );
 
     this._gui.updateHealth("carB", this._players.get("carB")!.health);
+    this._gui.updateScore("carB", this._players.get("carB")!.score);
     this._gui.setPowerUp(
       "carB",
       this._players.get("carB")?.powerup?.kind ?? "none",
@@ -179,5 +187,11 @@ export class MatchManager {
         event: "suddenDeath",
       });
     }
+  }
+
+  addScore(player: CarName) {
+    const pl = this._players.get(player)!;
+    pl.score += 1;
+    this._gui?.updateScore(player, pl.score);
   }
 }

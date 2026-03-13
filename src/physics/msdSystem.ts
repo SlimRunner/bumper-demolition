@@ -1,6 +1,5 @@
 import { range } from "../utils/iterators";
 import { math } from "../../tiny-graphics-math";
-import { getOrInsertCond } from "../utils/polyfills";
 import { ContactField } from "./contactFields";
 import { clamp, crossMut, projMut, setVector } from "../utils/math";
 
@@ -26,6 +25,7 @@ type ParticleProperties = {
   mass: number;
   location: math.Vector3;
   velocity: math.Vector3;
+  radius: number;
 };
 
 type SpringProperties = {
@@ -53,6 +53,7 @@ export class MSDParticle {
   tireThrust?: number;
   disabled: boolean = false;
   metadata?: unknown;
+  radius?: number;
 
   tags: Set<ParticleTags>;
   group: Set<string>;
@@ -64,6 +65,8 @@ export class MSDParticle {
     this.velocity = props.velocity ?? math.vec3(0, 0, 0);
     this.tags = new Set();
     this.group = new Set();
+
+    this.radius = props.radius ?? 0;
   }
 
   reset(props: ParticleProperties) {
@@ -122,11 +125,7 @@ export class SpringDamperSystem {
   // was computed for that particle / contact pair.  (positive =
   // compressive) callers can integrate this over time to derive an
   // impulse or use it directly for instantaneous effects.
-  collisionCB?: (
-    p: MSDParticle,
-    f: ContactField,
-    forceMag: number,
-  ) => void;
+  collisionCB?: (p: MSDParticle, f: ContactField, forceMag: number) => void;
 
   cache: {
     // this pattern makes size and accesses static (i.e. you cannot use
@@ -268,7 +267,7 @@ export class SpringDamperSystem {
 
       if (isFree) {
         for (const field of this.contactFields) {
-          if (field.affects(p) && field.sdf(p.location) < 0) {
+          if (field.affects(p) && field.sdf(p.location) < (p.radius ?? 0)) {
             this.trespassCB(p, field);
           }
         }
@@ -288,7 +287,7 @@ export class SpringDamperSystem {
         if (!field.affects(p)) continue;
         // apply contact forces
 
-        const dist = field.sdf(p.location);
+        const dist = field.sdf(p.location) - (p.radius ?? 0);
         if (dist >= 0) continue;
 
         // cache alias for normal
@@ -375,7 +374,6 @@ export class SpringDamperSystem {
           // tangVel.scale_by(-normSpeed);
           // tangVel.add_by(p.velocity);
           // const tangSpeed = tangVel.norm();
-
           // if (tangSpeed < field.friction.threshold) {
           //   // static
           //   const fMax = Math.max(0, msdForceMag * field.friction.static);
@@ -384,7 +382,6 @@ export class SpringDamperSystem {
           //   tangForce.subtract_by(tangForce.dot(normal))
           //   const tangFormceMag = tangForce.dot(normal);
           //   const frictionForce = Math.min();
-
           //   if (tangForce.norm() <= fMax) {
           //     // zero out tangential force
           //     FNet = FNet.minus(tangForce);
@@ -400,7 +397,7 @@ export class SpringDamperSystem {
           //   p.force[1] -= tangVel[1] * normalLoad;
           //   p.force[2] -= tangVel[2] * normalLoad;
           // }
-          }
+        }
 
         if (field.restitution && normSpeed < 0) {
           const eScaled = normSpeed * (1 + field.restitution.coefficient);
