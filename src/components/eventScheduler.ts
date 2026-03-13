@@ -4,7 +4,7 @@ export type SchedulerEvent<K extends string> =
 
 /**
  * Allows defining a squence of timed and user defined events
- * 
+ *
  * ## Usage
  * ```
  * const gameEvents = [
@@ -13,7 +13,7 @@ export type SchedulerEvent<K extends string> =
  *   { type: "event", ident: "match_loop", isExpired: (t: number) => t > 300 }, // 5 mins
  *   { type: "timed", ident: "outro", duration: 3 },
  * ] as const; // <--- 'as const' to get literal types in listener
- * 
+ *
  * const stageManager = new Scheduler(
  *   [...gameEvents],
  *   (ident, time) => {

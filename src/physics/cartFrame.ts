@@ -53,10 +53,10 @@ export class CartFrame {
   shapes: {
     carA: {
       orbitShape: ParticleShape;
-    },
+    };
     carB: {
       orbitShape: ParticleShape;
-    },
+    };
   };
   private initial: {
     locations: math.Vector3[];
@@ -551,7 +551,7 @@ export class CartFrame {
       },
       carB: {
         orbitShape: new ParticleShape(sep5 - sep4),
-      }
+      },
     };
 
     this.transforms = {
@@ -845,8 +845,10 @@ export class CartFrame {
 
   orbitShape(car: CarName) {
     switch (car) {
-      case "carA": return this.shapes.carA.orbitShape;
-      case "carB": return this.shapes.carB.orbitShape;
+      case "carA":
+        return this.shapes.carA.orbitShape;
+      case "carB":
+        return this.shapes.carB.orbitShape;
     }
   }
 
