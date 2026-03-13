@@ -1,3 +1,4 @@
+import { MatchManager } from "./gameMatch";
 import type { CarName as CarName, MatchGui, PowerUpState } from "./types";
 
 export class GameGUI implements MatchGui {
@@ -11,6 +12,8 @@ export class GameGUI implements MatchGui {
   private readonly healthBarB: HTMLDivElement;
   private readonly healthTextA: HTMLSpanElement;
   private readonly healthTextB: HTMLSpanElement;
+  private readonly scoreTextA: HTMLSpanElement;
+  private readonly scoreTextB: HTMLSpanElement;
   private readonly powerupA: HTMLImageElement;
   private readonly powerupB: HTMLImageElement;
   private readonly powerupLabelA: HTMLSpanElement;
@@ -63,6 +66,12 @@ export class GameGUI implements MatchGui {
     this.healthTextB = document.createElement("span");
     this.healthTextB.className = "health-text";
 
+    this.scoreTextA = document.createElement("span");
+    this.scoreTextA.className = "score-text";
+
+    this.scoreTextB = document.createElement("span");
+    this.scoreTextB.className = "score-text";
+
     this.healthBarA = document.createElement("div");
     this.healthBarA.className = "health-fill health-fill-a";
 
@@ -101,6 +110,18 @@ export class GameGUI implements MatchGui {
     powerupRowB.className = "powerup-row";
     powerupRowB.append(this.powerupLabelB, this.powerupB);
 
+    const scoreWrapperA = document.createElement("div");
+    scoreWrapperA.className = "score-wrapper";
+    scoreWrapperA.append(this.scoreTextA);
+
+    const timerWrapper = document.createElement("div");
+    timerWrapper.className = "timer-wrapper";
+    timerWrapper.append(timerLabel, this.timerValue);
+
+    const scoreWrapperB = document.createElement("div");
+    scoreWrapperB.className = "score-wrapper score-wrapper-right";
+    scoreWrapperB.append(this.scoreTextB);
+
     const cardBodyA = document.createElement("div");
     cardBodyA.className = "card-body";
     cardBodyA.append(healthWrapA, powerupRowA);
@@ -110,7 +131,7 @@ export class GameGUI implements MatchGui {
     cardBodyB.append(healthWrapB, powerupRowB);
 
     topLeft.append(labelA, cardBodyA);
-    topCenter.append(timerLabel, this.timerValue);
+    topCenter.append(scoreWrapperA, timerWrapper, scoreWrapperB);
     topRight.append(cardBodyB, labelB);
 
     this.messageBox = document.createElement("div");
@@ -183,6 +204,18 @@ export class GameGUI implements MatchGui {
     this.setPowerUp("carB", "none");
     this.hideMessage();
   }
+  
+  updateScore(car: CarName, value: number): void {
+    switch (car) {
+      case "carA":
+        this.scoreTextA.textContent = `${value}`;
+        break;
+      case "carB":
+        this.scoreTextB.textContent = `${value}`;
+        break;
+    }
+  }
+
 
   private applyPowerupState(
     icon: HTMLImageElement,
@@ -305,7 +338,24 @@ export class GameGUI implements MatchGui {
       .card-center {
         flex: 0 1 auto;
         min-width: 140px;
-        text-align: center;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 10px 20px;
+      }
+
+      .timer-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .score-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .title {
@@ -354,6 +404,13 @@ export class GameGUI implements MatchGui {
         text-transform: uppercase;
         color: #d6e4ff;
         white-space: nowrap;
+      }
+
+      .score-text {
+        font-size: 2rem;
+        color: #f2f7ff;
+        font-weight: bold;
+        font-variant-numeric: tabular-nums;
       }
 
       .health-track {
