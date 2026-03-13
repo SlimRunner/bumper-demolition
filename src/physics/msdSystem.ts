@@ -374,39 +374,39 @@ export class SpringDamperSystem {
 
           p.force.add_by(forceTotal);
         } else if (field.friction) {
-          // // tangential friction pending. Add only if needed
-          // // compute regular tangential friction forces
-          // const tangVel = this.cache.tempVec[4];
-          // setVector(tangVel, normal);
-          // tangVel.scale_by(-normSpeed);
-          // tangVel.add_by(p.velocity);
-          // const tangSpeed = tangVel.norm();
+          const friction = {
+            ...field.friction,
+            ...p.contactOverrides?.friction,
+          };
+          // tangential friction (Coulomb friction) applied in the contact plane.
+          // We use the normal contact force as the normal load.
+          const normalLoad = Math.max(0, msdForceMag);
 
-          // if (tangSpeed < field.friction.threshold) {
-          //   // static
-          //   const fMax = Math.max(0, msdForceMag * field.friction.static);
-          //   const tangForce = this.cache.tempVec[5];
-          //   setVector(tangForce, p.force);
-          //   tangForce.subtract_by(tangForce.dot(normal))
-          //   const tangFormceMag = tangForce.dot(normal);
-          //   const frictionForce = Math.min();
+          const vt = this.cache.tempVec[4];
+          // tangential velocity = v - (v·n) n
+          vt[0] = p.velocity[0] - normSpeed * normal[0];
+          vt[1] = p.velocity[1] - normSpeed * normal[1];
+          vt[2] = p.velocity[2] - normSpeed * normal[2];
 
-          //   if (tangForce.norm() <= fMax) {
-          //     // zero out tangential force
-          //     FNet = FNet.minus(tangForce);
-          //   } else {
-          //     // subtract fmax along tangent
-          //     FNet = FNet.minus(tangForce.normalized().times(fMax));
-          //   }
-          // } else {
-          //   // kinetic
-          //   const normalLoad = Math.max(0, msdForceMag * field.friction.kinetic);
-          //   tangVel.scale_by(1 / tangSpeed);
-          //   p.force[0] -= tangVel[0] * normalLoad;
-          //   p.force[1] -= tangVel[1] * normalLoad;
-          //   p.force[2] -= tangVel[2] * normalLoad;
-          // }
+          const vtSpeed = vt.norm();
+          if (vtSpeed > 1e-6 && normalLoad > 0) {
+            const maxStatic = friction.static * normalLoad;
+            const maxKinetic = friction.kinetic * normalLoad;
+            const threshold = Math.max(friction.threshold, 1e-6);
+
+            // approximate static friction: ramp up to maxStatic as slip increases
+            const staticMag = maxStatic * Math.min(1, vtSpeed / threshold);
+            const frictionMag = vtSpeed < threshold ? staticMag : maxKinetic;
+
+            const frictionDir = this.cache.tempVec[5];
+            frictionDir[0] = -vt[0] / vtSpeed;
+            frictionDir[1] = -vt[1] / vtSpeed;
+            frictionDir[2] = -vt[2] / vtSpeed;
+            frictionDir.scale_by(frictionMag);
+
+            p.force.add_by(frictionDir);
           }
+        }
 
         if (field.restitution && normSpeed < 0) {
           const e =
