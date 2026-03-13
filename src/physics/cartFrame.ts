@@ -518,11 +518,11 @@ export class CartFrame {
     // The callback is executed for each particle/field pair that
     // produces a non‑zero normal force.
     this.msdSystem.collisionCB = (p, field, forceMag) => {
-      if (field === this.SDFields.carA) {
+      if (field === this.SDFields.carA && p.group.has("vehicle")) {
         // a particle belonging to carB is being pushed by carA's
         // collision shape;
         this.collisionImpulse.carA += Math.abs(forceMag);
-      } else if (field === this.SDFields.carB) {
+      } else if (field === this.SDFields.carB && p.group.has("vehicle")) {
         this.collisionImpulse.carB += Math.abs(forceMag);
       } else if (field === this.SDFields.arena && p.group.has("vehicle")) {
         if (p.group.has("carA")) {
