@@ -493,11 +493,11 @@ export class CartFrame {
             longitudinal: 10,
           },
         },
-        // friction: {
-        //   kinetic: 0.9,
-        //   static: 1,
-        //   threshold: 1e-3,
-        // },
+        friction: {
+          kinetic: 0.3,
+          static: 0.5,
+          threshold: 1e-6,
+        },
         restitution: {
           coefficient: 0.2,
         },
