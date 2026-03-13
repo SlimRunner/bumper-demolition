@@ -80,6 +80,8 @@ export class CartArmature {
   };
   private _tireRadius: number;
 
+  onSlash?: () => void;
+
   constructor(props: {
     meshes: {
       chassis: tiny.Shape | DrawableShape | ShapeCollection;
@@ -365,6 +367,7 @@ export class CartArmature {
     if (anim.enabled && !anim.swinging) {
       anim.timing = 0;
       anim.swinging = true;
+      this.onSlash?.();
     }
   }
 
