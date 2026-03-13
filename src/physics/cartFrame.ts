@@ -524,6 +524,12 @@ export class CartFrame {
         this.collisionImpulse.carA += Math.abs(forceMag);
       } else if (field === this.SDFields.carB) {
         this.collisionImpulse.carB += Math.abs(forceMag);
+      } else if (field === this.SDFields.arena && p.group.has("vehicle")) {
+        if (p.group.has("carA")) {
+          this.collisionImpulse.carB += Math.abs(forceMag);
+        } else if (p.group.has("carB")) {
+          this.collisionImpulse.carA += Math.abs(forceMag);
+        }
       }
     };
 
