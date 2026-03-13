@@ -13,7 +13,7 @@ export type PlayerMetadata = {
 
 export type MatchEventArgs =
   | {
-      event: "suddentDeath";
+      event: "suddenDeath";
     }
   | {
       event: "gameOver";
@@ -126,8 +126,8 @@ export class MatchManager {
     pl.health = clamp(pl.health - amount, 0, 100);
     this._gui?.updateHealth(player, pl.health);
     if (pl.health <= 0) {
-      this.callback({ event: "gameOver", loser: player });
       this._endFlag = true;
+      this.callback({ event: "gameOver", loser: player });
     }
   }
 
@@ -176,7 +176,7 @@ export class MatchManager {
     const time = this._gui?.currentTime ?? 0;
     if (this.timeEvents.suddenDeath(time)) {
       this.callback({
-        event: "suddentDeath",
+        event: "suddenDeath",
       });
     }
   }
