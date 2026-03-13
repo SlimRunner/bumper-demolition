@@ -22,7 +22,21 @@ export class ParticleShape extends tiny.Shape {
     this.count = 0;
   }
 
-  set_particles(particles: math.Vector3[]) {
+  clearParticles() {
+    this.count = 0;
+  }
+
+  addParticles(particle: math.Vector3) {
+    const i = this.count;
+    if (i >= this.max) return false;
+    this.count += 1;
+    this.arrays.position![i][0] = particle[0];
+    this.arrays.position![i][1] = particle[1];
+    this.arrays.position![i][2] = particle[2];
+    return true;
+  }
+
+  setParticles(particles: math.Vector3[]) {
     this.count = Math.min(particles.length, this.max);
 
     for (let i = 0; i < this.count; i++) {
