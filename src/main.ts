@@ -16,9 +16,9 @@ import { ActionCamera } from "./components/actionCamera";
 import { ComplexTextured, CplxMats } from "./shaders/complexTexture";
 import { SkyboxWH } from "./shaders/skyboxShader";
 import { GameGUI } from "./components/gameGui";
-import { CarSound } from "./components/carSound";
-import { CollisionSound } from "./components/collisionSound";
-import { BladeSlashSound } from "./components/bladeSlashSound";
+import { CarSound } from "./audio/carSound";
+import { CollisionSound } from "./audio/collisionSound";
+import { BladeSlashSound } from "./audio/bladeSlashSound";
 import {
   calculateSunPosition,
   getAverageSkyColor,
