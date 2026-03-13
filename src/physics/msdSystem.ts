@@ -1,7 +1,12 @@
 import { range } from "../utils/iterators";
 import { math } from "../../tiny-graphics-math";
 import { getOrInsertCond } from "../utils/polyfills";
-import { ContactField } from "./contactFields";
+import {
+  ContactField,
+  ImpulseRestitution,
+  ReactiveTraction,
+  TangentialFriction,
+} from "./contactFields";
 import { clamp, crossMut, projMut, setVector } from "../utils/math";
 
 // function helpers to speed up the physics loop. They are way to
@@ -53,6 +58,11 @@ export class MSDParticle {
   tireThrust?: number;
   disabled: boolean = false;
   metadata?: unknown;
+  contactOverrides?: {
+    traction?: ReactiveTraction;
+    friction?: TangentialFriction;
+    restitution?: ImpulseRestitution;
+  };
 
   tags: Set<ParticleTags>;
   group: Set<string>;
@@ -122,11 +132,7 @@ export class SpringDamperSystem {
   // was computed for that particle / contact pair.  (positive =
   // compressive) callers can integrate this over time to derive an
   // impulse or use it directly for instantaneous effects.
-  collisionCB?: (
-    p: MSDParticle,
-    f: ContactField,
-    forceMag: number,
-  ) => void;
+  collisionCB?: (p: MSDParticle, f: ContactField, forceMag: number) => void;
 
   cache: {
     // this pattern makes size and accesses static (i.e. you cannot use
