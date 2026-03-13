@@ -37,12 +37,8 @@ export class CollisionSound {
   }
 
   flush(skip = false) {
-    // choose aggregation strategy
-    if (this.maxImpulseSeen != 0 && this.accumulatedImpulse != 0) {
-      console.log("sqrt: " + Math.sqrt(this.accumulatedImpulse));
-    }
-    // const impulse = this.maxImpulseSeen;
-    const impulse = Math.sqrt(this.accumulatedImpulse); // alternative
+    // const impulse = this.maxImpulseSeen; // alternative
+    const impulse = Math.sqrt(this.accumulatedImpulse);
 
     this.accumulatedImpulse = 0;
     this.maxImpulseSeen = 0;
