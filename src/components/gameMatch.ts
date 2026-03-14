@@ -47,7 +47,7 @@ export class MatchManager implements EventEmitter<MatchEventArgs> {
   private _endFlag = false;
 
   private readonly timeEvents = {
-    suddenDeath: (t: number) => t >= 4 * 60,
+    suddenDeath: (t: number) => t >= 1.5 * 60,
   };
 
   private spawnQueue: (PowerupMetadata & { count: number })[];
