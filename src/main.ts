@@ -580,6 +580,14 @@ export class BumperCarsBase extends tiny.Component {
           2000 + 250 * cs,
         ),
       );
+    } else {
+      this.uniforms.lights.push(
+        defs.Phong_Shader.light_source(
+          math.vec4(0, 50, 0, 1),
+          this.colors.columnOfDeathLight,
+          0,
+        ),
+      );
     }
   }
 }
