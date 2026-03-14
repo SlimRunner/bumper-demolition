@@ -47,16 +47,13 @@ export class CollisionSound {
 
     const t = Math.min(
       1,
-      (impulse - this.minImpulse) /
-        (this.maxImpulse - this.minImpulse),
+      (impulse - this.minImpulse) / (this.maxImpulse - this.minImpulse),
     );
 
     const volume = t * this.maxVolume;
 
     const audio =
-      impulse >= this.thresholdImpulse
-        ? this.audioFast
-        : this.audioSlow;
+      impulse >= this.thresholdImpulse ? this.audioFast : this.audioSlow;
 
     const instance = audio.cloneNode(true) as HTMLAudioElement;
     instance.volume = volume;

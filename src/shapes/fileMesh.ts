@@ -189,41 +189,42 @@ export class FileMesh implements ShapeCollection {
 
   private addMaterial(mtlMat: MTLMaterial, path: string): void {
     if (mtlMat.map_Kd || mtlMat.map_Ns || mtlMat.map_Bump) {
-      const shader = this._shaders.get(mtlMat.name) ?? new ComplexTextured(this._lightCount);
+      const shader =
+        this._shaders.get(mtlMat.name) ?? new ComplexTextured(this._lightCount);
 
       const material: CplxMats = {
         shader: shader,
-  
+
         diffuse_color: mtlMat.Kd
           ? math.color(mtlMat.Kd[0], mtlMat.Kd[1], mtlMat.Kd[2], mtlMat.d ?? 1)
           : math.color(1, 1, 1, 1),
-  
+
         specular_color: mtlMat.Ks
           ? math.color(mtlMat.Ks[0], mtlMat.Ks[1], mtlMat.Ks[2], 1)
           : math.color(1, 1, 1, 1),
-  
+
         ambient_color: mtlMat.Ka
           ? math.color(mtlMat.Ka[0], mtlMat.Ka[1], mtlMat.Ka[2], 1)
           : math.color(1, 1, 1, 1),
-  
+
         ambient: 0.3,
         diffusivity: 1,
         specularity: 1,
-  
+
         smoothness: mtlMat.Ns ?? 40,
         bumpiness: 1,
       };
-  
+
       if (mtlMat.map_Kd) {
         const relPath = resolveSiblingPath(path, mtlMat.map_Kd);
         material.texture = new tiny.Texture(relPath);
       }
-  
+
       if (mtlMat.map_Ns) {
         const relPath = resolveSiblingPath(path, mtlMat.map_Ns);
         material.spec_map = new tiny.Texture(relPath);
       }
-  
+
       if (mtlMat.map_Bump) {
         const relPath = resolveSiblingPath(path, mtlMat.map_Bump);
         material.bump_map = new tiny.Texture(relPath);
@@ -233,13 +234,20 @@ export class FileMesh implements ShapeCollection {
       // Convert MTL material to tiny-graphics Phong material.
       // Kd is a diffuse COLOR (rgb), not a scalar — do not average it for diffusivity.
       // Ks is a specular COLOR (rgb) — average it to get a specularity scalar.
-      const shader = this._shaders.get(mtlMat.name) ?? new defs.Phong_Shader(this._lightCount);
+      const shader =
+        this._shaders.get(mtlMat.name) ??
+        new defs.Phong_Shader(this._lightCount);
 
       const material: MaterialRecord = {
         shader: shader,
         // Kd is the diffuse color; use it directly as the surface color
         color: mtlMat.Kd
-          ? math.color(mtlMat.Kd[0], mtlMat.Kd[1], mtlMat.Kd[2], mtlMat.d ?? 1.0)
+          ? math.color(
+              mtlMat.Kd[0],
+              mtlMat.Kd[1],
+              mtlMat.Kd[2],
+              mtlMat.d ?? 1.0,
+            )
           : math.color(0.8, 0.8, 0.8, 1.0),
         // Full diffuse response to lights so color is visible
         diffusivity: 1.0,

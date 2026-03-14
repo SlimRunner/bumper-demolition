@@ -7,7 +7,13 @@ to get an "averaged sky color" that we can use to dynamically change the
 ambient color of the scene along with lighting color and intensity.
 */
 
-import { clamp, clampV3, lerp, linearTransform, matrix3x3 } from "../utils/math";
+import {
+  clamp,
+  clampV3,
+  lerp,
+  linearTransform,
+  matrix3x3,
+} from "../utils/math";
 import { math } from "../../tiny-graphics-math";
 
 const ALBEDO = 1;
@@ -291,12 +297,7 @@ export function getHorizonColor(props: {
   for (let i = 0; i < N_SAMPLES; ++i) {
     t = i / N_SAMPLES;
     view_azimuth = 11 * M_PI * 2 * t;
-    sample = sample_sky(
-      H_PI,
-      view_azimuth,
-      sun_zenith_safe,
-      sun_azimuth,
-    );
+    sample = sample_sky(H_PI, view_azimuth, sun_zenith_safe, sun_azimuth);
     sample.scale_by(AVG_SAMPLE_RATE);
     sum_of_samples.add_by(sample);
   }
@@ -343,7 +344,7 @@ export function getAverageSkyColor(props: {
       sun_zenith_safe,
       sun_azimuth,
     );
-    sample.scale_by(AVG_SAMPLE_RATE)
+    sample.scale_by(AVG_SAMPLE_RATE);
     sum_of_samples.add_by(sample);
   }
 

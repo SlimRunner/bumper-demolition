@@ -104,7 +104,7 @@ export class CarSound {
 
     const normalize = (v: number, max: number) => {
       return clamp(Math.abs(v) / max, 0, 1);
-    }
+    };
 
     for (const [i, [pan, carname]] of enumerate(iters)) {
       const normSpeed = normalize(state[carname].speed, this.maxSpeed);
