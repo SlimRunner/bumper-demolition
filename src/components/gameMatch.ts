@@ -189,7 +189,7 @@ export class MatchManager implements EventEmitter<MatchEventArgs> {
         const power = this.spawnQueue.pop()!;
         this.spawnQueue.unshift({
           kind: Math.random() > 0.5 ? "heavy" : "orbit",
-          timer: 20,
+          timer: 12,
           count: power.count + 1,
         });
         this.activeBoxes++;
