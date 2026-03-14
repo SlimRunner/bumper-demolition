@@ -1,6 +1,8 @@
 import { math } from "../../tiny-graphics-math";
 import { tiny } from "../../tiny-graphics";
 import { createError } from "../utils/error";
+import { zipgen } from "../utils/iterators";
+import { affineTransform, VectorKind } from "../utils/math";
 
 const MeshError = createError("MeshError");
 
@@ -77,5 +79,23 @@ export function remapUVs(shape: tiny.Shape, uScale: number, vScale: number) {
   for (const uv of shape.arrays.texture_coord!) {
     uv[0] *= uScale;
     uv[1] *= vScale;
+  }
+}
+
+export function applyMeshTransform(shape: tiny.Shape, transform: math.Mat4) {
+  if (shape.arrays.position && shape.arrays.normal) {
+    for (const [pos, norm] of zipgen(
+      shape.arrays.position,
+      shape.arrays.normal,
+    )) {
+      const newPos = affineTransform(transform, pos, VectorKind.point);
+      pos[0] = newPos[0];
+      pos[1] = newPos[1];
+      pos[2] = newPos[2];
+      const newNorm = affineTransform(transform, norm, VectorKind.vector);
+      norm[0] = newNorm[0];
+      norm[1] = newNorm[1];
+      norm[2] = newNorm[2];
+    }
   }
 }
