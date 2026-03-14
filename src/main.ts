@@ -54,6 +54,7 @@ export class BumperCarsBase extends tiny.Component {
     readonly electricBlue: math.Vector4;
     readonly heavyBox: math.Vector4;
     readonly orbitBox: math.Vector4;
+    readonly sparkColors: math.Vector4;
     sunAmbient: math.Vector4;
     sunColor: math.Vector4;
     skyHorizon: math.Vector4;
@@ -145,6 +146,7 @@ export class BumperCarsBase extends tiny.Component {
       skyHorizon: math.color(0, 0, 0, 0),
       heavyBox: math.color(1, 1, 0, 0.4),
       orbitBox: math.color(1, 0, 1, 0.4),
+      sparkColors: math.color(1, 0.66, 0.33, 0.5),
     };
 
     this.transforms = {
@@ -533,7 +535,11 @@ export class BumperCarsBase extends tiny.Component {
   }
 }
 
-type EventNamespace = "intro_look_up" | "match_loop" | "outro" | "enable_physics";
+type EventNamespace =
+  | "intro_look_up"
+  | "match_loop"
+  | "outro"
+  | "enable_physics";
 
 export class BumperCars extends BumperCarsBase {
   gameMatch: MatchManager;
@@ -646,6 +652,19 @@ export class BumperCars extends BumperCarsBase {
         winner = undefined;
       },
     );
+
+    armatureA.addEventListener("blade_is_reaching", ({ t: time }) => {
+      cartMSD.enableSparks("carA");
+    });
+    armatureA.addEventListener("blade_retreated", () => {
+      cartMSD.disableSparks("carA");
+    });
+    armatureB.addEventListener("blade_is_reaching", ({ t: time }) => {
+      cartMSD.enableSparks("carB");
+    });
+    armatureB.addEventListener("blade_retreated", () => {
+      cartMSD.disableSparks("carB");
+    });
   }
 
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
@@ -746,6 +765,7 @@ export class BumperCars extends BumperCarsBase {
 
     // do all time related oerations inside this if statement
     if (!paused) {
+      cartMSD.dispatchParticles(timeDelta * timeMult);
       this.gui?.updateTimer(timeDelta * timeMult);
       this.gameMatch.updateExpiry(timeDelta * timeMult);
       this.gameMatch.checkTime();
@@ -936,6 +956,17 @@ export class BumperCars extends BumperCarsBase {
         this.transforms.identity,
       );
     }
+
+    cartMSD.sparksShape.draw(
+      context,
+      this.uniforms,
+      this.transforms.identity,
+      {
+        ...this.materials.solid,
+        color: this.colors.sparkColors,
+      },
+      "LINES",
+    );
 
     GL.depthMask(false);
     cartMSD.traverseBoxes((p, power) => {
