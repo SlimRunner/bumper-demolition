@@ -88,6 +88,15 @@ export function sdGradient3DMut(
   out[2] = (dz1 - dz2) * scale;
 }
 
+export function sdCylinderColumn(
+  pt3: math.Vector3,
+  radius: number,
+  onto: PlaneChoice,
+) {
+  const pt = Vector2.from3d(pt3, onto);
+  return pt.norm() - radius;
+}
+
 export function sdPlane(
   pt: math.Vector3,
   normal: math.Vector3,
