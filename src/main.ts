@@ -537,7 +537,7 @@ type EventNamespace = "intro_look_up" | "match_loop" | "outro" | "enable_physics
 
 export class BumperCars extends BumperCarsBase {
   gameMatch: MatchManager;
-  scheduler: Scheduler<SchedulerEvent<EventNamespace>>;
+  scheduler: Scheduler<EventNamespace, SchedulerEvent<EventNamespace>>;
 
   constructor() {
     super();
