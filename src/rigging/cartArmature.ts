@@ -35,6 +35,7 @@ export type ArmatureEvents = {
   blade_is_reaching: {
     t: number;
   };
+  blade_retreated: {};
 };
 
 export class CartArmature implements EventEmitter<ArmatureEvents> {
@@ -417,6 +418,8 @@ export class CartArmature implements EventEmitter<ArmatureEvents> {
 
       if (anim.timing == 0) {
         this.execListeners("slash_started", {});
+      } else if (anim.timing < 4 && anim.timing + dt >= 4) {
+        this.execListeners("blade_retreated", {});
       }
 
       anim.timing = anim.timing + dt;
