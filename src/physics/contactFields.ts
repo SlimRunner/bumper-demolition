@@ -11,6 +11,25 @@ import { PlaneChoice, Vector2 } from "../utils/math";
 
 export type FieldRole = "ground" | "static boundary" | "dynamic boundary";
 
+export type ReactiveTraction = {
+  coeff: number;
+  stiffness: {
+    cornering: number;
+    longitudinal: number;
+  };
+};
+
+export type TangentialFriction = {
+  // tangential
+  static: number;
+  kinetic: number;
+  threshold: number;
+};
+
+export type ImpulseRestitution = {
+  coefficient: number;
+};
+
 /**
  * defines the shared interface for a contact field. These are driven by
  * signed distance function which are very flexible. Penetration is
@@ -27,22 +46,9 @@ export interface ContactField {
   readonly role: FieldRole;
   stiffness: number;
   damping: number;
-  traction: {
-    coeff: number;
-    stiffness: {
-      cornering: number;
-      longitudinal: number;
-    };
-  } | null;
-  friction: {
-    // tangential
-    static: number;
-    kinetic: number;
-    threshold: number;
-  } | null;
-  restitution: {
-    coefficient: number;
-  } | null;
+  traction: ReactiveTraction | null;
+  friction: TangentialFriction | null;
+  restitution: ImpulseRestitution | null;
 }
 
 type ContactProps = {

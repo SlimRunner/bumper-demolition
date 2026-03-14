@@ -18,6 +18,7 @@ import {
   rotateAboutAxis,
   setVector,
   VectorKind,
+  vectorNudge,
 } from "../utils/math";
 import {
   ArenaField,
@@ -28,6 +29,7 @@ import {
 import { curryDynP, sdRoundBox } from "../linearAlgebra/sdfs";
 import { enumerate, range } from "../utils/iterators";
 import type { CarName, PowerUpKind } from "../components/types";
+import { ParticleShape } from "../shapes/particleShape";
 
 // reference: https://stackoverflow.com/a/59906630
 type ArrayLengthMutationKeys =
@@ -44,11 +46,28 @@ type FixedLengthArray<T extends any[]> = Pick<
   Exclude<keyof T, ArrayLengthMutationKeys>
 > & { [Symbol.iterator]: () => IterableIterator<ArrayItems<T>> };
 
+interface SparkEmitter {
+  state: { index: number; enabled: boolean };
+  range: [number, number]; // [start, end]
+  transform: { forward: math.Vector3; up: math.Vector3 };
+  bladeIndex: number;
+  inheritVel: math.Vector3;
+}
+
 export class CartFrame {
   msdSystem: SpringDamperSystem;
   integrator: Integrator;
   enable: boolean = false;
   timeStep: number = 0.001;
+  shapes: {
+    carA: {
+      orbitShape: ParticleShape;
+    };
+    carB: {
+      orbitShape: ParticleShape;
+    };
+    sparkPool: ParticleShape;
+  };
   private initial: {
     locations: math.Vector3[];
     carNodeCount: number;
@@ -65,8 +84,8 @@ export class CartFrame {
     orbitB: [number, number];
     powerUps: [number, number];
     blades: [number, number];
-    // sparksA: [number, number]; // if we have time
-    // sparksB: [number, number]; // if we have time
+    sparksA: [number, number];
+    sparksB: [number, number];
   };
   SDFields: {
     ground: ContactField;
@@ -103,6 +122,13 @@ export class CartFrame {
   };
   private orbitRandom: Array<[number, number, number, number]>;
   private _orbitTimer: number = 0;
+  private _spark: {
+    carA: { enabled: boolean; index: number };
+    carB: { enabled: boolean; index: number };
+  } = {
+    carA: { enabled: false, index: 0 },
+    carB: { enabled: false, index: 0 },
+  };
 
   // accumulated contact force magnitudes.  When the integrator advances a
   // timestep we will multiply by dt to convert to impulse and optionally
@@ -169,38 +195,38 @@ export class CartFrame {
     // prettier-ignore
     const pArr: Array<[number, number, number, ParticleTags[]]> = [
       // floor nodes
-      [ wx,    0,  wz, ["tire", "structural"]],
-      [ wx,    0, -wz, ["tire", "structural"]],
-      [-wx,    0, -wz, ["tire", "structural"]],
-      [-wx,    0,  wz, ["tire", "structural"]],
+      [ wx,    0,  wz, ["tire", "regular"]],
+      [ wx,    0, -wz, ["tire", "regular"]],
+      [-wx,    0, -wz, ["tire", "regular"]],
+      [-wx,    0,  wz, ["tire", "regular"]],
       // mid section
-      [ wx, wy/2,   0, ["structural"]],
-      [  0, wy/2, -wz, ["structural"]],
-      [-wx, wy/2,   0, ["structural"]],
-      [  0, wy/2,  wz, ["structural"]],
+      [ wx, wy/2,   0, ["regular"]],
+      [  0, wy/2, -wz, ["regular"]],
+      [-wx, wy/2,   0, ["regular"]],
+      [  0, wy/2,  wz, ["regular"]],
       // top section
-      [ wx,   wy,  wz, ["structural"]],
-      [ wx,   wy, -wz, ["structural"]],
-      [-wx,   wy, -wz, ["structural"]],
-      [-wx,   wy,  wz, ["structural"]],
+      [ wx,   wy,  wz, ["regular"]],
+      [ wx,   wy, -wz, ["regular"]],
+      [-wx,   wy, -wz, ["regular"]],
+      [-wx,   wy,  wz, ["regular"]],
       // front bumper
-      [ wx2, wy2 + wy3,  wz2, ["structural"]],
-      [ wx2, wy2 + wy3, -wz2, ["structural"]],
-      [ wx2, wy2 - wy3, -wz2, ["structural"]],
-      [ wx2, wy2 - wy3,  wz2, ["structural"]],
+      [ wx2, wy2 + wy3,  wz2, ["regular"]],
+      [ wx2, wy2 + wy3, -wz2, ["regular"]],
+      [ wx2, wy2 - wy3, -wz2, ["regular"]],
+      [ wx2, wy2 - wy3,  wz2, ["regular"]],
       // rear bumper
-      [-wx2, wy2 + wy3,  wz2, ["structural"]],
-      [-wx2, wy2 + wy3, -wz2, ["structural"]],
-      [-wx2, wy2 - wy3, -wz2, ["structural"]],
-      [-wx2, wy2 - wy3,  wz2, ["structural"]],
+      [-wx2, wy2 + wy3,  wz2, ["regular"]],
+      [-wx2, wy2 + wy3, -wz2, ["regular"]],
+      [-wx2, wy2 - wy3, -wz2, ["regular"]],
+      [-wx2, wy2 - wy3,  wz2, ["regular"]],
       // apex
-      [-wx2, wy2, 0, ["structural"]],
-      [ wx2, wy2, 0, ["structural"]],
+      [-wx2, wy2, 0, ["regular"]],
+      [ wx2, wy2, 0, ["regular"]],
       // mid section
-      [ wx, wy2,  wz, ["structural"]],
-      [ wx, wy2, -wz, ["structural"]],
-      [-wx, wy2, -wz, ["structural"]],
-      [-wx, wy2,  wz, ["structural"]],
+      [ wx, wy2,  wz, ["regular"]],
+      [ wx, wy2, -wz, ["regular"]],
+      [-wx, wy2, -wz, ["regular"]],
+      [-wx, wy2,  wz, ["regular"]],
     ];
     const carNodeCount = pArr.length;
     pArr.push(...pArr); // car B is identical
@@ -320,6 +346,7 @@ export class CartFrame {
       return [w, phi, rd, h];
     });
 
+    // add powerup particles to their groups
     const boxCount = 2;
     for (const i of range(boxCount)) {
       const p = new MSDParticle({
@@ -334,6 +361,7 @@ export class CartFrame {
       this.msdSystem.addParticleToGroup(p, "powerup");
     }
 
+    // add sawblade particles to their groups
     for (const name of ["carA", "carB"]) {
       const p = new MSDParticle({
         location: math.vec3(0, 0, 0),
@@ -345,27 +373,57 @@ export class CartFrame {
       this.msdSystem.addParticleToGroup(p, "sawblade");
     }
 
-    // add particles to their appropriate groups
+    // add car particles to their appropriate groups
     for (const i of range(carNodeCount)) {
       this.msdSystem.addParticleToGroup(particles.container[i], "carA");
       this.msdSystem.addParticleToGroup(particles.container[i], "grounded");
       this.msdSystem.addParticleToGroup(particles.container[i], "arenaBound");
+      this.msdSystem.addParticleToGroup(particles.container[i], "vehicle");
     }
     for (const i of range(carNodeCount, carNodeCount * 2)) {
       this.msdSystem.addParticleToGroup(particles.container[i], "carB");
       this.msdSystem.addParticleToGroup(particles.container[i], "grounded");
       this.msdSystem.addParticleToGroup(particles.container[i], "arenaBound");
+      this.msdSystem.addParticleToGroup(particles.container[i], "vehicle");
+    }
+
+    const sparkPoolSize = 50;
+    for (const i of range(sparkPoolSize * 2)) {
+      const p = new MSDParticle({
+        mass: 0.2,
+        location: math.vec3(0, -1, 0),
+        velocity: math.vec3(0, 0, 0),
+      });
+      p.tags.add("regular");
+      p.disabled = true;
+      p.contactOverrides = {
+        restitution: {
+          coefficient: 0.4,
+        },
+        friction: {
+          kinetic: 0.8,
+          static: 1,
+          threshold: 1e-6,
+        },
+      };
+      p.metadata = 0;
+      particles.container.push(p);
+      this.msdSystem.addParticleToGroup(p, "sparks");
+      this.msdSystem.addParticleToGroup(p, "carA");
+      this.msdSystem.addParticleToGroup(p, "carB");
+      this.msdSystem.addParticleToGroup(p, "grounded");
+      this.msdSystem.addParticleToGroup(p, "arenaBound");
     }
 
     // apply initial transform to all particles.
     for (const p of this.msdSystem.getGroup("carA")) {
-      if (p.tags.has("free")) continue;
+      if (!p.group.has("vehicle")) continue;
       p.location = math.vec3(
         ...affineTransform(transforms.cartA, p.location, 1),
       );
     }
     for (const p of this.msdSystem.getGroup("carB")) {
-      if (p.tags.has("free")) continue;
+      if (!p.group.has("vehicle")) continue;
       p.location = math.vec3(
         ...affineTransform(transforms.cartB, p.location, 1),
       );
@@ -483,11 +541,11 @@ export class CartFrame {
             longitudinal: 10,
           },
         },
-        // friction: {
-        //   kinetic: 0.9,
-        //   static: 1,
-        //   threshold: 1e-3,
-        // },
+        friction: {
+          kinetic: 0.3,
+          static: 0.5,
+          threshold: 1e-6,
+        },
         restitution: {
           coefficient: 0.2,
         },
@@ -505,12 +563,18 @@ export class CartFrame {
     // The callback is executed for each particle/field pair that
     // produces a non‑zero normal force.
     this.msdSystem.collisionCB = (p, field, forceMag) => {
-      if (field === this.SDFields.carA) {
+      if (field === this.SDFields.carA && p.group.has("vehicle")) {
         // a particle belonging to carB is being pushed by carA's
         // collision shape;
         this.collisionImpulse.carA += Math.abs(forceMag);
-      } else if (field === this.SDFields.carB) {
+      } else if (field === this.SDFields.carB && p.group.has("vehicle")) {
         this.collisionImpulse.carB += Math.abs(forceMag);
+      } else if (field === this.SDFields.arena && p.group.has("vehicle")) {
+        if (p.group.has("carA")) {
+          this.collisionImpulse.carB += Math.abs(forceMag);
+        } else if (p.group.has("carB")) {
+          this.collisionImpulse.carA += Math.abs(forceMag);
+        }
       }
     };
 
@@ -527,6 +591,8 @@ export class CartFrame {
     const sep5 = sep4 + orbitCount;
     const sep6 = sep5 + boxCount;
     const sep7 = sep6 + 2;
+    const sep8 = sep7 + sparkPoolSize;
+    const sep9 = sep8 + sparkPoolSize;
     // ranges are [inclusive, exclusive]
     this.nodeRanges = {
       carA: [sep1, sep2],
@@ -535,6 +601,19 @@ export class CartFrame {
       orbitB: [sep4, sep5],
       powerUps: [sep5, sep6],
       blades: [sep6, sep7],
+      sparksA: [sep7, sep8],
+      sparksB: [sep8, sep9],
+    };
+
+    this.shapes = {
+      carA: {
+        orbitShape: new ParticleShape(sep4 - sep3),
+      },
+      carB: {
+        orbitShape: new ParticleShape(sep5 - sep4),
+      },
+      // twice as large to store head and tail
+      sparkPool: new ParticleShape((sep9 - sep7) * 2),
     };
 
     this.transforms = {
@@ -592,6 +671,20 @@ export class CartFrame {
       pcs[i].disabled = true;
       pcs[i].metadata = undefined;
     }
+    for (const i of range(
+      this.nodeRanges.sparksA[0],
+      this.nodeRanges.sparksB[1],
+    )) {
+      pcs[i].location = math.vec3(0, -1, 0);
+      pcs[i].velocity = math.vec3(0, 0, 0);
+      pcs[i].disabled = true;
+      pcs[i].metadata = 0;
+    }
+    this.shapes.carA.orbitShape.clearParticles();
+    this.shapes.carB.orbitShape.clearParticles();
+    this.shapes.sparkPool.clearParticles();
+    this.resetSparks("carA");
+    this.resetSparks("carB");
     this.updateOrientation();
   }
 
@@ -668,12 +761,12 @@ export class CartFrame {
     const pts = this.msdSystem.particles.container;
     switch (player) {
       case "carA":
-        for (const i of range(...this.nodeRanges.orbitA)) {
+        for (const i of range(...this.nodeRanges.carA)) {
           pts[i].mass = mass;
         }
         break;
       case "carB":
-        for (const i of range(...this.nodeRanges.orbitB)) {
+        for (const i of range(...this.nodeRanges.carB)) {
           pts[i].mass = mass;
         }
         break;
@@ -808,7 +901,10 @@ export class CartFrame {
     const sh = this.initial.carNodeCount;
     const centerA = this.getAverage([0, 3 + 1]);
     const centerB = this.getAverage([0 + sh, 3 + sh + 1]);
+    this.shapes.carA.orbitShape.clearParticles();
+    this.shapes.carB.orbitShape.clearParticles();
     for (const [i, p] of enumerate(this.msdSystem.getGroup("orbit"))) {
+      const carType: CarName = p.group.has("carA") ? "carA" : "carB";
       let center = p.group.has("carA") ? centerA : centerB;
       if (p.disabled && !forceUpdate) continue;
       const [w, phi, rd, h] = this.orbitRandom[i];
@@ -816,6 +912,18 @@ export class CartFrame {
       p.location[0] = center[0] + Math.cos(theta) * rd;
       p.location[2] = center[2] + Math.sin(theta) * rd;
       p.location[1] = center[1] + h;
+      if (!p.disabled) {
+        this.shapes[carType].orbitShape.addParticles(p.location);
+      }
+    }
+  }
+
+  orbitShape(car: CarName) {
+    switch (car) {
+      case "carA":
+        return this.shapes.carA.orbitShape;
+      case "carB":
+        return this.shapes.carB.orbitShape;
     }
   }
 
@@ -972,5 +1080,148 @@ export class CartFrame {
         rearRight: pc[j3].velocity.dot(pc[j3].tireForward ?? fwdB),
       },
     };
+  }
+
+  static averageGroundSpeeds(
+    carA: {
+      frontRight: number;
+      frontLeft: number;
+      rearLeft: number;
+      rearRight: number;
+    },
+    carB: {
+      frontRight: number;
+      frontLeft: number;
+      rearLeft: number;
+      rearRight: number;
+    },
+  ) {
+    const speedA =
+      (Math.abs(carA.frontLeft) +
+        Math.abs(carA.frontRight) +
+        Math.abs(carA.rearLeft) +
+        Math.abs(carA.rearRight)) /
+      4;
+    const speedB =
+      (Math.abs(carB.frontLeft) +
+        Math.abs(carB.frontRight) +
+        Math.abs(carB.rearLeft) +
+        Math.abs(carB.rearRight)) /
+      4;
+
+    return { carA: speedA, carB: speedB };
+  }
+
+  enableSparks(car: CarName) {
+    this._spark[car].enabled = true;
+  }
+
+  disableSparks(car: CarName) {
+    this._spark[car].enabled = false;
+  }
+
+  private resetSparks(car: CarName) {
+    this._spark[car].enabled = false;
+    this._spark[car].index = 0;
+  }
+
+  dispatchParticles(timeDelta: number) {
+    // in seconds
+    const CADENCE = 0.01;
+    const MAX_LIFE = 2;
+    const { carA, carB } = this._spark;
+    const pc = this.msdSystem.particles.container;
+
+    this.shapes.sparkPool.clearParticles();
+
+    // - increase time of each active particle (count how many are active)
+    let ptime = 0;
+    for (const p of this.msdSystem.getGroup("sparks")) {
+      if (((p.metadata as number) ?? 0) > MAX_LIFE) {
+        p.disabled = true;
+      }
+      if (p.disabled) continue;
+      ptime = (p.metadata as number | undefined) ?? 0;
+      ptime += timeDelta;
+      p.metadata = ptime;
+      const head = p.velocity.times(timeDelta * 6);
+      head.add_by(p.location);
+      this.shapes.sparkPool.addParticles(head);
+      this.shapes.sparkPool.addParticles(p.location);
+    }
+
+    const emitters: SparkEmitter[] = [
+      {
+        state: this._spark.carA,
+        range: this.nodeRanges.sparksA,
+        transform: this.transforms.carA,
+        bladeIndex: this.nodeRanges.blades[0],
+        inheritVel: math.vec3(0, 0, 0),
+      },
+      {
+        state: this._spark.carB,
+        range: this.nodeRanges.sparksB,
+        transform: this.transforms.carB,
+        bladeIndex: this.nodeRanges.blades[0] + 1,
+        inheritVel: math.vec3(0, 0, 0),
+      },
+    ];
+
+    // this is gross but I just want to get it done
+    let j = this.nodeRanges.carA[0];
+    emitters[0].inheritVel.add_by(pc[j++].velocity);
+    emitters[0].inheritVel.add_by(pc[j++].velocity);
+    emitters[0].inheritVel.add_by(pc[j++].velocity);
+    emitters[0].inheritVel.add_by(pc[j++].velocity);
+    emitters[0].inheritVel.scale_by(0.25);
+    j = this.nodeRanges.carB[0];
+    emitters[1].inheritVel.add_by(pc[j++].velocity);
+    emitters[1].inheritVel.add_by(pc[j++].velocity);
+    emitters[1].inheritVel.add_by(pc[j++].velocity);
+    emitters[1].inheritVel.add_by(pc[j++].velocity);
+    emitters[1].inheritVel.scale_by(0.25);
+
+    // reference: https://www.desmos.com/3d/oc5x9yl8qg
+
+    for (const emitter of emitters) {
+      if (!emitter.state.enabled) continue;
+      const [start, end] = emitter.range;
+      const count = end - start;
+      let i = emitter.state.index + start;
+      let thislife = pc[i].metadata as number;
+      const blade = pc[emitter.bladeIndex];
+
+      if (thislife > CADENCE || pc[i].disabled) {
+        if (!pc[i].disabled) {
+          // advance circular buffer only if particle is enabled
+          emitter.state.index = (emitter.state.index + 1) % count;
+        }
+
+        i = emitter.state.index + start;
+        const p = pc[i];
+        p.disabled = false;
+        p.metadata = 0;
+        setVector(p.location, blade.location);
+
+        setVector(p.velocity, emitter.transform.forward);
+        p.velocity.add_by(emitter.transform.up.times(0.35));
+        p.velocity.normalize();
+        p.velocity = vectorNudge(
+          p.velocity,
+          0.2,
+          true, // asserting input is normal
+          emitter.transform.up,
+        );
+        p.velocity.scale_by(15);
+        p.velocity.add_by(emitter.inheritVel);
+        setVector(blade.velocity, emitter.inheritVel);
+      }
+    }
+  }
+
+  private manageSparkPool(begin: number, end: number) {}
+
+  get sparksShape() {
+    return this.shapes.sparkPool;
   }
 }

@@ -29,6 +29,32 @@ export function smoothstep(t: number) {
   return 3 * t2 - 2 * t3;
 }
 
+export function vectorNudge(
+  vec: math.Vector3,
+  spreadFactor: number,
+  isNormal: boolean = false,
+  up: math.Vector3 = math.vec3(0, 1, 0),
+) {
+  let D = vec;
+  if (!isNormal) {
+    D = D.normalized();
+  }
+  const T = vec.cross(up);
+  T.normalize();
+  const B = T.cross(D);
+
+  const r1 = 2 * Math.random() - 1;
+  const r2 = 2 * Math.random() - 1;
+  T.scale_by(r1 * spreadFactor);
+  B.scale_by(r2 * spreadFactor);
+  B.add_by(T);
+  B.add_by(D);
+  B.normalize();
+  B.scale_by(vec.norm());
+
+  return B;
+}
+
 export function getSpawnPoint(
   fieldSDF: FunctorSDF<math.Vector3, number>,
   carA_SDF: FunctorSDF<math.Vector3, number>,

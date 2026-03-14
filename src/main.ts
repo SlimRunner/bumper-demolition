@@ -4,7 +4,7 @@ import { math } from "../tiny-graphics-math";
 import { UVShader } from "./shaders/UVShader";
 import { SolidColor } from "./shaders/solidColor";
 import { Axis3D } from "./shapes/axis3d";
-import { GimbalCamera } from "./components/gimbalCamera";
+import { GimbalCamera } from "./cameras/gimbalCamera";
 import { SimpleGrid } from "./shapes/simpleGrid";
 import { CartArmature, CartNodeNames } from "./rigging/cartArmature";
 import { CartFrame } from "./physics/cartFrame";
@@ -12,7 +12,7 @@ import { MSDFrameShape } from "./shapes/msdShape";
 import { range } from "./utils/iterators";
 import { basisChange, clamp, lerp, smoothstep } from "./utils/math";
 import { FileMesh } from "./shapes/fileMesh";
-import { ActionCamera } from "./components/actionCamera";
+import { ActionCamera } from "./cameras/actionCamera";
 import { ComplexTextured, CplxMats } from "./shaders/complexTexture";
 import { SkyboxWH } from "./shaders/skyboxShader";
 import { GameGUI } from "./components/gameGui";
@@ -31,6 +31,7 @@ import { MatchManager } from "./components/gameMatch";
 import type { CarName, PowerUpKind } from "./components/types";
 import { Scheduler, SchedulerEvent } from "./components/eventScheduler";
 import { CarNameLabels } from "./utils/text";
+import { splatMats, SplatShader } from "./shaders/splatShader";
 
 type CarTarget = "carA" | "carB";
 
@@ -49,8 +50,12 @@ export class BumperCarsBase extends tiny.Component {
     readonly softBlue: math.Vector4;
     readonly yellow: math.Vector4;
     readonly white: math.Vector4;
+    readonly brightRed: math.Vector4;
+    readonly brightOrange: math.Vector4;
+    readonly electricBlue: math.Vector4;
     readonly heavyBox: math.Vector4;
     readonly orbitBox: math.Vector4;
+    readonly sparkColors: math.Vector4;
     sunAmbient: math.Vector4;
     sunColor: math.Vector4;
     skyHorizon: math.Vector4;
@@ -80,6 +85,9 @@ export class BumperCarsBase extends tiny.Component {
       sun_zenith: number;
       sun_azimuth: number;
     };
+    splats: {
+      shader: SplatShader;
+    } & splatMats;
   };
   armatures: {
     carA: CartArmature;
@@ -116,7 +124,7 @@ export class BumperCarsBase extends tiny.Component {
   };
 
   gui?: GameGUI;
-  sound?: CarSound;
+  engineSound?: CarSound;
   collisionSound?: CollisionSound;
   bladeSlashSound?: BladeSlashSound;
 
@@ -132,11 +140,15 @@ export class BumperCarsBase extends tiny.Component {
       softBlue: math.color(0.176, 0.439, 0.702, 1),
       yellow: math.color(1, 1, 0, 1),
       white: math.color(1, 1, 1, 1),
+      brightRed: math.color(1, 0.2, 0, 1),
+      brightOrange: math.color(1, 0.36, 0, 1),
+      electricBlue: math.color(0, 0.94, 1, 1),
       sunAmbient: math.color(0, 0, 0, 0),
       sunColor: math.color(1, 1, 1, 0),
       skyHorizon: math.color(0, 0, 0, 0),
       heavyBox: math.color(1, 1, 0, 0.4),
       orbitBox: math.color(1, 0, 1, 0.4),
+      sparkColors: math.color(1, 0.66, 0.33, 0.5),
     };
 
     this.transforms = {
@@ -178,6 +190,11 @@ export class BumperCarsBase extends tiny.Component {
         shader: new SkyboxWH(),
         sun_azimuth: Math.PI * 0.4,
         sun_zenith: Math.PI * 0.35,
+      },
+      splats: {
+        shader: new SplatShader(),
+        color: this.colors.white,
+        point_size: 150,
       },
     };
 
@@ -425,13 +442,10 @@ export class BumperCarsBase extends tiny.Component {
       cameraPin: "follow",
     };
 
-    if (!this.gui) {
-      this.gui = new GameGUI(canvas);
-    }
     this.gui.resetState();
 
-    if (!this.sound) {
-      this.sound = new CarSound("../assets/sounds/motor-sound3.mp3");
+    if (!this.engineSound) {
+      this.engineSound = new CarSound("../assets/sounds/motor-sound3.mp3");
     }
     if (!this.collisionSound) {
       this.collisionSound = new CollisionSound(
@@ -444,8 +458,12 @@ export class BumperCarsBase extends tiny.Component {
         "../assets/sounds/blade-slash1.mp3",
         "../assets/sounds/blade-slash2.mp3",
       );
-      this.armatures.carA.onSlash = () => this.bladeSlashSound?.play();
-      this.armatures.carB.onSlash = () => this.bladeSlashSound?.play();
+      this.armatures.carA.addEventListener("slash_started", () => {
+        this.bladeSlashSound?.play();
+      });
+      this.armatures.carB.addEventListener("slash_started", () => {
+        this.bladeSlashSound?.play();
+      });
     }
   }
 
@@ -519,63 +537,63 @@ export class BumperCarsBase extends tiny.Component {
   }
 }
 
-type EventNamespace = "intro_look_up" | "match_loop" | "outro";
+type EventNamespace =
+  | "intro_look_up"
+  | "match_loop"
+  | "outro"
+  | "enable_physics";
 
 export class BumperCars extends BumperCarsBase {
   gameMatch: MatchManager;
-  scheduler: Scheduler<SchedulerEvent<EventNamespace>>;
+  scheduler: Scheduler<EventNamespace, SchedulerEvent<EventNamespace>>;
 
   constructor() {
     super();
 
+    const cartMSD = this.physics.cartMSD;
+    const armatureA = this.armatures.carA;
+    const armatureB = this.armatures.carB;
+
     let isMatchOver = false;
     let winner: CarName | undefined;
 
-    this.gameMatch = new MatchManager((evt) => {
-      switch (evt.event) {
-        case "suddenDeath":
-          // TODO: start sudden death stage
-          console.log(evt.event);
+    this.gameMatch = new MatchManager();
+
+    this.gameMatch.addEventListener("suddenDeath", (args) => {
+      // TODO: start sudden death stage
+      console.log("suddenDeath");
+    });
+    this.gameMatch.addEventListener("gameOver", (args) => {
+      switch (args.loser) {
+        case "carA":
+          winner = "carB";
           break;
-        case "gameOver":
-          switch (evt.loser) {
-            case "carA":
-              winner = "carB";
-              break;
-            case "carB":
-              winner = "carA";
-              break;
-          }
-          isMatchOver = true;
+        case "carB":
+          winner = "carA";
           break;
-        case "powerSpawn":
-          switch (evt.count) {
-            case 0:
-              this.physics.cartMSD.spawnPowerup(
-                evt.kind,
-                math.vec3(0, 0.75, 10),
-              );
-              break;
-            case 1:
-              this.physics.cartMSD.spawnPowerup(
-                evt.kind,
-                math.vec3(0, 0.75, -10),
-              );
-              break;
-            default:
-              this.physics.cartMSD.spawnPowerup(evt.kind);
-          }
+      }
+      isMatchOver = true;
+    });
+    this.gameMatch.addEventListener("powerSpawn", (args) => {
+      switch (args.count) {
+        case 0:
+          cartMSD.spawnPowerup(args.kind, math.vec3(0, 0.75, 10));
           break;
-        case "powerExpires":
-          switch (evt.kind) {
-            case "heavy":
-              this.physics.cartMSD.makeLight(evt.player);
-              this.setThrust(evt.player, 120);
-              break;
-            case "orbit":
-              this.physics.cartMSD.setOrbitStatus(evt.player, true);
-              break;
-          }
+        case 1:
+          cartMSD.spawnPowerup(args.kind, math.vec3(0, 0.75, -10));
+          break;
+        default:
+          cartMSD.spawnPowerup(args.kind);
+      }
+    });
+    this.gameMatch.addEventListener("powerExpires", (args) => {
+      switch (args.kind) {
+        case "heavy":
+          cartMSD.makeLight(args.player);
+          this.setThrust(args.player, 120);
+          break;
+        case "orbit":
+          cartMSD.setOrbitStatus(args.player, true);
           break;
       }
     });
@@ -593,6 +611,9 @@ export class BumperCars extends BumperCarsBase {
       { type: "timed", ident: "intro_day_cycle", duration: 2 },
       */
 
+      //event used to prevent hard resets
+      { type: "event", ident: "enable_physics", isExpired: () => true },
+
       // main match event
       { type: "event", ident: "match_loop", isExpired: () => isMatchOver },
       // TODO: outro animation with slow motion and winner toast
@@ -603,6 +624,9 @@ export class BumperCars extends BumperCarsBase {
       (ident, elapsed) => {
         switch (ident) {
           case "intro_look_up":
+            // count down?
+            break;
+          case "enable_physics":
             this.physics.cartMSD.enable = true;
             break;
           case "match_loop":
@@ -630,6 +654,19 @@ export class BumperCars extends BumperCarsBase {
         winner = undefined;
       },
     );
+
+    armatureA.addEventListener("blade_is_reaching", ({ t: time }) => {
+      cartMSD.enableSparks("carA");
+    });
+    armatureA.addEventListener("blade_retreated", () => {
+      cartMSD.disableSparks("carA");
+    });
+    armatureB.addEventListener("blade_is_reaching", ({ t: time }) => {
+      cartMSD.enableSparks("carB");
+    });
+    armatureB.addEventListener("blade_retreated", () => {
+      cartMSD.disableSparks("carB");
+    });
   }
 
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
@@ -693,13 +730,13 @@ export class BumperCars extends BumperCarsBase {
   protected resetGame(): void {
     super.resetGame();
     this.gameMatch.resetState();
-    this.scheduler.reset();
+    this.scheduler.reset("enable_physics");
   }
 
   protected setThrust(car: CarName, value: number) {
     switch (car) {
       case "carA":
-        this.armatures.carB.maxThrust = value;
+        this.armatures.carA.maxThrust = value;
       case "carB":
         this.armatures.carB.maxThrust = value;
     }
@@ -730,6 +767,7 @@ export class BumperCars extends BumperCarsBase {
 
     // do all time related oerations inside this if statement
     if (!paused) {
+      cartMSD.dispatchParticles(timeDelta * timeMult);
       this.gui?.updateTimer(timeDelta * timeMult);
       this.gameMatch.updateExpiry(timeDelta * timeMult);
       this.gameMatch.checkTime();
@@ -765,34 +803,32 @@ export class BumperCars extends BumperCarsBase {
       cartB.updateFrontWheels(tires.carB.frontLeft, tires.carB.frontRight);
       cartA.updateArm(timeDelta * timeMult);
       cartB.updateArm(timeDelta * timeMult);
-      // TODO: possibly use thrust (pitch) and speed (volume)
-      const speedA =
-        (Math.abs(groundSpeeds.carA.frontLeft) +
-          Math.abs(groundSpeeds.carA.frontRight) +
-          Math.abs(groundSpeeds.carA.rearLeft) +
-          Math.abs(groundSpeeds.carA.rearRight)) /
-        4;
-      const speedB =
-        (Math.abs(groundSpeeds.carB.frontLeft) +
-          Math.abs(groundSpeeds.carB.frontRight) +
-          Math.abs(groundSpeeds.carB.rearLeft) +
-          Math.abs(groundSpeeds.carB.rearRight)) /
-        4;
-      // TODO: Can this be re-factored out?
-      const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
-      const carAPos = math.vec3(mtxCarA[0][3], mtxCarA[1][3], mtxCarA[2][3]);
-      const carBPos = math.vec3(mtxCarB[0][3], mtxCarB[1][3], mtxCarB[2][3]);
+
       const camPos = math.vec3(cam_loc[0], cam_loc[1], cam_loc[2]);
       const camRight = math.vec3(CMT[0][0], CMT[0][1], CMT[0][2]);
-      const toA = carAPos.minus(camPos);
-      const toB = carBPos.minus(camPos);
-      const distA = Math.max(toA.norm(), 0.001);
-      const distB = Math.max(toB.norm(), 0.001);
-      const panA = -clamp(toA.dot(camRight) / distA, -1, 1);
-      const panB = -clamp(toB.dot(camRight) / distB, -1, 1);
-      this.sound?.update(speedA, speedB, panA, panB);
+      const avgWheelSpeed = CartFrame.averageGroundSpeeds(
+        groundSpeeds.carA,
+        groundSpeeds.carB,
+      );
+      this.engineSound?.update({
+        carA: {
+          speed: avgWheelSpeed.carA,
+          pos: cartMSD.transforms.carA.center,
+          thrust: cartA.thrustForce,
+        },
+        carB: {
+          speed: avgWheelSpeed.carB,
+          pos: cartMSD.transforms.carB.center,
+          thrust: cartB.thrustForce,
+        },
+        camera: {
+          pos: camPos,
+          right: camRight,
+        },
+      });
     }
 
+    this.engineSound?.setPaused(paused);
     this.collisionSound?.flush(paused);
 
     // this pattern can be used to create a sky texture later
@@ -854,24 +890,16 @@ export class BumperCars extends BumperCarsBase {
         break;
     }
 
-    cartMSD.traverseOrbits((p, owner) => {
-      const [x, y, z] = p.location;
-      this.shapes.ball.draw(
-        context,
-        this.uniforms,
-        math.Mat4.translation(x, y, z).times(math.Mat4.scale(0.1, 0.1, 0.1)),
-        {
-          ...this.materials.plastic,
-          color: owner === "carA" ? this.colors.red : this.colors.blue,
-        },
-      );
-    });
-
     if (this.globalProps.showMeshes) {
       cartA.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
         if (name === "saw") {
-          cartMSD.setBlade("carA", matrix[0][3], matrix[1][3], matrix[2][3]);
+          cartMSD.setBlade(
+            "carA",
+            matrix[0][3],
+            matrix[1][3] - 0.2,
+            matrix[2][3],
+          );
         }
 
         if (node.shape instanceof FileMesh) {
@@ -936,6 +964,17 @@ export class BumperCars extends BumperCarsBase {
       );
     }
 
+    cartMSD.sparksShape.draw(
+      context,
+      this.uniforms,
+      this.transforms.identity,
+      {
+        ...this.materials.solid,
+        color: this.colors.sparkColors,
+      },
+      "LINES",
+    );
+
     GL.depthMask(false);
     cartMSD.traverseBoxes((p, power) => {
       if (power == null) return;
@@ -957,6 +996,26 @@ export class BumperCars extends BumperCarsBase {
         },
       );
     });
+    cartMSD.orbitShape("carA").draw(
+      context,
+      this.uniforms,
+      this.transforms.identity,
+      {
+        ...this.materials.splats,
+        color: this.colors.brightRed,
+      },
+      "POINTS",
+    );
+    cartMSD.orbitShape("carB").draw(
+      context,
+      this.uniforms,
+      this.transforms.identity,
+      {
+        ...this.materials.splats,
+        color: this.colors.electricBlue,
+      },
+      "POINTS",
+    );
     GL.depthMask(true);
 
     // do this at the very end always
@@ -1018,17 +1077,6 @@ export class BumperCars extends BumperCarsBase {
       cartA.swingArm();
     });
     this.new_line();
-
-    this.key_triggered_button("mute Car A", ["["], () => {
-      if (!this.sound) return;
-      const next = !this.sound.getMuteA();
-      this.sound.setMuteA(next);
-    });
-    this.key_triggered_button("mute Car B", ["]"], () => {
-      if (!this.sound) return;
-      const next = !this.sound.getMuteB();
-      this.sound.setMuteB(next);
-    });
 
     // controls for car B
     this.live_string((elem) => {

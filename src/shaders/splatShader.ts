@@ -6,7 +6,7 @@ import {
   MaterialRecord,
 } from "../../tiny-graphics";
 
-export type uvMats = MaterialRecord & {
+export type splatMats = MaterialRecord & {
   color: math.Vector4;
   point_size: number;
 };
@@ -42,10 +42,26 @@ export class SplatShader extends tiny.Shader {
     return `
       ${this.shared_glsl_code()}
 
-      void main(){
-        float dist = length(gl_PointCoord - vec2(0.5));
-        if(dist > 0.5) discard;
-        gl_FragColor = v_color;
+      float smoothstep(float t) {
+        float t2 = t * t;
+        return 3.0 * t2 - 2.0 * t2 * t;
+      }
+
+      void main() {
+          vec2 p = gl_PointCoord - vec2(0.5);
+          float dist = length(p);
+
+          if (dist > 0.5) discard;
+
+          float t = dist * 2.0; // 0 center -> 1 edge
+
+          // soft alpha falloff
+          float alpha = smoothstep(1.0, 0.0, t);
+
+          // whiten the core
+          float core = smoothstep(0.5, 0.0, t);
+          vec3 color = mix(v_color.rgb, vec3(1.0), core);
+          gl_FragColor = vec4(color, alpha * v_color.a);
       }
     `;
   }
@@ -55,7 +71,7 @@ export class SplatShader extends tiny.Shader {
     gpu_addresses: GPUAddresses,
     uniforms: Uniforms,
     model_transform: math.Mat4,
-    material: uvMats,
+    material: splatMats,
   ): void {
     const defaults = {
       point_size: 100,

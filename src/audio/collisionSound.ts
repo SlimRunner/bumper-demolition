@@ -17,7 +17,7 @@ export class CollisionSound {
     thresholdImpulse = 4,
     minImpulse = 0.8,
     maxImpulse = 7,
-    maxVolume = 0.8,
+    maxVolume = 0.6,
   ) {
     this.audioSlow = new Audio(slowSrc);
     this.audioFast = new Audio(fastSrc);
@@ -37,12 +37,8 @@ export class CollisionSound {
   }
 
   flush(skip = false) {
-    // choose aggregation strategy
-    if (this.maxImpulseSeen != 0 && this.accumulatedImpulse != 0) {
-      console.log("sqrt: " + Math.sqrt(this.accumulatedImpulse));
-    }
-    // const impulse = this.maxImpulseSeen;
-    const impulse = Math.sqrt(this.accumulatedImpulse); // alternative
+    // const impulse = this.maxImpulseSeen; // alternative
+    const impulse = Math.sqrt(this.accumulatedImpulse);
 
     this.accumulatedImpulse = 0;
     this.maxImpulseSeen = 0;
@@ -51,16 +47,13 @@ export class CollisionSound {
 
     const t = Math.min(
       1,
-      (impulse - this.minImpulse) /
-        (this.maxImpulse - this.minImpulse),
+      (impulse - this.minImpulse) / (this.maxImpulse - this.minImpulse),
     );
 
     const volume = t * this.maxVolume;
 
     const audio =
-      impulse >= this.thresholdImpulse
-        ? this.audioFast
-        : this.audioSlow;
+      impulse >= this.thresholdImpulse ? this.audioFast : this.audioSlow;
 
     const instance = audio.cloneNode(true) as HTMLAudioElement;
     instance.volume = volume;

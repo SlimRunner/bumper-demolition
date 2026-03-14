@@ -53,25 +53,29 @@ export function sdGradient3DMut(
   sdf: FunctorSDF<math.Vector3, number>,
   delta: number,
   out: math.Vector3,
-  tmp: math.Vector3
+  tmp: math.Vector3,
 ) {
   const px = pt[0];
   const py = pt[1];
   const pz = pt[2];
 
-  tmp[0] = px + delta; tmp[1] = py; tmp[2] = pz;
+  tmp[0] = px + delta;
+  tmp[1] = py;
+  tmp[2] = pz;
   const dx1 = sdf(tmp);
 
   tmp[0] = px - delta;
   const dx2 = sdf(tmp);
 
-  tmp[0] = px; tmp[1] = py + delta;
+  tmp[0] = px;
+  tmp[1] = py + delta;
   const dy1 = sdf(tmp);
 
   tmp[1] = py - delta;
   const dy2 = sdf(tmp);
 
-  tmp[1] = py; tmp[2] = pz + delta;
+  tmp[1] = py;
+  tmp[2] = pz + delta;
   const dz1 = sdf(tmp);
 
   tmp[2] = pz - delta;
@@ -90,6 +94,18 @@ export function sdPlane(
   height: number,
 ) {
   return pt.dot(normal) + height;
+}
+
+export function sdPrism(
+  pt: math.Vector3 | [number, number, number],
+  h: math.Vector3 | [number, number],
+) {
+  const qx = Math.abs(pt[0]);
+  const qz = Math.abs(pt[2]);
+  return Math.max(
+    qz - h[1],
+    Math.max(qx * 0.866025 + pt[1] * 0.5, -pt[1]) - h[0] * 0.5,
+  );
 }
 
 export function sdOrientedRect(

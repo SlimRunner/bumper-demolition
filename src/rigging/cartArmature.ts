@@ -3,6 +3,7 @@ import { math } from "../../tiny-graphics-math";
 import { tiny } from "../../tiny-graphics";
 import { clamp, lerp, smoothstep } from "../utils/math";
 import { DrawableShape, ShapeCollection } from "src/shapes/types";
+import { EventEmitter } from "../types";
 
 const armJointInitAngle1 = -0.1;
 const armJointInitAngle2 = 0.45;
@@ -29,7 +30,15 @@ export type CartArcNames =
 
 const PI2 = 2 * Math.PI;
 
-export class CartArmature {
+export type ArmatureEvents = {
+  slash_started: {};
+  blade_is_reaching: {
+    t: number;
+  };
+  blade_retreated: {};
+};
+
+export class CartArmature implements EventEmitter<ArmatureEvents> {
   nodes: {
     chassis: NodeLink;
     wheelRL: NodeLink;
@@ -51,6 +60,11 @@ export class CartArmature {
     sawHub: ArcJoint;
   };
 
+  private _listeners = new Map<
+    keyof ArmatureEvents,
+    Array<(args: any) => void>
+  >();
+
   private _props = {
     armBlade: {
       timing: 0,
@@ -70,6 +84,7 @@ export class CartArmature {
       thrust: {
         target: 0,
         force: 0,
+        animRate: 360,
         max: 120,
       },
     },
@@ -79,8 +94,6 @@ export class CartArmature {
     spinFL: 0,
   };
   private _tireRadius: number;
-
-  onSlash?: () => void;
 
   constructor(props: {
     meshes: {
@@ -317,6 +330,7 @@ export class CartArmature {
         thrust: {
           target: 0,
           force: 0,
+          animRate: 360,
           max: 120,
         },
       },
@@ -334,6 +348,28 @@ export class CartArmature {
     this.arcs.wheelHubRR.setAngle("rz", 0);
     this.arcs.wheelHubFL.setAngle("ry", 0);
     this.arcs.wheelHubFR.setAngle("ry", 0);
+  }
+
+  addEventListener<K extends keyof ArmatureEvents>(
+    event: K,
+    callback: (args: ArmatureEvents[K]) => void,
+  ): void {
+    const listeners = this._listeners.get(event);
+    if (listeners) {
+      listeners.push(callback);
+    } else {
+      this._listeners.set(event, [callback]);
+    }
+  }
+
+  private execListeners<K extends keyof ArmatureEvents>(
+    event: K,
+    args: ArmatureEvents[K],
+  ) {
+    const listeners = this._listeners.get(event);
+    for (const listener of listeners ?? []) {
+      listener(args);
+    }
   }
 
   updateTires(
@@ -367,18 +403,34 @@ export class CartArmature {
     if (anim.enabled && !anim.swinging) {
       anim.timing = 0;
       anim.swinging = true;
-      this.onSlash?.();
     }
   }
 
   updateArm(timeDelta: number) {
     const anim = this._props.armBlade;
     if (anim.swinging) {
-      anim.timing = anim.timing + timeDelta * anim.animRate;
-      // reference: https://www.desmos.com/calculator/jaagh3jawk
+      const dt = timeDelta * anim.animRate;
+
+      // SMELL: ngl this is a crap design because order matters...
+      if (anim.timing >= 1 && anim.timing <= 4) {
+        this.execListeners("blade_is_reaching", { t: anim.timing - 1 });
+      }
+
+      if (anim.timing == 0) {
+        this.execListeners("slash_started", {});
+      } else if (anim.timing < 4 && anim.timing + dt >= 4) {
+        this.execListeners("blade_retreated", {});
+      }
+
+      anim.timing = anim.timing + dt;
+      // reference: https://www.desmos.com/calculator/zfqd7sdjuk
       let t = smoothstep(
-        clamp(anim.timing, 0, 1) + clamp(9 - anim.timing, 4, 5) - 5,
+        clamp(anim.timing, 0, 1) - clamp(anim.timing - 4, 0, 1),
       );
+
+      // for future reference based on the timing curve
+      // - `anim.timing == 1` -> blade reached destination
+      // - `anim.timing == 4` -> blade started to retreat
 
       this.arcs.sawArmJoint1.setAngle(
         "rz",
@@ -417,7 +469,17 @@ export class CartArmature {
       );
     }
     // add animation if need smooth thrust
-    thrust.force = thrust.target;
+    if (thrust.force < thrust.target) {
+      thrust.force = Math.min(
+        thrust.target,
+        thrust.force + thrust.animRate * timeDelta,
+      );
+    } else {
+      thrust.force = Math.max(
+        thrust.target,
+        thrust.force - thrust.animRate * timeDelta,
+      );
+    }
   }
 
   get steerAngle() {

@@ -1,3 +1,4 @@
+import { EventEmitter } from "../types";
 import { clamp } from "../utils/math";
 import type { CarName, MatchGui, PowerUpKind } from "./types";
 
@@ -12,29 +13,24 @@ export type PlayerMetadata = {
   powerup?: PowerupMetadata;
 };
 
-export type MatchEventArgs =
-  | {
-      event: "suddenDeath";
-    }
-  | {
-      event: "gameOver";
-      loser: CarName;
-    }
-  | {
-      event: "powerSpawn";
-      kind: PowerUpKind;
-      count: number;
-    }
-  | {
-      event: "powerExpires";
-      player: CarName;
-      kind: PowerUpKind;
-    }
-  | {
-      event: "powerDepletes";
-      player: CarName;
-      kind: PowerUpKind;
-    };
+export type MatchEventArgs = {
+  suddenDeath: {};
+  gameOver: {
+    loser: CarName;
+  };
+  powerSpawn: {
+    kind: PowerUpKind;
+    count: number;
+  };
+  powerExpires: {
+    player: CarName;
+    kind: PowerUpKind;
+  };
+  powerDepletes: {
+    player: CarName;
+    kind: PowerUpKind;
+  };
+};
 
 export type MatchEvent = (event: MatchEventArgs) => void;
 
@@ -44,7 +40,7 @@ const PowerupDurations: Record<PowerUpKind, number> = {
   orbit: 12,
 };
 
-export class MatchManager {
+export class MatchManager implements EventEmitter<MatchEventArgs> {
   // this map pattern is to take advantage of string narrowing
   private _players: Map<CarName, PlayerMetadata>;
   private _gui?: MatchGui;
@@ -57,7 +53,12 @@ export class MatchManager {
   private spawnQueue: (PowerupMetadata & { count: number })[];
   private activeBoxes: number;
 
-  constructor(private callback: MatchEvent) {
+  private _listeners = new Map<
+    keyof MatchEventArgs,
+    Array<(args: any) => void>
+  >();
+
+  constructor() {
     this._players = new Map<CarName, PlayerMetadata>([
       ["carA", { health: 100, score: 0 }],
       ["carB", { health: 100, score: 0 }],
@@ -91,6 +92,28 @@ export class MatchManager {
       },
     ];
     this.activeBoxes = 0;
+  }
+
+  addEventListener<K extends keyof MatchEventArgs>(
+    event: K,
+    callback: (args: MatchEventArgs[K]) => void,
+  ): void {
+    const listeners = this._listeners.get(event);
+    if (listeners) {
+      listeners.push(callback);
+    } else {
+      this._listeners.set(event, [callback]);
+    }
+  }
+
+  private execListeners<K extends keyof MatchEventArgs>(
+    event: K,
+    args: MatchEventArgs[K],
+  ) {
+    const listeners = this._listeners.get(event);
+    for (const listener of listeners ?? []) {
+      listener(args);
+    }
   }
 
   linkGUI(gui: MatchGui) {
@@ -135,7 +158,7 @@ export class MatchManager {
     this._gui?.updateHealth(player, pl.health);
     if (pl.health <= 0) {
       this._endFlag = true;
-      this.callback({ event: "gameOver", loser: player });
+      this.execListeners("gameOver", { loser: player });
     }
   }
 
@@ -151,8 +174,7 @@ export class MatchManager {
         meta.powerup.timer = meta.powerup.timer - timeDelta;
 
         if (meta.powerup.timer < 0) {
-          this.callback({
-            event: "powerExpires",
+          this.execListeners("powerExpires", {
             player: pl,
             kind: meta.powerup.kind,
           });
@@ -171,8 +193,7 @@ export class MatchManager {
           count: power.count + 1,
         });
         this.activeBoxes++;
-        this.callback({
-          event: "powerSpawn",
+        this.execListeners("powerSpawn", {
           kind: power.kind,
           count: power.count,
         });
@@ -183,9 +204,7 @@ export class MatchManager {
   checkTime() {
     const time = this._gui?.currentTime ?? 0;
     if (this.timeEvents.suddenDeath(time)) {
-      this.callback({
-        event: "suddenDeath",
-      });
+      this.execListeners("suddenDeath", {});
     }
   }
 
