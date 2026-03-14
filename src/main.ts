@@ -542,6 +542,10 @@ export class BumperCars extends BumperCarsBase {
   constructor() {
     super();
 
+    const cartMSD = this.physics.cartMSD;
+    const armatureA = this.armatures.carA;
+    const armatureB = this.armatures.carB;
+
     let isMatchOver = false;
     let winner: CarName | undefined;
 
@@ -565,23 +569,23 @@ export class BumperCars extends BumperCarsBase {
     this.gameMatch.addEventListener("powerSpawn", (args) => {
       switch (args.count) {
         case 0:
-          this.physics.cartMSD.spawnPowerup(args.kind, math.vec3(0, 0.75, 10));
+          cartMSD.spawnPowerup(args.kind, math.vec3(0, 0.75, 10));
           break;
         case 1:
-          this.physics.cartMSD.spawnPowerup(args.kind, math.vec3(0, 0.75, -10));
+          cartMSD.spawnPowerup(args.kind, math.vec3(0, 0.75, -10));
           break;
         default:
-          this.physics.cartMSD.spawnPowerup(args.kind);
+          cartMSD.spawnPowerup(args.kind);
       }
     });
     this.gameMatch.addEventListener("powerExpires", (args) => {
       switch (args.kind) {
         case "heavy":
-          this.physics.cartMSD.makeLight(args.player);
+          cartMSD.makeLight(args.player);
           this.setThrust(args.player, 120);
           break;
         case "orbit":
-          this.physics.cartMSD.setOrbitStatus(args.player, true);
+          cartMSD.setOrbitStatus(args.player, true);
           break;
       }
     });
