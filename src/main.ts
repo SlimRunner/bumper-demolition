@@ -310,7 +310,7 @@ export class BumperCarsBase extends tiny.Component {
         // careful if you update
         initRadius: 25,
         radius: 25,
-        duration: 60,
+        duration: 30,
         timer: 0,
         enabled: false,
         damageRate: (t, d) => 20,
@@ -892,7 +892,7 @@ export class BumperCars extends BumperCarsBase {
         const entities: [CarName, CarName] = ["carA", "carB"];
         suddenDeath.timer += timeDelta * timeMult;
         const t = Math.min(1, suddenDeath.timer / suddenDeath.duration);
-        suddenDeath.radius = lerp(suddenDeath.initRadius, 0, t);
+        suddenDeath.radius = lerp(suddenDeath.initRadius, 0, smoothstep(t));
 
         for (const car of entities) {
           const dist = sdCylinderColumn(
