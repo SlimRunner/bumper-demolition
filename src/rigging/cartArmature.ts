@@ -408,12 +408,18 @@ export class CartArmature implements EventEmitter<ArmatureEvents> {
   updateArm(timeDelta: number) {
     const anim = this._props.armBlade;
     if (anim.swinging) {
-      if (anim.timing == 0) {
-        this.execListeners("slash_started", {});
-      } else if (anim.timing >= 1 && anim.timing <= 4) {
+      const dt = timeDelta * anim.animRate;
+
+      // SMELL: ngl this is a crap design because order matters...
+      if (anim.timing >= 1 && anim.timing <= 4) {
         this.execListeners("blade_is_reaching", { t: anim.timing - 1 });
       }
-      anim.timing = anim.timing + timeDelta * anim.animRate;
+
+      if (anim.timing == 0) {
+        this.execListeners("slash_started", {});
+      }
+
+      anim.timing = anim.timing + dt;
       // reference: https://www.desmos.com/calculator/zfqd7sdjuk
       let t = smoothstep(
         clamp(anim.timing, 0, 1) - clamp(anim.timing - 4, 0, 1),
