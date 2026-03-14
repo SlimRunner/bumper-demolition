@@ -533,7 +533,7 @@ export class BumperCarsBase extends tiny.Component {
   }
 }
 
-type EventNamespace = "intro_look_up" | "match_loop" | "outro";
+type EventNamespace = "intro_look_up" | "match_loop" | "outro" | "enable_physics";
 
 export class BumperCars extends BumperCarsBase {
   gameMatch: MatchManager;
@@ -599,6 +599,9 @@ export class BumperCars extends BumperCarsBase {
       { type: "timed", ident: "intro_day_cycle", duration: 2 },
       */
 
+      //event used to prevent hard resets
+      { type: "event", ident: "enable_physics", isExpired: () => true },
+
       // main match event
       { type: "event", ident: "match_loop", isExpired: () => isMatchOver },
       // TODO: outro animation with slow motion and winner toast
@@ -609,6 +612,9 @@ export class BumperCars extends BumperCarsBase {
       (ident, elapsed) => {
         switch (ident) {
           case "intro_look_up":
+            // count down?
+            break;
+          case "enable_physics":
             this.physics.cartMSD.enable = true;
             break;
           case "match_loop":
@@ -699,7 +705,7 @@ export class BumperCars extends BumperCarsBase {
   protected resetGame(): void {
     super.resetGame();
     this.gameMatch.resetState();
-    this.scheduler.reset();
+    this.scheduler.reset("enable_physics");
   }
 
   protected setThrust(car: CarName, value: number) {
