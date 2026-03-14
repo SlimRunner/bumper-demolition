@@ -527,7 +527,8 @@ export class BumperCarsBase extends tiny.Component {
       500,
     );
 
-    const clockHour = lerp(5, 19, clamp(this.gui!.currentTime / 300, 0, 1));
+    const clockT = clamp(this.gui!.currentTime / 120, 0, 1);
+    const clockHour = lerp(5, 19, smoothstep(clockT));
     const { sun_azimuth, sun_zenith } = calculateSunPosition(clockHour, 0.3, 6);
     const sunColor = getSunColor({ sun_azimuth, sun_zenith });
     const sunAmbient = getAverageSkyColor({ sun_azimuth, sun_zenith });
