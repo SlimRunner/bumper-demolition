@@ -38,3 +38,27 @@ export function* enumerate<T>(
   }
   return;
 }
+
+export function* zipgen<T extends any[]>(
+  ...iters: { [K in keyof T]: Iterable<T[K]> | Iterator<T[K]> }
+): Generator<T, void, unknown> {
+  // Normalize everything into Iterators
+  const iterators = iters.map((it) => {
+    if (typeof it === "object" && it !== null && Symbol.iterator in it) {
+      return (it as Iterable<any>)[Symbol.iterator]();
+    }
+    return it as Iterator<any>;
+  });
+
+  while (true) {
+    const results = iterators.map((iter) => iter.next());
+    
+    // If any iterator is done, we stop
+    if (results.some((res) => res.done)) {
+      return;
+    }
+
+    // Yield the values as a typed tuple
+    yield results.map((res) => res.value) as T;
+  }
+}
