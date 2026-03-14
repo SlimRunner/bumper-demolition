@@ -438,9 +438,6 @@ export class BumperCarsBase extends tiny.Component {
       cameraPin: "follow",
     };
 
-    if (!this.gui) {
-      this.gui = new GameGUI(canvas);
-    }
     this.gui.resetState();
 
     if (!this.engineSound) {
