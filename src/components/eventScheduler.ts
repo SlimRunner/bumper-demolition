@@ -1,3 +1,5 @@
+import { enumerate } from "../utils/iterators";
+
 export type SchedulerEvent<K extends string> =
   | { type: "timed"; ident: K; duration: number }
   | { type: "event"; ident: K; isExpired: (time: number) => boolean };
@@ -24,7 +26,7 @@ export type SchedulerEvent<K extends string> =
  * );
  * ```
  */
-export class Scheduler<E extends SchedulerEvent<string>> {
+export class Scheduler<K extends string, E extends SchedulerEvent<K>> {
   private index = 0;
   private timer = 0;
   private events: E[];
@@ -72,8 +74,17 @@ export class Scheduler<E extends SchedulerEvent<string>> {
     }
   }
 
-  reset() {
-    this.index = 0;
+  reset(event?: K) {
+    let index = 0;
+    if (event) {
+      for (const [i, e] of enumerate(this.events)) {
+        if (e.ident === event) {
+          index = i;
+          break;
+        }
+      }
+    }
+    this.index = index;
     this.timer = 0;
   }
 }
