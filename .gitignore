@@ -462,3 +462,6 @@ $RECYCLE.BIN/
 
 # ignore JS output code
 my_code
+
+# do not track PDF files
+*.pdf
