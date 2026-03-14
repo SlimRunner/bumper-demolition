@@ -32,6 +32,8 @@ import type { CarName, PowerUpKind } from "./components/types";
 import { Scheduler, SchedulerEvent } from "./components/eventScheduler";
 import { CarNameLabels } from "./utils/text";
 import { splatMats, SplatShader } from "./shaders/splatShader";
+import { sdCylinderColumn } from "./linearAlgebra/sdfs";
+import { applyMeshTransform, computeTangents } from "./shapes/extendMesh";
 
 type CarTarget = "carA" | "carB";
 
@@ -41,7 +43,7 @@ export class BumperCarsBase extends tiny.Component {
     box: defs.Cube;
     cyl: defs.Cylindrical_Tube;
     ball: defs.Subdivision_Sphere;
-    disc: defs.Regular_2D_Polygon;
+    column: defs.Cylindrical_Tube;
   };
   colors: {
     readonly red: math.Vector4;
@@ -56,6 +58,9 @@ export class BumperCarsBase extends tiny.Component {
     readonly heavyBox: math.Vector4;
     readonly orbitBox: math.Vector4;
     readonly sparkColors: math.Vector4;
+    readonly columnOfDeath: math.Vector4;
+    readonly columnOfWires: math.Vector4;
+    readonly columnOfDeathLight: math.Vector4;
     sunAmbient: math.Vector4;
     sunColor: math.Vector4;
     skyHorizon: math.Vector4;
@@ -121,6 +126,14 @@ export class BumperCarsBase extends tiny.Component {
     timeMultiplier: number;
     showMeshes: boolean;
     timer: number;
+    suddenDeath: {
+      enabled: boolean;
+      timer: number;
+      radius: number;
+      readonly initRadius: number;
+      readonly duration: number;
+      readonly damageRate: (t: number, dist: number) => number;
+    };
   };
 
   gui?: GameGUI;
@@ -128,7 +141,7 @@ export class BumperCarsBase extends tiny.Component {
   collisionSound?: CollisionSound;
   bladeSlashSound?: BladeSlashSound;
 
-  readonly lightCount = 6;
+  readonly lightCount = 7;
 
   constructor() {
     super();
@@ -149,6 +162,9 @@ export class BumperCarsBase extends tiny.Component {
       heavyBox: math.color(1, 1, 0, 0.4),
       orbitBox: math.color(1, 0, 1, 0.4),
       sparkColors: math.color(1, 0.66, 0.33, 0.5),
+      columnOfDeath: math.color(1, 1, 1, 0.06),
+      columnOfWires: math.color(1, 0.66, 0.33, 0.1),
+      columnOfDeathLight: math.color(1, 0.66, 0.33, 1),
     };
 
     this.transforms = {
@@ -199,13 +215,18 @@ export class BumperCarsBase extends tiny.Component {
     };
 
     const grid = new SimpleGrid(51, 51, { x: [-25, 25], z: [-25, 25] });
-    const discShape = new defs.Regular_2D_Polygon(1, 5);
     const cubeShape = new defs.Cube();
     const sphereShape = new defs.Subdivision_Sphere(4);
     const closedTube = new defs.Capped_Cylinder(1, 24, [
       [0, 2],
       [0, 1],
     ]);
+    const columnCyl = new defs.Cylindrical_Tube(1, 64, [
+      [0, 2],
+      [0, 1],
+    ]);
+    applyMeshTransform(columnCyl, math.Mat4.rotation(Math.PI / 2, 1, 0, 0));
+
     const tireMesh = new FileMesh("../assets/meshes/wheels-tire-mmc.obj", {
       // preTransform: math.Mat4.scale(3.49, 3.49, 3.49),
       preTransform: math.Mat4.rotation(-Math.PI / 2, 0, 1, 0)
@@ -270,7 +291,7 @@ export class BumperCarsBase extends tiny.Component {
       box: cubeShape,
       cyl: closedTube,
       ball: sphereShape,
-      disc: discShape,
+      column: columnCyl,
     };
 
     this.gameView = {
@@ -284,6 +305,16 @@ export class BumperCarsBase extends tiny.Component {
       timeMultiplier: 1,
       showMeshes: true,
       timer: 0,
+      suddenDeath: {
+        // actual radius is in contactField (this is just guesswork). Be
+        // careful if you update
+        initRadius: 25,
+        radius: 25,
+        duration: 60,
+        timer: 0,
+        enabled: false,
+        damageRate: (t, d) => 20,
+      },
     };
 
     const cartDims = {
@@ -401,13 +432,18 @@ export class BumperCarsBase extends tiny.Component {
   }
 
   protected resetGame() {
+    const GP = this.globalProps;
     // this is just one function right now but keep it because we may
     // need to reset other things later.
+    GP.suddenDeath.enabled = false;
+    GP.suddenDeath.timer = 0;
+    GP.suddenDeath.radius = GP.suddenDeath.initRadius;
     this.physics.cartMSD.resetState();
     this.armatures.carA.resetState();
     this.armatures.carB.resetState();
     this.gui?.resetState();
-    this.globalProps.timer = 0;
+    GP.timer = 0;
+    GP.timeMultiplier = 1;
   }
 
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
@@ -534,6 +570,17 @@ export class BumperCarsBase extends tiny.Component {
         ),
       );
     }
+    if (this.globalProps.suddenDeath.enabled) {
+      const tFlicker = time * timeMult;
+      const cs = 0.3 * Math.sin(tFlicker * 60) + 0.7 * Math.cos(tFlicker * 37);
+      this.uniforms.lights.push(
+        defs.Phong_Shader.light_source(
+          math.vec4(0, 50, 0, 1),
+          this.colors.columnOfDeathLight,
+          2000 + 250 * cs,
+        ),
+      );
+    }
   }
 }
 
@@ -560,8 +607,12 @@ export class BumperCars extends BumperCarsBase {
     this.gameMatch = new MatchManager();
 
     this.gameMatch.addEventListener("suddenDeath", (args) => {
-      // TODO: start sudden death stage
-      console.log("suddenDeath");
+      const { suddenDeath } = this.globalProps;
+      if (!suddenDeath.enabled) {
+        this.gui?.showMessage("SUDDEN DEATH");
+        suddenDeath.enabled = true;
+        suddenDeath.timer = 0;
+      }
     });
     this.gameMatch.addEventListener("gameOver", (args) => {
       switch (args.loser) {
@@ -762,6 +813,7 @@ export class BumperCars extends BumperCarsBase {
 
     const cartMSD = this.physics.cartMSD;
     const { carA: cartA, carB: cartB } = this.armatures;
+    const { showMeshes, suddenDeath } = this.globalProps;
 
     const paused = !cartMSD.enable || this.globalProps.isIdling;
 
@@ -826,6 +878,27 @@ export class BumperCars extends BumperCarsBase {
           right: camRight,
         },
       });
+
+      if (suddenDeath.enabled) {
+        const entities: [CarName, CarName] = ["carA", "carB"];
+        suddenDeath.timer += timeDelta * timeMult;
+        const t = Math.min(1, suddenDeath.timer / suddenDeath.duration);
+        suddenDeath.radius = lerp(suddenDeath.initRadius, 0, t);
+
+        for (const car of entities) {
+          const dist = sdCylinderColumn(
+            cartMSD.transforms[car].center,
+            suddenDeath.radius,
+            "xz",
+          );
+          if (dist >= 0) {
+            const t = Math.min(1, suddenDeath.timer / suddenDeath.duration);
+            const damage =
+              suddenDeath.damageRate(t, dist) * timeDelta * timeMult;
+            this.gameMatch.makeDamage(car, damage);
+          }
+        }
+      }
     }
 
     this.engineSound?.setPaused(paused);
@@ -890,7 +963,7 @@ export class BumperCars extends BumperCarsBase {
         break;
     }
 
-    if (this.globalProps.showMeshes) {
+    if (showMeshes) {
       cartA.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
         if (name === "saw") {
@@ -1016,6 +1089,21 @@ export class BumperCars extends BumperCarsBase {
       },
       "POINTS",
     );
+    if (suddenDeath.enabled) {
+      this.shapes.column.draw(
+        context,
+        this.uniforms,
+        math.Mat4.scale(suddenDeath.radius, 1000, suddenDeath.radius),
+        { ...this.materials.solid, color: this.colors.columnOfDeath },
+      );
+      this.shapes.column.draw(
+        context,
+        this.uniforms,
+        math.Mat4.scale(suddenDeath.radius, 1000, suddenDeath.radius),
+        { ...this.materials.solid, color: this.colors.sparkColors },
+        "LINE_STRIP",
+      );
+    }
     GL.depthMask(true);
 
     // do this at the very end always
