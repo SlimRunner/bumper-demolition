@@ -457,8 +457,12 @@ export class BumperCarsBase extends tiny.Component {
         "../assets/sounds/blade-slash1.mp3",
         "../assets/sounds/blade-slash2.mp3",
       );
-      this.armatures.carA.onSlash = () => this.bladeSlashSound?.play();
-      this.armatures.carB.onSlash = () => this.bladeSlashSound?.play();
+      this.armatures.carA.addEventListener("slash_started", () => {
+        this.bladeSlashSound?.play();
+      });
+      this.armatures.carB.addEventListener("slash_started", () => {
+        this.bladeSlashSound?.play();
+      });
     }
   }
 
@@ -544,51 +548,43 @@ export class BumperCars extends BumperCarsBase {
     let isMatchOver = false;
     let winner: CarName | undefined;
 
-    this.gameMatch = new MatchManager((evt) => {
-      switch (evt.event) {
-        case "suddenDeath":
-          // TODO: start sudden death stage
-          console.log(evt.event);
+    this.gameMatch = new MatchManager();
+
+    this.gameMatch.addEventListener("suddenDeath", (args) => {
+      // TODO: start sudden death stage
+      console.log("suddenDeath");
+    });
+    this.gameMatch.addEventListener("gameOver", (args) => {
+      switch (args.loser) {
+        case "carA":
+          winner = "carB";
           break;
-        case "gameOver":
-          switch (evt.loser) {
-            case "carA":
-              winner = "carB";
-              break;
-            case "carB":
-              winner = "carA";
-              break;
-          }
-          isMatchOver = true;
+        case "carB":
+          winner = "carA";
           break;
-        case "powerSpawn":
-          switch (evt.count) {
-            case 0:
-              this.physics.cartMSD.spawnPowerup(
-                evt.kind,
-                math.vec3(0, 0.75, 10),
-              );
-              break;
-            case 1:
-              this.physics.cartMSD.spawnPowerup(
-                evt.kind,
-                math.vec3(0, 0.75, -10),
-              );
-              break;
-            default:
-              this.physics.cartMSD.spawnPowerup(evt.kind);
-          }
+      }
+      isMatchOver = true;
+    });
+    this.gameMatch.addEventListener("powerSpawn", (args) => {
+      switch (args.count) {
+        case 0:
+          this.physics.cartMSD.spawnPowerup(args.kind, math.vec3(0, 0.75, 10));
           break;
-        case "powerExpires":
-          switch (evt.kind) {
-            case "heavy":
-              this.physics.cartMSD.makeLight(evt.player);
-              this.setThrust(evt.player, 120);
-              break;
-            case "orbit":
-              this.physics.cartMSD.setOrbitStatus(evt.player, true);
-              break;
-          }
+        case 1:
+          this.physics.cartMSD.spawnPowerup(args.kind, math.vec3(0, 0.75, -10));
+          break;
+        default:
+          this.physics.cartMSD.spawnPowerup(args.kind);
+      }
+    });
+    this.gameMatch.addEventListener("powerExpires", (args) => {
+      switch (args.kind) {
+        case "heavy":
+          this.physics.cartMSD.makeLight(args.player);
+          this.setThrust(args.player, 120);
+          break;
+        case "orbit":
+          this.physics.cartMSD.setOrbitStatus(args.player, true);
           break;
       }
     });
