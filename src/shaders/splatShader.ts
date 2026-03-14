@@ -47,12 +47,21 @@ export class SplatShader extends tiny.Shader {
         return 3.0 * t2 - 2.0 * t2 * t;
       }
 
-      void main(){
-        float dist = length(gl_PointCoord - vec2(0.5));
-        if(dist > 0.5) discard;
-        float t = dist * 2.0;
-        float alpha = v_color.a * smoothstep(clamp(t + 1.0, 0.0, 1.0) - clamp(t, 0.0, 1.0));
-        gl_FragColor = vec4(v_color.rgb, alpha);
+      void main() {
+          vec2 p = gl_PointCoord - vec2(0.5);
+          float dist = length(p);
+
+          if (dist > 0.5) discard;
+
+          float t = dist * 2.0; // 0 center -> 1 edge
+
+          // soft alpha falloff
+          float alpha = smoothstep(1.0, 0.0, t);
+
+          // whiten the core
+          float core = smoothstep(0.5, 0.0, t);
+          vec3 color = mix(v_color.rgb, vec3(1.0), core);
+          gl_FragColor = vec4(color, alpha * v_color.a);
       }
     `;
   }

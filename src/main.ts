@@ -50,6 +50,7 @@ export class BumperCarsBase extends tiny.Component {
     readonly softBlue: math.Vector4;
     readonly yellow: math.Vector4;
     readonly white: math.Vector4;
+    readonly brightRed: math.Vector4;
     readonly brightOrange: math.Vector4;
     readonly electricBlue: math.Vector4;
     readonly heavyBox: math.Vector4;
@@ -139,6 +140,7 @@ export class BumperCarsBase extends tiny.Component {
       softBlue: math.color(0.176, 0.439, 0.702, 1),
       yellow: math.color(1, 1, 0, 1),
       white: math.color(1, 1, 1, 1),
+      brightRed: math.color(1, 0.2, 0, 1),
       brightOrange: math.color(1, 0.36, 0, 1),
       electricBlue: math.color(0, 0.94, 1, 1),
       sunAmbient: math.color(0, 0, 0, 0),
@@ -192,7 +194,7 @@ export class BumperCarsBase extends tiny.Component {
       splats: {
         shader: new SplatShader(),
         color: this.colors.white,
-        point_size: 100,
+        point_size: 150,
       },
     };
 
@@ -995,7 +997,7 @@ export class BumperCars extends BumperCarsBase {
       this.transforms.identity,
       {
         ...this.materials.splats,
-        color: this.colors.brightOrange,
+        color: this.colors.brightRed,
       },
       "POINTS",
     );
