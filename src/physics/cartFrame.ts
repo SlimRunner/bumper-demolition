@@ -682,6 +682,9 @@ export class CartFrame {
     }
     this.shapes.carA.orbitShape.clearParticles();
     this.shapes.carB.orbitShape.clearParticles();
+    this.shapes.sparkPool.clearParticles();
+    this.resetSparks("carA");
+    this.resetSparks("carB");
     this.updateOrientation();
   }
 
@@ -1115,6 +1118,11 @@ export class CartFrame {
 
   disableSparks(car: CarName) {
     this._spark[car].enabled = false;
+  }
+
+  private resetSparks(car: CarName) {
+    this._spark[car].enabled = false;
+    this._spark[car].index = 0;
   }
 
   dispatchParticles(timeDelta: number) {
