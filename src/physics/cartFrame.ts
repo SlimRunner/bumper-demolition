@@ -896,6 +896,59 @@ export class CartFrame {
     };
   }
 
+  applyRadialImpulse(
+    origin: math.Vector3,
+    options?: {
+      radius?: number;
+      impulse?: number;
+      verticalScale?: number;
+    },
+  ) {
+    const radius = options?.radius ?? 7;
+    const impulse = options?.impulse ?? 180;
+    const verticalScale = options?.verticalScale ?? 1;
+    if (radius <= 0 || impulse <= 0) return;
+
+    const particles = this.msdSystem.particles.container;
+    const cars: CarName[] = ["carA", "carB"];
+
+    for (const car of cars) {
+      const center = this.transforms[car].center;
+      let dirX = center[0] - origin[0];
+      let dirY = (center[1] - origin[1]) * verticalScale;
+      let dirZ = center[2] - origin[2];
+      let dist = Math.hypot(dirX, dirY, dirZ);
+
+      if (dist > radius) continue;
+
+      if (dist < 1e-5) {
+        dirX = this.transforms[car].forward[0];
+        dirY = 0;
+        dirZ = this.transforms[car].forward[2];
+        dist = Math.hypot(dirX, dirY, dirZ);
+      }
+
+      if (dist < 1e-5) continue;
+
+      dirX /= dist;
+      dirY /= dist;
+      dirZ /= dist;
+
+      const falloff = Math.pow(1 - dist / radius, 2);
+      const scaledImpulse = impulse * falloff;
+
+      for (const i of range(...this.nodeRanges[car])) {
+        const p = particles[i];
+        if (p.disabled) continue;
+        const invMass = p.mass > 1e-6 ? 1 / p.mass : 0;
+        const deltaV = scaledImpulse * invMass;
+        p.velocity[0] += dirX * deltaV;
+        p.velocity[1] += dirY * deltaV;
+        p.velocity[2] += dirZ * deltaV;
+      }
+    }
+  }
+
   updateCarOrbits(timeDelta: number, forceUpdate: boolean = false) {
     this._orbitTimer += timeDelta;
     const sh = this.initial.carNodeCount;

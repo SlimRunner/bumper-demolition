@@ -4,6 +4,8 @@ export class BladeSlashSound {
   constructor(...sources: string[]) {
     this.clips = sources.map((src) => {
       const a = new Audio(src);
+      a.preload = "auto";
+      a.load();
       a.volume = 0.6;
       return a;
     });
