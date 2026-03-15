@@ -2,6 +2,7 @@ import { clamp } from "../utils/math";
 import { math } from "../../tiny-graphics-math";
 import { CarName } from "../components/types";
 import { enumerate } from "../utils/iterators";
+import { AudioSystem } from "./audioSystem";
 
 export class CarSound {
   private readonly audio: HTMLAudioElement[];
@@ -21,6 +22,7 @@ export class CarSound {
   private readonly maxRate = 2.5;
 
   constructor(
+    private audioSystem: AudioSystem,
     src: string,
     private readonly maxSpeed = 10,
     private readonly maxThrust = 240,
@@ -44,20 +46,20 @@ export class CarSound {
   }
 
   private ensureContext(): void {
-    if (!this.ctx) {
-      this.ctx = new AudioContext();
+    const ctx = this.audioSystem.ctx;
 
-      for (let i = 0; i < 2; i++) {
-        const src = this.ctx.createMediaElementSource(this.audio[i]);
-        const panner = this.ctx.createStereoPanner();
+    for (let i = 0; i < 2; i++) {
+      if (!this.panners[i]) {
+        const src = ctx.createMediaElementSource(this.audio[i]);
+        const panner = this.audioSystem.createPanner();
 
         this.panners[i] = panner;
-        src.connect(panner).connect(this.ctx.destination);
+        src.connect(panner);
       }
     }
 
-    if (this.ctx.state === "suspended") {
-      void this.ctx.resume();
+    if (ctx.state === "suspended") {
+      void ctx.resume();
     }
   }
 

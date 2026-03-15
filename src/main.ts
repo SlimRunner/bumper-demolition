@@ -34,6 +34,8 @@ import { CarNameLabels } from "./utils/text";
 import { splatMats, SplatShader } from "./shaders/splatShader";
 import { sdCylinderColumn } from "./linearAlgebra/sdfs";
 import { applyMeshTransform, computeTangents } from "./shapes/extendMesh";
+import { AudioSystem, SpatialSound } from "./audio/audioSystem";
+import { MusicPlayer } from "./audio/musicPlayer";
 
 type CarTarget = "carA" | "carB";
 
@@ -137,9 +139,18 @@ export class BumperCarsBase extends tiny.Component {
   };
 
   gui?: GameGUI;
-  engineSound?: CarSound;
-  collisionSound?: CollisionSound;
-  bladeSlashSound?: BladeSlashSound;
+
+  sound: {
+    system: AudioSystem;
+    effects: {
+      engine: CarSound;
+      collision: CollisionSound;
+      sawBlade: {
+        carA: SpatialSound;
+        carB: SpatialSound;
+      };
+    };
+  };
 
   readonly lightCount = 7;
 
@@ -422,6 +433,77 @@ export class BumperCarsBase extends tiny.Component {
       cartMSD,
     };
 
+    const audioSystem = new AudioSystem();
+    this.sound = {
+      system: new AudioSystem(),
+      effects: {
+        engine: new CarSound(audioSystem, "../assets/sounds/motor-sound3.mp3"),
+        collision: new CollisionSound(
+          "../assets/sounds/car-collision-slow.mp3",
+          "../assets/sounds/car-collision-fast.mp3",
+        ),
+        sawBlade: {
+          carA: new SpatialSound(
+            audioSystem,
+            "../assets/sounds/saw-running-82131.mp3",
+          ),
+          carB: new SpatialSound(
+            audioSystem,
+            "../assets/sounds/saw-running-82131.mp3",
+          ),
+        },
+      },
+    };
+
+    const {carA: soundBladeA, carB: soundBladeB} = this.sound.effects.sawBlade;
+
+    soundBladeA.preservesPitch = false;
+    soundBladeB.preservesPitch = false;
+
+    this.armatures.carA.addEventListener("slash_started", () => {
+      soundBladeA.play(0.4);
+      soundBladeA.setRate(1);
+    });
+    this.armatures.carA.addEventListener("blade_is_reaching", () => {
+      cartMSD.enableSparks("carA");
+    });
+    this.armatures.carA.addEventListener(
+      "blade_is_returning",
+      ({ completion }) => {
+        const t = smoothstep(1 - completion);
+        soundBladeA.setRate(lerp(1, 0.8, completion));
+        soundBladeA.setVolume(0.4 * t);
+      },
+    );
+    this.armatures.carA.addEventListener("blade_retreated", () => {
+      cartMSD.disableSparks("carA");
+    });
+    this.armatures.carA.addEventListener("blade_returned", () => {
+      soundBladeA.stop();
+    });
+
+    this.armatures.carB.addEventListener("slash_started", () => {
+      soundBladeB.play(0.4);
+      soundBladeA.setRate(1);
+    });
+    this.armatures.carB.addEventListener("blade_is_reaching", () => {
+      cartMSD.enableSparks("carB");
+    });
+    this.armatures.carB.addEventListener(
+      "blade_is_returning",
+      ({ completion }) => {
+        const t = smoothstep(1 - completion);
+        soundBladeB.setRate(lerp(1, 0.8, completion));
+        soundBladeB.setVolume(0.4 * t);
+      },
+    );
+    this.armatures.carB.addEventListener("blade_retreated", () => {
+      cartMSD.disableSparks("carB");
+    });
+    this.armatures.carB.addEventListener("blade_returned", () => {
+      soundBladeB.stop();
+    });
+
     document.addEventListener("visibilitychange", () => {
       // this prevents the window from hanging due to the physics loop
       // (which has a fixed time delta) trying to step through a large
@@ -456,6 +538,12 @@ export class BumperCarsBase extends tiny.Component {
     canvas.parentElement?.insertBefore(canvasDiv, canvas);
     canvasDiv.insertBefore(canvas, null);
 
+    const resumeUser = () => {
+      this.sound.system.resume();
+      canvas.removeEventListener("mousemove", resumeUser);
+    }
+    canvas.addEventListener("mousemove", resumeUser);
+
     this.gui = new GameGUI(canvasDiv);
 
     const fov = (Math.PI * 60) / 180;
@@ -479,28 +567,6 @@ export class BumperCarsBase extends tiny.Component {
     };
 
     this.gui.resetState();
-
-    if (!this.engineSound) {
-      this.engineSound = new CarSound("../assets/sounds/motor-sound3.mp3");
-    }
-    if (!this.collisionSound) {
-      this.collisionSound = new CollisionSound(
-        "../assets/sounds/car-collision-slow.mp3",
-        "../assets/sounds/car-collision-fast.mp3",
-      );
-    }
-    if (!this.bladeSlashSound) {
-      this.bladeSlashSound = new BladeSlashSound(
-        "../assets/sounds/blade-slash1.mp3",
-        "../assets/sounds/blade-slash2.mp3",
-      );
-      this.armatures.carA.addEventListener("slash_started", () => {
-        this.bladeSlashSound?.play();
-      });
-      this.armatures.carB.addEventListener("slash_started", () => {
-        this.bladeSlashSound?.play();
-      });
-    }
   }
 
   render_animation(context: tiny.Component): void {
@@ -717,19 +783,6 @@ export class BumperCars extends BumperCarsBase {
         winner = undefined;
       },
     );
-
-    armatureA.addEventListener("blade_is_reaching", ({ t: time }) => {
-      cartMSD.enableSparks("carA");
-    });
-    armatureA.addEventListener("blade_retreated", () => {
-      cartMSD.disableSparks("carA");
-    });
-    armatureB.addEventListener("blade_is_reaching", ({ t: time }) => {
-      cartMSD.enableSparks("carB");
-    });
-    armatureB.addEventListener("blade_retreated", () => {
-      cartMSD.disableSparks("carB");
-    });
   }
 
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
@@ -748,7 +801,8 @@ export class BumperCars extends BumperCarsBase {
       // later if you prefer (0.5*m*v^2 loss etc.)
       const other: CarTarget = player === "carA" ? "carB" : "carA";
       gmMatch.makeDamage(other, impulse * 0.04);
-      this.collisionSound?.accumulate(impulse);
+      this.sound.effects.collision.accumulate(impulse);
+      // this.collisionSound?.accumulate(impulse);
     };
 
     cartMSD.msdSystem.trespassCB = (p, field) => {
@@ -874,7 +928,7 @@ export class BumperCars extends BumperCarsBase {
         groundSpeeds.carA,
         groundSpeeds.carB,
       );
-      this.engineSound?.update({
+      this.sound.effects.engine.update({
         carA: {
           speed: avgWheelSpeed.carA,
           pos: cartMSD.transforms.carA.center,
@@ -913,8 +967,8 @@ export class BumperCars extends BumperCarsBase {
       }
     }
 
-    this.engineSound?.setPaused(paused);
-    this.collisionSound?.flush(paused);
+    this.sound.effects.engine.setPaused(paused);
+    this.sound.effects.collision.flush(paused);
 
     // this pattern can be used to create a sky texture later
     GL.disable(GL.DEPTH_TEST);
