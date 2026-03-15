@@ -36,6 +36,7 @@ import { sdCylinderColumn } from "./linearAlgebra/sdfs";
 import { applyMeshTransform, computeTangents } from "./shapes/extendMesh";
 import { AudioSystem, SpatialSound } from "./audio/audioSystem";
 import { MusicPlayer } from "./audio/musicPlayer";
+import { screenMats, ScreenShader } from "./shaders/fullscreenShader";
 
 type CarTarget = "carA" | "carB";
 
@@ -49,6 +50,7 @@ export class BumperCarsBase extends tiny.Component {
     cyl: defs.Cylindrical_Tube;
     ball: defs.Subdivision_Sphere;
     column: defs.Cylindrical_Tube;
+    quad: defs.Square;
   };
   colors: {
     readonly red: math.Vector4;
@@ -66,6 +68,7 @@ export class BumperCarsBase extends tiny.Component {
     readonly columnOfDeath: math.Vector4;
     readonly columnOfWires: math.Vector4;
     readonly columnOfDeathLight: math.Vector4;
+    readonly blackShade: math.Vector4;
     sunAmbient: math.Vector4;
     sunColor: math.Vector4;
     skyHorizon: math.Vector4;
@@ -98,6 +101,9 @@ export class BumperCarsBase extends tiny.Component {
     splats: {
       shader: SplatShader;
     } & splatMats;
+    screen: {
+      shader: ScreenShader;
+    } & screenMats;
   };
   armatures: {
     carA: CartArmature;
@@ -182,6 +188,7 @@ export class BumperCarsBase extends tiny.Component {
       columnOfDeath: math.color(1, 1, 1, 0.06),
       columnOfWires: math.color(1, 0.66, 0.33, 0.1),
       columnOfDeathLight: math.color(1, 0.66, 0.33, 1),
+      blackShade: math.color(0, 0, 0, 0.8),
     };
 
     this.transforms = {
@@ -228,6 +235,14 @@ export class BumperCarsBase extends tiny.Component {
         shader: new SplatShader(),
         color: this.colors.white,
         point_size: 150,
+      },
+      screen: {
+        shader: new ScreenShader(),
+        // color: this.colors.blackShade,
+        color1: this.colors.blackShade,
+        color2: this.colors.blackShade,
+        hp1: 1,
+        hp2: 1,
       },
     };
 
@@ -302,8 +317,10 @@ export class BumperCarsBase extends tiny.Component {
       uvScaling: math.Vector.create(75, 75),
       lightCount: this.lightCount,
     });
+    const singleQuad = new defs.Square();
 
     this.shapes = {
+      quad: singleQuad,
       grid: grid,
       box: cubeShape,
       cyl: closedTube,
@@ -466,11 +483,14 @@ export class BumperCarsBase extends tiny.Component {
       },
       music: {
         // fking awesome cover: https://www.youtube.com/watch?v=JTO5uj1-ND0
-        inMatch: new MusicPlayer("../assets/sounds/batmap-stage-1-cover-trim.mp3"),
+        inMatch: new MusicPlayer(
+          "../assets/sounds/batmap-stage-1-cover-trim.mp3",
+        ),
       },
     };
 
-    const {carA: soundBladeA, carB: soundBladeB} = this.sound.effects.sawBlade;
+    const { carA: soundBladeA, carB: soundBladeB } =
+      this.sound.effects.sawBlade;
 
     soundBladeA.preservesPitch = false;
     soundBladeB.preservesPitch = false;
@@ -1189,6 +1209,14 @@ export class BumperCars extends BumperCarsBase {
         math.Mat4.scale(suddenDeath.radius, 1000, suddenDeath.radius),
         { ...this.materials.solid, color: this.colors.sparkColors },
         "LINE_STRIP",
+      );
+    }
+    if (paused) {
+      this.shapes.quad.draw(
+        context,
+        this.uniforms,
+        this.transforms.identity,
+        this.materials.screen,
       );
     }
     GL.depthMask(true);
