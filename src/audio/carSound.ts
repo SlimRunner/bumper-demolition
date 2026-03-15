@@ -47,6 +47,8 @@ export class CarSound {
 
     for (const carAudio of this.audio) {
       for (const a of carAudio) {
+        a.preload = "auto";
+        a.load();
         a.loop = true;
         a.volume = 0;
         a.playbackRate = this.minRate;

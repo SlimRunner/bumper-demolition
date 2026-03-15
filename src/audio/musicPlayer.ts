@@ -4,6 +4,8 @@ export class MusicPlayer {
 
   constructor(src: string) {
     this.audio = new Audio(src);
+    this.audio.preload = "auto";
+    this.audio.load();
     this.audio.loop = true;
   }
 
@@ -56,6 +58,8 @@ export class MusicPlayer {
     this.cancelFade();
     this.audio.pause();
     this.audio.src = src;
+    this.audio.preload = "auto";
+    this.audio.load();
     this.audio.currentTime = time;
     this.audio.volume = volume;
     this.audio.loop = true;

@@ -4,6 +4,8 @@ export class ExplosionSound {
 
   constructor(src: string, private baseVolume = 0.75) {
     this.clip = new Audio(src);
+    this.clip.preload = "auto";
+    this.clip.load();
     this.clip.volume = 0;
   }
 

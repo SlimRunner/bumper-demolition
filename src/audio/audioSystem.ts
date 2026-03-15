@@ -45,6 +45,8 @@ export class SpatialSound {
 
   constructor(private audioSystem: AudioSystem, src: string) {
     this.audio = new Audio(src);
+    this.audio.preload = "auto";
+    this.audio.load();
     this.audio.loop = true; // good for continuous sounds like blades
 
     const ctx = audioSystem.ctx;

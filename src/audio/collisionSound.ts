@@ -26,6 +26,11 @@ export class CollisionSound {
     this.audioSlow = new Audio(slowSrc);
     this.audioFast = new Audio(fastSrc);
 
+    this.audioSlow.preload = "auto";
+    this.audioFast.preload = "auto";
+    this.audioSlow.load();
+    this.audioFast.load();
+
     this.audioSlow.volume = 0;
     this.audioFast.volume = 0;
 

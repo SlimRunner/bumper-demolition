@@ -11,11 +11,15 @@ export class AbilityPickupSound {
     this.clips = {
       heavy: sources.heavy.map((src) => {
         const audio = new Audio(src);
+        audio.preload = "auto";
+        audio.load();
         audio.volume = 0;
         return audio;
       }),
       orbit: sources.orbit.map((src) => {
         const audio = new Audio(src);
+        audio.preload = "auto";
+        audio.load();
         audio.volume = 0;
         return audio;
       }),

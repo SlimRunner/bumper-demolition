@@ -12,6 +12,8 @@ export class OrbitHitSound {
   ) {
     this.clips = sources.map((src) => {
       const audio = new Audio(src);
+      audio.preload = "auto";
+      audio.load();
       audio.volume = 0;
       return audio;
     });

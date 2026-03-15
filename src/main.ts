@@ -470,7 +470,7 @@ export class BumperCarsBase extends tiny.Component {
 
     const audioSystem = new AudioSystem();
     this.sound = {
-      system: new AudioSystem(),
+      system: audioSystem,
       effects: {
         engine: new CarSound(
           audioSystem,
@@ -757,7 +757,7 @@ export class BumperCars extends BumperCarsBase {
     },
     smoke: {
       delay: 0,
-      count: 3,
+      count: 1,
       fadeInTime: 0.05,
       fadeOutTime: 0.28,
       lifetimeMin: 4,
