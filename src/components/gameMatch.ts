@@ -47,7 +47,7 @@ export class MatchManager implements EventEmitter<MatchEventArgs> {
   private _endFlag = false;
 
   private readonly timeEvents = {
-    suddenDeath: (t: number) => t >= 4 * 60,
+    suddenDeath: (t: number) => t >= 1.5 * 60,
   };
 
   private spawnQueue: (PowerupMetadata & { count: number })[];
@@ -189,7 +189,7 @@ export class MatchManager implements EventEmitter<MatchEventArgs> {
         const power = this.spawnQueue.pop()!;
         this.spawnQueue.unshift({
           kind: Math.random() > 0.5 ? "heavy" : "orbit",
-          timer: 20,
+          timer: 12,
           count: power.count + 1,
         });
         this.activeBoxes++;

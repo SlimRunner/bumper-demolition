@@ -310,7 +310,7 @@ export class BumperCarsBase extends tiny.Component {
         // careful if you update
         initRadius: 25,
         radius: 25,
-        duration: 60,
+        duration: 30,
         timer: 0,
         enabled: false,
         damageRate: (t, d) => 20,
@@ -527,7 +527,8 @@ export class BumperCarsBase extends tiny.Component {
       500,
     );
 
-    const clockHour = lerp(5, 19, clamp(this.gui!.currentTime / 300, 0, 1));
+    const clockT = clamp(this.gui!.currentTime / 120, 0, 1);
+    const clockHour = lerp(5, 19, smoothstep(clockT));
     const { sun_azimuth, sun_zenith } = calculateSunPosition(clockHour, 0.3, 6);
     const sunColor = getSunColor({ sun_azimuth, sun_zenith });
     const sunAmbient = getAverageSkyColor({ sun_azimuth, sun_zenith });
@@ -659,7 +660,10 @@ export class BumperCars extends BumperCarsBase {
 
     const gameEvents: SchedulerEvent<EventNamespace>[] = [
       // TODO: camera looking to the sky to let the meshes load out of sight
-      { type: "timed", ident: "intro_look_up", duration: 4 },
+      { type: "event", ident: "intro_look_up", isExpired: (t) => {
+        this.gui?.showMessage(Math.ceil(4 - t).toString());
+        return t >= 4;
+      } },
 
       /* TODO: cinematic pan over the players
       { type: "timed", ident: "intro_line_up_A", duration: 2 },
@@ -743,7 +747,7 @@ export class BumperCars extends BumperCarsBase {
       // damage is scaled arbitrarily; tune to taste or convert to energy
       // later if you prefer (0.5*m*v^2 loss etc.)
       const other: CarTarget = player === "carA" ? "carB" : "carA";
-      gmMatch.makeDamage(other, impulse * 0.05);
+      gmMatch.makeDamage(other, impulse * 0.04);
       this.collisionSound?.accumulate(impulse);
     };
 
@@ -891,7 +895,7 @@ export class BumperCars extends BumperCarsBase {
         const entities: [CarName, CarName] = ["carA", "carB"];
         suddenDeath.timer += timeDelta * timeMult;
         const t = Math.min(1, suddenDeath.timer / suddenDeath.duration);
-        suddenDeath.radius = lerp(suddenDeath.initRadius, 0, t);
+        suddenDeath.radius = lerp(suddenDeath.initRadius, 0, smoothstep(t));
 
         for (const car of entities) {
           const dist = sdCylinderColumn(
