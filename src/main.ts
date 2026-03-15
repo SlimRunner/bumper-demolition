@@ -660,7 +660,10 @@ export class BumperCars extends BumperCarsBase {
 
     const gameEvents: SchedulerEvent<EventNamespace>[] = [
       // TODO: camera looking to the sky to let the meshes load out of sight
-      { type: "timed", ident: "intro_look_up", duration: 4 },
+      { type: "event", ident: "intro_look_up", isExpired: (t) => {
+        this.gui?.showMessage(Math.ceil(4 - t).toString());
+        return t >= 4;
+      } },
 
       /* TODO: cinematic pan over the players
       { type: "timed", ident: "intro_line_up_A", duration: 2 },
