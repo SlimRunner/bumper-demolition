@@ -41,7 +41,7 @@ import { screenMats, ScreenShader } from "./shaders/fullscreenShader";
 type CarTarget = "carA" | "carB";
 
 const bladeVolume = 0.4;
-const bgMusicVol = 0.20;
+const bgMusicVol = 0.2;
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -1213,7 +1213,7 @@ export class BumperCars extends BumperCarsBase {
         "LINE_STRIP",
       );
     }
-    if (paused) {
+    if (paused && this.gameView.cameraPin === "follow") {
       this.shapes.quad.draw(
         context,
         this.uniforms,
