@@ -21,6 +21,7 @@ export class CarSound {
   private paused = false;
 
   private readonly volume = 0.2;
+  private masterVolume = 1;
 
   private readonly minVolume = 0.2 * this.volume;
   private readonly maxVolume = 0.6 * this.volume;
@@ -102,6 +103,10 @@ export class CarSound {
         }
       }
     }
+  }
+
+  setMasterVolume(volume: number) {
+    this.masterVolume = clamp(volume, 0, 1);
   }
 
   update(state: {
@@ -186,7 +191,8 @@ export class CarSound {
     // Calculate overall volume based on thrust
     const baseVolume = this.muted[i]
       ? 0
-      : this.minVolume + (this.maxVolume - this.minVolume) * thrust;
+      : (this.minVolume + (this.maxVolume - this.minVolume) * thrust) *
+        this.masterVolume;
 
     // Update pitch based on speed
     const smoothing = 0.15;

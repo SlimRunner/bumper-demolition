@@ -7,6 +7,9 @@ export class GameGUI implements MatchGui {
   private readonly root: HTMLDivElement;
   private readonly timerValue: HTMLSpanElement;
   private readonly messageBox: HTMLDivElement;
+  private readonly gameOverOverlay: HTMLDivElement;
+  private readonly gameOverQuote: HTMLDivElement;
+  private gameOverTextTimer?: number;
   private readonly healthBarA: HTMLDivElement;
   private readonly healthBarB: HTMLDivElement;
   private readonly healthTextA: HTMLSpanElement;
@@ -136,8 +139,20 @@ export class GameGUI implements MatchGui {
     this.messageBox = document.createElement("div");
     this.messageBox.className = "message-inner hidden";
 
+    this.gameOverOverlay = document.createElement("div");
+    this.gameOverOverlay.className = "game-over-overlay hidden";
+    const gameOverBody = document.createElement("div");
+    gameOverBody.className = "game-over-body";
+    const gameOverTitle = document.createElement("div");
+    gameOverTitle.className = "game-over-title";
+    gameOverTitle.textContent = "WASTED";
+    this.gameOverQuote = document.createElement("div");
+    this.gameOverQuote.className = "game-over-quote";
+    gameOverBody.append(gameOverTitle, this.gameOverQuote);
+    this.gameOverOverlay.append(gameOverBody);
+
     bottomCenter.appendChild(this.messageBox);
-    this.root.append(topLeft, topCenter, topRight, bottomCenter);
+    this.root.append(topLeft, topCenter, topRight, bottomCenter, this.gameOverOverlay);
     this.host.appendChild(this.root);
 
     this.resetState();
@@ -194,6 +209,41 @@ export class GameGUI implements MatchGui {
     this.messageBox.classList.add("hidden");
   }
 
+  showGameOverOverlay(
+    quote: string,
+    options?: {
+      textDelayMs?: number;
+    },
+  ): void {
+    if (this.gameOverTextTimer !== undefined) {
+      window.clearTimeout(this.gameOverTextTimer);
+      this.gameOverTextTimer = undefined;
+    }
+
+    this.gameOverQuote.textContent = quote;
+    this.gameOverOverlay.classList.remove("hidden");
+    this.gameOverOverlay.classList.remove("text-visible");
+    this.gameOverOverlay.getBoundingClientRect();
+    this.gameOverOverlay.classList.add("visible");
+
+    const textDelay = Math.max(0, options?.textDelayMs ?? 600);
+    this.gameOverTextTimer = window.setTimeout(() => {
+      this.gameOverOverlay.classList.add("text-visible");
+      this.gameOverTextTimer = undefined;
+    }, textDelay);
+  }
+
+  hideGameOverOverlay(): void {
+    if (this.gameOverTextTimer !== undefined) {
+      window.clearTimeout(this.gameOverTextTimer);
+      this.gameOverTextTimer = undefined;
+    }
+
+    this.gameOverOverlay.classList.remove("text-visible");
+    this.gameOverOverlay.classList.remove("visible");
+    this.gameOverOverlay.classList.add("hidden");
+  }
+
   resetState(): void {
     this.elapsedSeconds = 0;
     this.timerValue.textContent = this.formatClock(0);
@@ -202,6 +252,7 @@ export class GameGUI implements MatchGui {
     this.setPowerUp("carA", "none");
     this.setPowerUp("carB", "none");
     this.hideMessage();
+    this.hideGameOverOverlay();
   }
 
   updateScore(car: CarName, value: number): void {
@@ -475,6 +526,65 @@ export class GameGUI implements MatchGui {
       .message-inner.hidden {
         opacity: 0;
         visibility: hidden; /* Prevents clicking the ghost of the toast */
+      }
+
+      .game-over-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 40;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        background: rgba(0, 0, 0, 0);
+        transition: opacity 260ms ease, visibility 260ms ease, background 1400ms ease;
+      }
+
+      .game-over-overlay.visible {
+        opacity: 1;
+        visibility: visible;
+        background: rgba(0, 0, 0, 0.5);
+      }
+
+      .game-over-overlay.hidden {
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      .game-over-body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        text-align: center;
+      }
+
+      .game-over-title {
+        font-size: clamp(2.8rem, 8vw, 6rem);
+        letter-spacing: 0.08em;
+        color: #c73636;
+        text-shadow: 0 2px 16px rgba(0, 0, 0, 0.7);
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 240ms ease, transform 240ms ease;
+      }
+
+      .game-over-quote {
+        max-width: min(70vw, 760px);
+        font-size: clamp(0.85rem, 1.9vw, 1.2rem);
+        color: rgba(245, 245, 245, 0.9);
+        letter-spacing: 0.02em;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 240ms ease, transform 240ms ease;
+      }
+
+      .game-over-overlay.text-visible .game-over-title,
+      .game-over-overlay.text-visible .game-over-quote {
+        opacity: 1;
+        transform: translateY(0);
       }
 
       @media (max-width: 820px) {
