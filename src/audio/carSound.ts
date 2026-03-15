@@ -132,6 +132,7 @@ export class CarSound {
     }
 
     const audio = this.audio[i];
+    audio.preservesPitch = false;
 
     const volume = this.muted[i]
       ? 0
