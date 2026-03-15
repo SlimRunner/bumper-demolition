@@ -10,11 +10,14 @@ export class CollisionSound {
 
   private accumulatedImpulse = 0;
   private maxImpulseSeen = 0;
+  private lastPlayTime = 0;
+  private flushTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly flushDelay = 50;
 
   constructor(
     slowSrc: string,
     fastSrc: string,
-    thresholdImpulse = 4,
+    thresholdImpulse = 5,
     minImpulse = 0.8,
     maxImpulse = 7,
     maxVolume = 0.6,
@@ -40,10 +43,35 @@ export class CollisionSound {
     // const impulse = this.maxImpulseSeen; // alternative
     const impulse = Math.sqrt(this.accumulatedImpulse);
 
+    if (impulse < this.minImpulse || skip) {
+      this.accumulatedImpulse = 0;
+      this.maxImpulseSeen = 0;
+      return;
+    }
+
+    // If a timer is already pending, just keep accumulating
+    if (this.flushTimer !== null) {
+      return;
+    }
+
+    // Start a new timer to flush after delay
+    this.flushTimer = setTimeout(() => {
+      this.flushTimer = null;
+      this.playSound();
+    }, this.flushDelay);
+  }
+
+  private playSound() {
+    const impulse = Math.sqrt(this.accumulatedImpulse);
+
     this.accumulatedImpulse = 0;
     this.maxImpulseSeen = 0;
 
-    if (impulse < this.minImpulse || skip) return;
+    if (impulse < this.minImpulse) return;
+
+    // Check if 300ms has passed since last sound
+    const now = Date.now();
+    if (now - this.lastPlayTime < 300) return;
 
     const t = Math.min(
       1,
@@ -58,5 +86,7 @@ export class CollisionSound {
     const instance = audio.cloneNode(true) as HTMLAudioElement;
     instance.volume = volume;
     instance.play().catch(() => {});
+
+    this.lastPlayTime = now;
   }
 }

@@ -443,7 +443,12 @@ export class BumperCarsBase extends tiny.Component {
     this.sound = {
       system: new AudioSystem(),
       effects: {
-        engine: new CarSound(audioSystem, "../assets/sounds/motor-sound3.mp3"),
+        engine: new CarSound(
+          audioSystem,
+          "../assets/sounds/newEngineSounds/engineSim_idle.mp3",
+          "../assets/sounds/newEngineSounds/engineSim_HalfThrottle.mp3",
+          "../assets/sounds/newEngineSounds/engineSim_fullThrottle.mp3",
+        ),
         collision: new CollisionSound(
           "../assets/sounds/car-collision-slow.mp3",
           "../assets/sounds/car-collision-fast.mp3",
@@ -494,7 +499,7 @@ export class BumperCarsBase extends tiny.Component {
 
     this.armatures.carB.addEventListener("slash_started", () => {
       soundBladeB.play(bladeVolume);
-      soundBladeA.setRate(1);
+      soundBladeB.setRate(1);
     });
     this.armatures.carB.addEventListener("blade_is_reaching", () => {
       cartMSD.enableSparks("carB");
