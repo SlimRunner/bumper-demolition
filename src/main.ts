@@ -703,6 +703,7 @@ type EventNamespace =
 export class BumperCars extends BumperCarsBase {
   gameMatch: MatchManager;
   scheduler: Scheduler<EventNamespace, SchedulerEvent<EventNamespace>>;
+  powerupSpawnCount: number = 0;
 
   constructor() {
     super();
@@ -736,16 +737,16 @@ export class BumperCars extends BumperCarsBase {
       isMatchOver = true;
     });
     this.gameMatch.addEventListener("powerSpawn", (args) => {
-      switch (args.count) {
-        case 0:
-          cartMSD.spawnPowerup(args.kind, math.vec3(0, 0.75, 10));
-          break;
-        case 1:
-          cartMSD.spawnPowerup(args.kind, math.vec3(0, 0.75, -10));
-          break;
-        default:
-          cartMSD.spawnPowerup(args.kind);
+      if (this.powerupSpawnCount < 2) {
+        const pos =
+          this.powerupSpawnCount === 0
+            ? math.vec3(0, 0.75, 10)
+            : math.vec3(0, 0.75, -10);
+        cartMSD.spawnPowerup(args.kind, pos);
+      } else {
+        cartMSD.spawnPowerup(args.kind);
       }
+      this.powerupSpawnCount++;
     });
     this.gameMatch.addEventListener("powerExpires", (args) => {
       switch (args.kind) {
@@ -889,6 +890,7 @@ export class BumperCars extends BumperCarsBase {
     super.resetGame();
     this.gameMatch.resetState();
     this.scheduler.reset("enable_physics");
+    this.powerupSpawnCount = 0;
   }
 
   protected setThrust(car: CarName, value: number) {
