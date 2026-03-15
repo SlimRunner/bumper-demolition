@@ -797,7 +797,7 @@ export class BumperCars extends BumperCarsBase {
             break;
           case "enable_physics":
             this.sound.music.inMatch.play();
-            this.sound.music.inMatch.setVolume(0.3);
+            this.sound.music.inMatch.setVolume(bgMusicVol);
             this.physics.cartMSD.enable = true;
             break;
           case "match_loop":
