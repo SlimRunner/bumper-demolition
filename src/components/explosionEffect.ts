@@ -48,12 +48,22 @@ type SmokeConfig = {
 };
 
 export type SpawnExplosionOptions = {
+  enabled?: Partial<ExplosionLayerToggles>;
   inner?: Partial<ScaleLayerConfig>;
   outer?: Partial<ScaleLayerConfig>;
   gust?: Partial<ScaleLayerConfig>;
   shockwave?: Partial<ScaleLayerConfig>;
   streaks?: Partial<StreakConfig>;
   smoke?: Partial<SmokeConfig>;
+};
+
+type ExplosionLayerToggles = {
+  inner: boolean;
+  outer: boolean;
+  gust: boolean;
+  shockwave: boolean;
+  streaks: boolean;
+  smoke: boolean;
 };
 
 type ExplosionStreak = {
@@ -74,6 +84,7 @@ type SmokeParticle = {
 };
 
 type ExplosionConfig = {
+  enabled: ExplosionLayerToggles;
   inner: ScaleLayerConfig;
   outer: ScaleLayerConfig;
   gust: ScaleLayerConfig;
@@ -202,16 +213,28 @@ export class ExplosionEffect {
 
   spawn(position: math.Vector3, options?: SpawnExplosionOptions) {
     const config = this.resolveConfig(options);
-    const streaks = this.makeStreaks(config.streaks);
-    const smoke = this.makeSmoke(config.smoke);
-    const lifetime = Math.max(
-      config.inner.delay + config.inner.lifetime,
-      config.outer.delay + config.outer.lifetime,
-      config.gust.delay + config.gust.lifetime,
-      config.shockwave.delay + config.shockwave.lifetime,
-      config.smoke.delay + config.smoke.lifetimeMax,
-      config.streaks.delay + config.streaks.lifetime,
-    );
+    const streaks = config.enabled.streaks ? this.makeStreaks(config.streaks) : [];
+    const smoke = config.enabled.smoke ? this.makeSmoke(config.smoke) : [];
+    const layerLifetimes: number[] = [];
+    if (config.enabled.inner) {
+      layerLifetimes.push(config.inner.delay + config.inner.lifetime);
+    }
+    if (config.enabled.outer) {
+      layerLifetimes.push(config.outer.delay + config.outer.lifetime);
+    }
+    if (config.enabled.gust) {
+      layerLifetimes.push(config.gust.delay + config.gust.lifetime);
+    }
+    if (config.enabled.shockwave) {
+      layerLifetimes.push(config.shockwave.delay + config.shockwave.lifetime);
+    }
+    if (config.enabled.smoke) {
+      layerLifetimes.push(config.smoke.delay + config.smoke.lifetimeMax);
+    }
+    if (config.enabled.streaks) {
+      layerLifetimes.push(config.streaks.delay + config.streaks.lifetime);
+    }
+    const lifetime = layerLifetimes.length > 0 ? Math.max(...layerLifetimes) : 0;
 
     this.instances.push({
       position: math.vec3(position[0], position[1], position[2]),
@@ -236,7 +259,9 @@ export class ExplosionEffect {
     const billboardRotation = this.getBillboardRotation(cameraTransform);
 
     for (const fx of this.instances) {
-      const inner = this.getLayerState(fx.age, fx.config.inner);
+      const inner = fx.config.enabled.inner
+        ? this.getLayerState(fx.age, fx.config.inner)
+        : null;
       if (inner) {
         this.drawSphereLayer(
           context,
@@ -247,7 +272,9 @@ export class ExplosionEffect {
         );
       }
 
-      const outer = this.getLayerState(fx.age, fx.config.outer);
+      const outer = fx.config.enabled.outer
+        ? this.getLayerState(fx.age, fx.config.outer)
+        : null;
       if (outer) {
         this.drawSphereLayer(
           context,
@@ -258,7 +285,9 @@ export class ExplosionEffect {
         );
       }
 
-      const gust = this.getLayerState(fx.age, fx.config.gust);
+      const gust = fx.config.enabled.gust
+        ? this.getLayerState(fx.age, fx.config.gust)
+        : null;
       if (gust) {
         const gustTransform = math.Mat4.translation(
           fx.position[0],
@@ -274,7 +303,9 @@ export class ExplosionEffect {
         });
       }
 
-      const shockwave = this.getLayerState(fx.age, fx.config.shockwave);
+      const shockwave = fx.config.enabled.shockwave
+        ? this.getLayerState(fx.age, fx.config.shockwave)
+        : null;
       if (shockwave) {
         const shockY = Math.min(fx.position[1], 0.06) + fx.config.shockwave.yOffset;
         const shockTransform = math.Mat4.translation(
@@ -292,8 +323,12 @@ export class ExplosionEffect {
         });
       }
 
-      this.drawStreaks(context, uniforms, fx);
-      this.drawSmoke(context, uniforms, billboardRotation, fx);
+      if (fx.config.enabled.streaks) {
+        this.drawStreaks(context, uniforms, fx);
+      }
+      if (fx.config.enabled.smoke) {
+        this.drawSmoke(context, uniforms, billboardRotation, fx);
+      }
     }
   }
 
@@ -478,6 +513,15 @@ export class ExplosionEffect {
 
   private resolveConfig(options?: SpawnExplosionOptions): ExplosionConfig {
     return {
+      enabled: {
+        inner: true,
+        outer: true,
+        gust: true,
+        shockwave: true,
+        streaks: true,
+        smoke: true,
+        ...(options?.enabled ?? {}),
+      },
       inner: {
         delay: 0,
         lifetime: 0.4,

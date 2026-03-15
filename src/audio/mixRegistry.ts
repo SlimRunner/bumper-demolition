@@ -5,6 +5,7 @@ export type MixChannelId =
   | "lowHealthBgm"
   | "engine"
   | "collision"
+  | "ability"
   | "saw"
   | "gameOver";
 
@@ -25,6 +26,7 @@ export const defaultMixChannels: readonly MixChannelConfig[] = [
   { id: "lowHealthBgm", label: "Low Health BGM", defaultVolume: 1 },
   { id: "engine", label: "Engine", defaultVolume: 1 },
   { id: "collision", label: "Collision", defaultVolume: 1 },
+  { id: "ability", label: "Ability", defaultVolume: 1 },
   { id: "saw", label: "Saw", defaultVolume: 1 },
   { id: "gameOver", label: "Game Over", defaultVolume: 1 },
 ];
@@ -36,8 +38,8 @@ export class AudioMixRegistry {
     this.channels = {
       normalBgm: {
         label: "Normal BGM",
-        defaultVolume: 1,
-        volume: 1,
+        defaultVolume: 0.8,
+        volume: 0.8,
       },
       lowHealthBgm: {
         label: "Low Health BGM",
@@ -51,6 +53,11 @@ export class AudioMixRegistry {
       },
       collision: {
         label: "Collision",
+        defaultVolume: 1,
+        volume: 1,
+      },
+      ability: {
+        label: "Ability",
         defaultVolume: 1,
         volume: 1,
       },

@@ -37,11 +37,13 @@ import { applyMeshTransform, computeTangents } from "./shapes/extendMesh";
 import { AudioSystem, SpatialSound } from "./audio/audioSystem";
 import { MusicPlayer } from "./audio/musicPlayer";
 import { AudioMixRegistry, defaultMixChannels } from "./audio/mixRegistry";
+import { AbilityPickupSound } from "./audio/abilityPickupSound";
 import {
   ExplosionEffect,
   SpawnExplosionOptions,
 } from "./components/explosionEffect";
 import { ExplosionSound } from "./audio/explosionSound";
+import { OrbitHitSound } from "./audio/orbitHitSound";
 
 type CarTarget = "carA" | "carB";
 type BgmTrack = { label: string; path: string };
@@ -168,6 +170,8 @@ export class BumperCarsBase extends tiny.Component {
     effects: {
       engine: CarSound;
       collision: CollisionSound;
+      ability: AbilityPickupSound;
+      orbitHit: OrbitHitSound;
       explosion: ExplosionSound;
       wastedVoice: ExplosionSound;
       sawBlade: {
@@ -478,6 +482,17 @@ export class BumperCarsBase extends tiny.Component {
           "../assets/sounds/car-collision-slow.mp3",
           "../assets/sounds/car-collision-fast.mp3",
         ),
+        ability: new AbilityPickupSound({
+          heavy: [
+            "../assets/sounds/newAbilitySounds/metalskin_cast.mp3"
+          ],
+          orbit: [
+            "../assets/sounds/newAbilitySounds/unicorn_dazzling_orb_cast_delay.mp3"
+          ],
+        }),
+        orbitHit: new OrbitHitSound([
+          "../assets/sounds/newAbilitySounds/unicorn_dazzling_orb_bounce_01.mp3"
+        ]),
         explosion: new ExplosionSound(
           "../assets/sounds/deltarune-explosion.mp3",
           0.8,
@@ -728,6 +743,40 @@ export class BumperCars extends BumperCarsBase {
   private musicMixVolume = bgMusicVol;
   private sfxMixVolume = 1;
   private readonly lowHealthThresholdPercent = 20;
+  private readonly lowHealthSmokeSpawnInterval = 0.18;
+  private readonly lowHealthSmokeForwardOffset = 0.65;
+  private readonly lowHealthSmokeUpOffset = 0.5;
+  private readonly lowHealthSmokeVisual: SpawnExplosionOptions = {
+    enabled: {
+      inner: false,
+      outer: false,
+      gust: false,
+      shockwave: false,
+      streaks: false,
+      smoke: true,
+    },
+    smoke: {
+      delay: 0,
+      count: 3,
+      fadeInTime: 0.05,
+      fadeOutTime: 0.28,
+      lifetimeMin: 4,
+      lifetimeMax: 6,
+      riseSpeedMin: 1,
+      riseSpeedMax: 1,
+      driftSpeedMin: 0.04,
+      driftSpeedMax: 0.18,
+      startSizeMin: 0.14,
+      startSizeMax: 0.2,
+      endSizeMin: 0.4,
+      endSizeMax: 0.65,
+      alpha: 0.38,
+    },
+  };
+  private readonly lowHealthSmokeTimer: Record<CarName, number> = {
+    carA: 0,
+    carB: 0,
+  };
   private readonly musicMix = {
     lowHealthLayer: 0.95,
     normalWhileLowHealth: 0,
@@ -907,6 +956,7 @@ export class BumperCars extends BumperCarsBase {
 
     this.mixRegistry.setVolume("engine", master * sfx);
     this.mixRegistry.setVolume("collision", master * sfx);
+    this.mixRegistry.setVolume("ability", master * sfx);
     this.mixRegistry.setVolume("saw", master * sfx);
     this.mixRegistry.setVolume("gameOver", master * sfx);
 
@@ -919,6 +969,12 @@ export class BumperCars extends BumperCarsBase {
     this.sound.effects.engine.setMasterVolume(this.mixRegistry.getVolume("engine"));
     this.sound.effects.collision.setMasterVolume(
       this.mixRegistry.getVolume("collision"),
+    );
+    this.sound.effects.ability.setMasterVolume(
+      this.mixRegistry.getVolume("ability"),
+    );
+    this.sound.effects.orbitHit.setMasterVolume(
+      this.mixRegistry.getVolume("ability"),
     );
     const gameOverVolume = this.mixRegistry.getVolume("gameOver");
     this.sound.effects.explosion.setMasterVolume(gameOverVolume);
@@ -1138,6 +1194,10 @@ export class BumperCars extends BumperCarsBase {
       if (p.group.has("orbit")) {
         p.disabled = true;
         gmMatch.makeDamage(target, 1);
+        this.sound.effects.orbitHit.play({
+          pitchJitter: 0.08,
+          volumeJitter: 0.15,
+        });
       } else if (p.group.has("sawblade")) {
         if (this.armatures[source].isArmSpinning()) {
           gmMatch.makeDamage(target, 0.013);
@@ -1147,11 +1207,13 @@ export class BumperCars extends BumperCarsBase {
         this.gui?.showMessage(
           `${CarNameLabels[target].labelName} picked up ${p.metadata}`,
         );
-        gmMatch.setPowerup(target, p.metadata as PowerUpKind);
-        if ((p.metadata as PowerUpKind) === "orbit") {
+        const powerup = p.metadata as PowerUpKind;
+        this.sound.effects.ability.play(powerup);
+        gmMatch.setPowerup(target, powerup);
+        if (powerup === "orbit") {
           this.physics.cartMSD.updateCarOrbits(0, true);
           this.physics.cartMSD.setOrbitStatus(target);
-        } else if ((p.metadata as PowerUpKind) === "heavy") {
+        } else if (powerup === "heavy") {
           this.physics.cartMSD.makeHeavy(target);
           this.setThrust(target, 240);
         }
@@ -1169,6 +1231,55 @@ export class BumperCars extends BumperCarsBase {
     this.gui?.hideGameOverOverlay();
     this.gameMatch.resetState();
     this.scheduler.reset("enable_physics");
+    this.lowHealthSmokeTimer.carA = 0;
+    this.lowHealthSmokeTimer.carB = 0;
+  }
+
+  private maybeSpawnLowHealthSmoke(
+    car: CarName,
+    carTransform: math.Mat4,
+    deltaSeconds: number,
+  ) {
+    if (this.isMatchOver || this.gameMatch.getHealth(car) > this.lowHealthThresholdPercent) {
+      this.lowHealthSmokeTimer[car] = 0;
+      return;
+    }
+
+    this.lowHealthSmokeTimer[car] += deltaSeconds;
+    if (this.lowHealthSmokeTimer[car] < this.lowHealthSmokeSpawnInterval) {
+      return;
+    }
+
+    const rightAxis = math.vec3(
+      carTransform[0][0],
+      carTransform[1][0],
+      carTransform[2][0],
+    );
+    const axisLen = Math.hypot(rightAxis[0], rightAxis[1], rightAxis[2]);
+    const forward = axisLen > 1e-6
+      ? math.vec3(
+          rightAxis[0] / axisLen,
+          rightAxis[1] / axisLen,
+          rightAxis[2] / axisLen,
+        )
+      : math.vec3(1, 0, 0);
+
+    const spawnPos = math.vec3(
+      carTransform[0][3] + forward[0] * this.lowHealthSmokeForwardOffset,
+      carTransform[1][3] + this.lowHealthSmokeUpOffset,
+      carTransform[2][3] + forward[2] * this.lowHealthSmokeForwardOffset,
+    );
+
+    this.spawnExplosion(spawnPos, {
+      visual: this.lowHealthSmokeVisual,
+      withForce: false,
+      playSound: false,
+    });
+
+    this.lowHealthSmokeTimer[car] = Math.max(
+      0,
+      this.lowHealthSmokeTimer[car] - this.lowHealthSmokeSpawnInterval,
+    );
   }
 
   protected setThrust(car: CarName, value: number) {
@@ -1287,6 +1398,10 @@ export class BumperCars extends BumperCarsBase {
           }
         }
       }
+
+      const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
+      this.maybeSpawnLowHealthSmoke("carA", mtxCarA, timeDelta * timeMult);
+      this.maybeSpawnLowHealthSmoke("carB", mtxCarB, timeDelta * timeMult);
 
       explosionFx.update(timeDelta * timeMult);
     }
