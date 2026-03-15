@@ -499,7 +499,7 @@ export class BumperCarsBase extends tiny.Component {
 
     this.armatures.carB.addEventListener("slash_started", () => {
       soundBladeB.play(bladeVolume);
-      soundBladeA.setRate(1);
+      soundBladeB.setRate(1);
     });
     this.armatures.carB.addEventListener("blade_is_reaching", () => {
       cartMSD.enableSparks("carB");
