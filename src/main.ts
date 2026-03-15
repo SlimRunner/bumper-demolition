@@ -39,6 +39,9 @@ import { MusicPlayer } from "./audio/musicPlayer";
 
 type CarTarget = "carA" | "carB";
 
+const bladeVolume = 0.4;
+const bgMusicVol = 0.3;
+
 export class BumperCarsBase extends tiny.Component {
   shapes: {
     grid: SimpleGrid;
@@ -468,7 +471,7 @@ export class BumperCarsBase extends tiny.Component {
     soundBladeB.preservesPitch = false;
 
     this.armatures.carA.addEventListener("slash_started", () => {
-      soundBladeA.play(0.4);
+      soundBladeA.play(bladeVolume);
       soundBladeA.setRate(1);
     });
     this.armatures.carA.addEventListener("blade_is_reaching", () => {
@@ -479,7 +482,7 @@ export class BumperCarsBase extends tiny.Component {
       ({ completion }) => {
         const t = smoothstep(1 - completion);
         soundBladeA.setRate(lerp(1, 0.8, completion));
-        soundBladeA.setVolume(0.4 * t);
+        soundBladeA.setVolume(bladeVolume * t);
       },
     );
     this.armatures.carA.addEventListener("blade_retreated", () => {
@@ -490,7 +493,7 @@ export class BumperCarsBase extends tiny.Component {
     });
 
     this.armatures.carB.addEventListener("slash_started", () => {
-      soundBladeB.play(0.4);
+      soundBladeB.play(bladeVolume);
       soundBladeA.setRate(1);
     });
     this.armatures.carB.addEventListener("blade_is_reaching", () => {
@@ -501,7 +504,7 @@ export class BumperCarsBase extends tiny.Component {
       ({ completion }) => {
         const t = smoothstep(1 - completion);
         soundBladeB.setRate(lerp(1, 0.8, completion));
-        soundBladeB.setVolume(0.4 * t);
+        soundBladeB.setVolume(bladeVolume * t);
       },
     );
     this.armatures.carB.addEventListener("blade_retreated", () => {
@@ -1305,8 +1308,17 @@ export class BumperCars extends BumperCarsBase {
     this.new_line();
 
     // other shortcuts
-    this.key_triggered_button("toggle physics", ["p"], () => {
+    this.key_triggered_button("pause", ["p"], () => {
       this.physics.cartMSD.enable = !this.physics.cartMSD.enable;
+      if (this.physics.cartMSD.enable) {
+        this.sound.music.inMatch.setVolume(bgMusicVol);
+        this.sound.effects.sawBlade.carA.setVolume(bladeVolume);
+        this.sound.effects.sawBlade.carB.setVolume(bladeVolume);
+      } else {
+        this.sound.music.inMatch.setVolume(bgMusicVol * 0.25);
+        this.sound.effects.sawBlade.carA.setVolume(0);
+        this.sound.effects.sawBlade.carB.setVolume(0);
+      }
     });
     this.new_line();
     this.key_triggered_button("normal speed", ["v"], () => {
