@@ -7,7 +7,7 @@ export class OrbitHitSound {
 
   constructor(
     sources: string[],
-    private readonly baseVolume = 0.25,
+    private readonly baseVolume = 0.1,
     private readonly cooldownMs = 90,
   ) {
     this.clips = sources.map((src) => {

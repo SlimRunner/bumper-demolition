@@ -22,12 +22,12 @@ type MixChannelState = {
 };
 
 export const defaultMixChannels: readonly MixChannelConfig[] = [
-  { id: "normalBgm", label: "Normal BGM", defaultVolume: 1 },
+  { id: "normalBgm", label: "Normal BGM", defaultVolume: 0.8 },
   { id: "lowHealthBgm", label: "Low Health BGM", defaultVolume: 1 },
   { id: "engine", label: "Engine", defaultVolume: 1 },
-  { id: "collision", label: "Collision", defaultVolume: 1 },
-  { id: "ability", label: "Ability", defaultVolume: 1 },
-  { id: "saw", label: "Saw", defaultVolume: 1 },
+  { id: "collision", label: "Collision", defaultVolume: 0.75 },
+  { id: "ability", label: "Ability", defaultVolume: 0.3 },
+  { id: "saw", label: "Saw", defaultVolume: 0.6 },
   { id: "gameOver", label: "Game Over", defaultVolume: 1 },
 ];
 
@@ -35,43 +35,7 @@ export class AudioMixRegistry {
   private readonly channels: Record<MixChannelId, MixChannelState>;
 
   constructor(configs: readonly MixChannelConfig[]) {
-    this.channels = {
-      normalBgm: {
-        label: "Normal BGM",
-        defaultVolume: 0.8,
-        volume: 0.8,
-      },
-      lowHealthBgm: {
-        label: "Low Health BGM",
-        defaultVolume: 1,
-        volume: 1,
-      },
-      engine: {
-        label: "Engine",
-        defaultVolume: 1,
-        volume: 1,
-      },
-      collision: {
-        label: "Collision",
-        defaultVolume: 1,
-        volume: 1,
-      },
-      ability: {
-        label: "Ability",
-        defaultVolume: 1,
-        volume: 1,
-      },
-      saw: {
-        label: "Saw",
-        defaultVolume: 1,
-        volume: 1,
-      },
-      gameOver: {
-        label: "Game Over",
-        defaultVolume: 1,
-        volume: 1,
-      },
-    };
+    this.channels = {} as Record<MixChannelId, MixChannelState>;
 
     for (const config of configs) {
       this.channels[config.id] = {

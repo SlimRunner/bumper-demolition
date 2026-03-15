@@ -496,9 +496,11 @@ export class BumperCarsBase extends tiny.Component {
         explosion: new ExplosionSound(
           "../assets/sounds/deltarune-explosion.mp3",
           0.8,
+          4,
         ),
         wastedVoice: new ExplosionSound(
           "../assets/sounds/gta5-wasted-hd.mp3",
+          1,
           1,
         ),
         sawBlade: {
@@ -606,6 +608,9 @@ export class BumperCarsBase extends tiny.Component {
 
     const resumeUser = () => {
       this.sound.system.resume();
+      this.sound.effects.ability.warmup();
+      this.sound.effects.explosion.warmup();
+      this.sound.effects.wastedVoice.warmup();
       canvas.removeEventListener("click", resumeUser);
     };
     canvas.addEventListener("click", resumeUser);
@@ -757,7 +762,7 @@ export class BumperCars extends BumperCarsBase {
     },
     smoke: {
       delay: 0,
-      count: 1,
+      count: 2,
       fadeInTime: 0.05,
       fadeOutTime: 0.28,
       lifetimeMin: 4,
@@ -1120,7 +1125,7 @@ export class BumperCars extends BumperCarsBase {
   }
 
   private startGameOverSequence(loser: CarName) {
-    this.sound.effects.wastedVoice.play(this.mixRegistry.getVolume("gameOver"));
+    this.sound.effects.wastedVoice.play(this.mixRegistry.getVolume("gameOver"), 0);
 
     const loserPos = this.physics.cartMSD.transforms[loser].center;
     const xzJitter = 1;
