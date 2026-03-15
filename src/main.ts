@@ -583,11 +583,19 @@ export class BumperCarsBase extends tiny.Component {
 
   protected resetGame() {
     const GP = this.globalProps;
+    const { carA, carB } = this.sound.effects.sawBlade;
+
     // this is just one function right now but keep it because we may
     // need to reset other things later.
     GP.suddenDeath.enabled = false;
     GP.suddenDeath.timer = 0;
     GP.suddenDeath.radius = GP.suddenDeath.initRadius;
+    carA.stop();
+    carB.stop();
+    carA.setVolume(0);
+    carB.setVolume(0);
+    this.physics.cartMSD.disableSparks("carA");
+    this.physics.cartMSD.disableSparks("carB");
     this.physics.cartMSD.resetState();
     this.armatures.carA.resetState();
     this.armatures.carB.resetState();
@@ -796,7 +804,7 @@ export class BumperCars extends BumperCarsBase {
   private gameOverSlowMoTimeout?: number;
   private readonly gameOverSlowMoDelayMs = 5;
   private readonly gameOverTimeMultiplier = 0.08;
-  private readonly gameOverTextRevealDelayMs = 2650;
+  private readonly gameOverTextRevealDelayMs = 2350;
   private readonly gameOverSequenceDuration = 6;
   private readonly playGameOverExplosionSound = false;
   private readonly gameOverQuotes = [
