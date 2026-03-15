@@ -5,6 +5,8 @@ import { enumerate } from "../utils/iterators";
 
 export class CarSound {
   private readonly audio: HTMLAudioElement[];
+  private readonly currentRate: [number, number];
+  private readonly currentVolume: [number, number];
   private readonly playing = [false, false];
   private readonly muted = [false, false];
   private readonly panners: (StereoPannerNode | null)[] = [null, null];
@@ -24,11 +26,14 @@ export class CarSound {
     private readonly maxThrust = 240,
   ) {
     this.audio = [new Audio(src), new Audio(src)];
+    this.currentRate = [1, 1];
+    this.currentVolume = [1, 1];
 
     for (const a of this.audio) {
       a.loop = true;
       a.volume = 0;
       a.playbackRate = this.minRate;
+      a.preservesPitch = false;
     }
 
     this.maxSpeed = Math.max(1, Math.abs(maxSpeed));
@@ -132,16 +137,18 @@ export class CarSound {
     }
 
     const audio = this.audio[i];
-    audio.preservesPitch = false;
 
-    const volume = this.muted[i]
+    const targetVolume = this.muted[i]
       ? 0
       : this.minVolume + (this.maxVolume - this.minVolume) * thrustNorm;
 
-    const rate = this.minRate + (this.maxRate - this.minRate) * speedNorm;
+    const smoothing = 0.15;
+    const targetRate = this.minRate + (this.maxRate - this.minRate) * speedNorm;
+    this.currentRate[i] += (targetRate - this.currentRate[i]) * smoothing;
+    this.currentVolume[i] += (targetVolume - this.currentVolume[i]) * smoothing;
 
-    audio.volume = volume;
-    audio.playbackRate = rate;
+    audio.volume = clamp(this.currentVolume[i], this.minVolume, this.maxVolume);
+    audio.playbackRate = clamp(this.currentRate[i], this.minRate, this.maxRate);
 
     if (!this.playing[i]) {
       this.ensureContext();
