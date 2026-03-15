@@ -747,7 +747,7 @@ export class BumperCars extends BumperCarsBase {
       // damage is scaled arbitrarily; tune to taste or convert to energy
       // later if you prefer (0.5*m*v^2 loss etc.)
       const other: CarTarget = player === "carA" ? "carB" : "carA";
-      gmMatch.makeDamage(other, impulse * 0.05);
+      gmMatch.makeDamage(other, impulse * 0.04);
       this.collisionSound?.accumulate(impulse);
     };
 
