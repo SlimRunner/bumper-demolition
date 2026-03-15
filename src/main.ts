@@ -150,6 +150,9 @@ export class BumperCarsBase extends tiny.Component {
         carB: SpatialSound;
       };
     };
+    music: {
+      inMatch: MusicPlayer;
+    };
   };
 
   readonly lightCount = 7;
@@ -453,6 +456,10 @@ export class BumperCarsBase extends tiny.Component {
           ),
         },
       },
+      music: {
+        // fking awesome cover: https://www.youtube.com/watch?v=JTO5uj1-ND0
+        inMatch: new MusicPlayer("../assets/sounds/batmap-stage-1-cover-trim.mp3"),
+      },
     };
 
     const {carA: soundBladeA, carB: soundBladeB} = this.sound.effects.sawBlade;
@@ -540,9 +547,9 @@ export class BumperCarsBase extends tiny.Component {
 
     const resumeUser = () => {
       this.sound.system.resume();
-      canvas.removeEventListener("mousemove", resumeUser);
-    }
-    canvas.addEventListener("mousemove", resumeUser);
+      canvas.removeEventListener("click", resumeUser);
+    };
+    canvas.addEventListener("click", resumeUser);
 
     this.gui = new GameGUI(canvasDiv);
 
@@ -726,10 +733,14 @@ export class BumperCars extends BumperCarsBase {
 
     const gameEvents: SchedulerEvent<EventNamespace>[] = [
       // TODO: camera looking to the sky to let the meshes load out of sight
-      { type: "event", ident: "intro_look_up", isExpired: (t) => {
-        this.gui?.showMessage(Math.ceil(4 - t).toString());
-        return t >= 4;
-      } },
+      {
+        type: "event",
+        ident: "intro_look_up",
+        isExpired: (t) => {
+          this.gui?.showMessage(Math.ceil(4 - t).toString());
+          return t >= 4;
+        },
+      },
 
       /* TODO: cinematic pan over the players
       { type: "timed", ident: "intro_line_up_A", duration: 2 },
@@ -756,6 +767,8 @@ export class BumperCars extends BumperCarsBase {
             // count down?
             break;
           case "enable_physics":
+            this.sound.music.inMatch.play();
+            this.sound.music.inMatch.setVolume(0.3);
             this.physics.cartMSD.enable = true;
             break;
           case "match_loop":
