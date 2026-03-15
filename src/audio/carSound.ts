@@ -5,37 +5,52 @@ import { enumerate } from "../utils/iterators";
 import { AudioSystem } from "./audioSystem";
 
 export class CarSound {
-  private readonly audio: HTMLAudioElement[];
+  // audio[car][sound] = [idle, half, full]
+  private readonly audio: HTMLAudioElement[][];
   private readonly currentRate: [number, number];
-  private readonly currentVolume: [number, number];
+  private readonly currentThrust: [number, number];
   private readonly playing = [false, false];
   private readonly muted = [false, false];
+  private readonly desynced: [boolean[], boolean[]] = [
+    [false, false, false],
+    [false, false, false],
+  ];
   private readonly panners: (StereoPannerNode | null)[] = [null, null];
 
   private ctx: AudioContext | null = null;
   private paused = false;
 
-  private readonly minVolume = 0.2;
-  private readonly maxVolume = 0.6;
+  private readonly volume = 0.2;
 
-  private readonly minRate = 0.8;
-  private readonly maxRate = 2.5;
+  private readonly minVolume = 0.2 * this.volume;
+  private readonly maxVolume = 0.6 * this.volume;
+
+  private readonly minRate = 1;
+  private readonly maxRate = 2;
+  private readonly maxDesyncOffset = 2; // seconds
 
   constructor(
     private audioSystem: AudioSystem,
-    src: string,
+    idleSrc: string,
+    halfSrc: string,
+    fullSrc: string,
     private readonly maxSpeed = 10,
     private readonly maxThrust = 240,
   ) {
-    this.audio = [new Audio(src), new Audio(src)];
+    this.audio = [
+      [new Audio(idleSrc), new Audio(halfSrc), new Audio(fullSrc)],
+      [new Audio(idleSrc), new Audio(halfSrc), new Audio(fullSrc)],
+    ];
     this.currentRate = [1, 1];
-    this.currentVolume = [1, 1];
+    this.currentThrust = [0, 0];
 
-    for (const a of this.audio) {
-      a.loop = true;
-      a.volume = 0;
-      a.playbackRate = this.minRate;
-      a.preservesPitch = false;
+    for (const carAudio of this.audio) {
+      for (const a of carAudio) {
+        a.loop = true;
+        a.volume = 0;
+        a.playbackRate = this.minRate;
+        a.preservesPitch = false;
+      }
     }
 
     this.maxSpeed = Math.max(1, Math.abs(maxSpeed));
@@ -48,13 +63,15 @@ export class CarSound {
   private ensureContext(): void {
     const ctx = this.audioSystem.ctx;
 
-    for (let i = 0; i < 2; i++) {
-      if (!this.panners[i]) {
-        const src = ctx.createMediaElementSource(this.audio[i]);
+    for (let car = 0; car < 2; car++) {
+      if (!this.panners[car]) {
         const panner = this.audioSystem.createPanner();
+        this.panners[car] = panner;
 
-        this.panners[i] = panner;
-        src.connect(panner);
+        for (let sound = 0; sound < 3; sound++) {
+          const src = ctx.createMediaElementSource(this.audio[car][sound]);
+          src.connect(panner);
+        }
       }
     }
 
@@ -79,8 +96,10 @@ export class CarSound {
     this.paused = paused;
 
     if (paused) {
-      for (const a of this.audio) {
-        a.volume = 0;
+      for (const carAudio of this.audio) {
+        for (const a of carAudio) {
+          a.volume = 0;
+        }
       }
     }
   }
@@ -131,36 +150,77 @@ export class CarSound {
     return -clamp(toCar.dot(camRight) / dist, -1, 1);
   }
 
-  private apply(i: number, speedNorm: number, thrustNorm: number, pan: number) {
+  private apply(
+    i: number,
+    speedNorm: number,
+    thrustNorm: number,
+    pan: number,
+  ) {
     if (this.paused) return;
 
     if (this.panners[i]) {
       this.panners[i]!.pan.value = pan;
     }
 
-    const audio = this.audio[i];
+    // Smooth thrust value
+    this.currentThrust[i] += (thrustNorm - this.currentThrust[i]) * 0.15;
+    const thrust = this.currentThrust[i];
 
-    const targetVolume = this.muted[i]
+    // Calculate blend volumes for each sound based on thrust
+    let idleVolume = 0;
+    let halfVolume = 0;
+    let fullVolume = 0;
+
+    if (thrust < 0.5) {
+      // Blend between idle and half throttle
+      const blend = thrust / 0.5;
+      idleVolume = 1 - blend;
+      halfVolume = blend;
+    } else {
+      // Blend between half and full throttle
+      const blend = (thrust - 0.5) / 0.5;
+      halfVolume = 1 - blend;
+      fullVolume = blend;
+    }
+
+    // Calculate overall volume based on thrust
+    const baseVolume = this.muted[i]
       ? 0
-      : this.minVolume + (this.maxVolume - this.minVolume) * thrustNorm;
+      : this.minVolume + (this.maxVolume - this.minVolume) * thrust;
 
+    // Update pitch based on speed
     const smoothing = 0.15;
     const targetRate = this.minRate + (this.maxRate - this.minRate) * speedNorm;
     this.currentRate[i] += (targetRate - this.currentRate[i]) * smoothing;
-    this.currentVolume[i] += (targetVolume - this.currentVolume[i]) * smoothing;
 
-    audio.volume = clamp(this.currentVolume[i], this.minVolume, this.maxVolume);
-    audio.playbackRate = clamp(this.currentRate[i], this.minRate, this.maxRate);
+    // Apply volume and pitch to all three sounds
+    const sounds: Array<[HTMLAudioElement, number, number]> = [
+      [this.audio[i][0], idleVolume, 0], // idle
+      [this.audio[i][1], halfVolume, 1], // half
+      [this.audio[i][2], fullVolume, 2], // full
+    ];
 
-    if (!this.playing[i]) {
-      this.ensureContext();
+    for (const [audio, blendVolume, soundIdx] of sounds) {
+      const finalVolume = baseVolume * blendVolume;
+      audio.volume = clamp(finalVolume, 0, this.maxVolume);
+      audio.playbackRate = clamp(this.currentRate[i], this.minRate, this.maxRate);
 
-      audio
-        .play()
-        .then(() => {
-          this.playing[i] = true;
-        })
-        .catch(() => {});
+      if (!this.playing[i] && audio.paused) {
+        this.ensureContext();
+
+        // Desync on first play - offset each sound by a random amount
+        if (!this.desynced[i][soundIdx]) {
+          audio.currentTime = Math.random() * this.maxDesyncOffset;
+          this.desynced[i][soundIdx] = true;
+        }
+
+        audio
+          .play()
+          .then(() => {
+            this.playing[i] = true;
+          })
+          .catch(() => {});
+      }
     }
   }
 }

@@ -10,6 +10,7 @@ export class CollisionSound {
 
   private accumulatedImpulse = 0;
   private maxImpulseSeen = 0;
+  private lastPlayTime = 0;
 
   constructor(
     slowSrc: string,
@@ -45,6 +46,10 @@ export class CollisionSound {
 
     if (impulse < this.minImpulse || skip) return;
 
+    // Check if 300ms has passed since last sound
+    const now = Date.now();
+    if (now - this.lastPlayTime < 300) return;
+
     const t = Math.min(
       1,
       (impulse - this.minImpulse) / (this.maxImpulse - this.minImpulse),
@@ -58,5 +63,7 @@ export class CollisionSound {
     const instance = audio.cloneNode(true) as HTMLAudioElement;
     instance.volume = volume;
     instance.play().catch(() => {});
+
+    this.lastPlayTime = now;
   }
 }

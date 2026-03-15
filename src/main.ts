@@ -443,7 +443,12 @@ export class BumperCarsBase extends tiny.Component {
     this.sound = {
       system: new AudioSystem(),
       effects: {
-        engine: new CarSound(audioSystem, "../assets/sounds/motor-sound3.mp3"),
+        engine: new CarSound(
+          audioSystem,
+          "../assets/sounds/newEngineSounds/engineSim_idle.mp3",
+          "../assets/sounds/newEngineSounds/engineSim_HalfThrottle.mp3",
+          "../assets/sounds/newEngineSounds/engineSim_fullThrottle.mp3",
+        ),
         collision: new CollisionSound(
           "../assets/sounds/car-collision-slow.mp3",
           "../assets/sounds/car-collision-fast.mp3",
