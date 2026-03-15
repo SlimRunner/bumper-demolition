@@ -12,12 +12,12 @@ export class CollisionSound {
   private maxImpulseSeen = 0;
   private lastPlayTime = 0;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
-  private readonly flushDelay = 100;
+  private readonly flushDelay = 50;
 
   constructor(
     slowSrc: string,
     fastSrc: string,
-    thresholdImpulse = 4,
+    thresholdImpulse = 5,
     minImpulse = 0.8,
     maxImpulse = 7,
     maxVolume = 0.6,
