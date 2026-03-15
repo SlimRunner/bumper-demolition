@@ -36,11 +36,32 @@ import { sdCylinderColumn } from "./linearAlgebra/sdfs";
 import { applyMeshTransform, computeTangents } from "./shapes/extendMesh";
 import { AudioSystem, SpatialSound } from "./audio/audioSystem";
 import { MusicPlayer } from "./audio/musicPlayer";
+import { AudioMixRegistry, defaultMixChannels } from "./audio/mixRegistry";
+import { AbilityPickupSound } from "./audio/abilityPickupSound";
+import {
+  ExplosionEffect,
+  SpawnExplosionOptions,
+} from "./components/explosionEffect";
+import { ExplosionSound } from "./audio/explosionSound";
+import { OrbitHitSound } from "./audio/orbitHitSound";
 
 type CarTarget = "carA" | "carB";
+type BgmTrack = { label: string; path: string };
 
 const bladeVolume = 0.4;
 const bgMusicVol = 0.3;
+const defaultBgmTracks: BgmTrack[] = [
+  {
+    label: "Batmap Stage 1 Cover",
+    path: "../assets/sounds/batmap-stage-1-cover-trim.mp3",
+  },
+  {
+    label: "Batman NES Synthwave",
+    path: "../assets/sounds/soundtrack2/Batman_Nes_Theme_(Synthwave Remake-Cover).mp3",
+  },
+];
+const defaultLowHealthTrackPath =
+  "../assets/sounds/soundtrack2/Hang_On_Low_HP_Theme_VS_Champion_Zephyr.mp3";
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -116,6 +137,7 @@ export class BumperCarsBase extends tiny.Component {
     arenaWalls: ShapeCollection;
     arenaFloor: ShapeCollection;
     grassMound: ShapeCollection;
+    explosionFx: ExplosionEffect;
   };
 
   gameView: {
@@ -148,17 +170,23 @@ export class BumperCarsBase extends tiny.Component {
     effects: {
       engine: CarSound;
       collision: CollisionSound;
+      ability: AbilityPickupSound;
+      orbitHit: OrbitHitSound;
+      explosion: ExplosionSound;
+      wastedVoice: ExplosionSound;
       sawBlade: {
         carA: SpatialSound;
         carB: SpatialSound;
       };
     };
     music: {
-      inMatch: MusicPlayer;
+      normal: MusicPlayer;
+      lowHealth: MusicPlayer;
     };
   };
 
   readonly lightCount = 7;
+  protected sawVolumeScale = 1;
 
   constructor() {
     super();
@@ -434,6 +462,7 @@ export class BumperCarsBase extends tiny.Component {
       arenaFloor,
       arenaWalls,
       grassMound,
+      explosionFx: new ExplosionEffect(this.lightCount),
     };
     this.physics = {
       cartMSD,
@@ -441,7 +470,7 @@ export class BumperCarsBase extends tiny.Component {
 
     const audioSystem = new AudioSystem();
     this.sound = {
-      system: new AudioSystem(),
+      system: audioSystem,
       effects: {
         engine: new CarSound(
           audioSystem,
@@ -452,6 +481,27 @@ export class BumperCarsBase extends tiny.Component {
         collision: new CollisionSound(
           "../assets/sounds/car-collision-slow.mp3",
           "../assets/sounds/car-collision-fast.mp3",
+        ),
+        ability: new AbilityPickupSound({
+          heavy: [
+            "../assets/sounds/newAbilitySounds/metalskin_cast.mp3"
+          ],
+          orbit: [
+            "../assets/sounds/newAbilitySounds/unicorn_dazzling_orb_cast_delay.mp3"
+          ],
+        }),
+        orbitHit: new OrbitHitSound([
+          "../assets/sounds/newAbilitySounds/unicorn_dazzling_orb_bounce_01.mp3"
+        ]),
+        explosion: new ExplosionSound(
+          "../assets/sounds/deltarune-explosion.mp3",
+          0.8,
+          4,
+        ),
+        wastedVoice: new ExplosionSound(
+          "../assets/sounds/gta5-wasted-hd.mp3",
+          1,
+          1,
         ),
         sawBlade: {
           carA: new SpatialSound(
@@ -465,10 +515,13 @@ export class BumperCarsBase extends tiny.Component {
         },
       },
       music: {
-        // fking awesome cover: https://www.youtube.com/watch?v=JTO5uj1-ND0
-        inMatch: new MusicPlayer("../assets/sounds/batmap-stage-1-cover-trim.mp3"),
+        normal: new MusicPlayer(defaultBgmTracks[0].path),
+        lowHealth: new MusicPlayer(defaultLowHealthTrackPath),
       },
     };
+
+    this.sound.music.normal.setVolume(0);
+    this.sound.music.lowHealth.setVolume(0);
 
     const {carA: soundBladeA, carB: soundBladeB} = this.sound.effects.sawBlade;
 
@@ -476,7 +529,7 @@ export class BumperCarsBase extends tiny.Component {
     soundBladeB.preservesPitch = false;
 
     this.armatures.carA.addEventListener("slash_started", () => {
-      soundBladeA.play(bladeVolume);
+      soundBladeA.play(bladeVolume * this.sawVolumeScale);
       soundBladeA.setRate(1);
     });
     this.armatures.carA.addEventListener("blade_is_reaching", () => {
@@ -487,7 +540,7 @@ export class BumperCarsBase extends tiny.Component {
       ({ completion }) => {
         const t = smoothstep(1 - completion);
         soundBladeA.setRate(lerp(1, 0.8, completion));
-        soundBladeA.setVolume(bladeVolume * t);
+        soundBladeA.setVolume(bladeVolume * t * this.sawVolumeScale);
       },
     );
     this.armatures.carA.addEventListener("blade_retreated", () => {
@@ -498,7 +551,7 @@ export class BumperCarsBase extends tiny.Component {
     });
 
     this.armatures.carB.addEventListener("slash_started", () => {
-      soundBladeB.play(bladeVolume);
+      soundBladeB.play(bladeVolume * this.sawVolumeScale);
       soundBladeB.setRate(1);
     });
     this.armatures.carB.addEventListener("blade_is_reaching", () => {
@@ -509,7 +562,7 @@ export class BumperCarsBase extends tiny.Component {
       ({ completion }) => {
         const t = smoothstep(1 - completion);
         soundBladeB.setRate(lerp(1, 0.8, completion));
-        soundBladeB.setVolume(bladeVolume * t);
+        soundBladeB.setVolume(bladeVolume * t * this.sawVolumeScale);
       },
     );
     this.armatures.carB.addEventListener("blade_retreated", () => {
@@ -530,11 +583,19 @@ export class BumperCarsBase extends tiny.Component {
 
   protected resetGame() {
     const GP = this.globalProps;
+    const { carA, carB } = this.sound.effects.sawBlade;
+
     // this is just one function right now but keep it because we may
     // need to reset other things later.
     GP.suddenDeath.enabled = false;
     GP.suddenDeath.timer = 0;
     GP.suddenDeath.radius = GP.suddenDeath.initRadius;
+    carA.stop();
+    carB.stop();
+    carA.setVolume(0);
+    carB.setVolume(0);
+    this.physics.cartMSD.disableSparks("carA");
+    this.physics.cartMSD.disableSparks("carB");
     this.physics.cartMSD.resetState();
     this.armatures.carA.resetState();
     this.armatures.carB.resetState();
@@ -555,6 +616,9 @@ export class BumperCarsBase extends tiny.Component {
 
     const resumeUser = () => {
       this.sound.system.resume();
+      this.sound.effects.ability.warmup();
+      this.sound.effects.explosion.warmup();
+      this.sound.effects.wastedVoice.warmup();
       canvas.removeEventListener("click", resumeUser);
     };
     canvas.addEventListener("click", resumeUser);
@@ -683,16 +747,85 @@ type EventNamespace =
 export class BumperCars extends BumperCarsBase {
   gameMatch: MatchManager;
   scheduler: Scheduler<EventNamespace, SchedulerEvent<EventNamespace>>;
+  private isMatchOver = false;
+  private winner?: CarName;
+  private readonly mixRegistry = new AudioMixRegistry(defaultMixChannels);
+  private readonly bgmTracks = defaultBgmTracks;
+  private bgmTrackIndex = 0;
+  private masterMixVolume = 1;
+  private musicMixVolume = bgMusicVol;
+  private sfxMixVolume = 1;
+  private readonly lowHealthThresholdPercent = 20;
+  private readonly lowHealthSmokeSpawnInterval = 0.18;
+  private readonly lowHealthSmokeForwardOffset = 0.65;
+  private readonly lowHealthSmokeUpOffset = 0.5;
+  private readonly lowHealthSmokeVisual: SpawnExplosionOptions = {
+    enabled: {
+      inner: false,
+      outer: false,
+      gust: false,
+      shockwave: false,
+      streaks: false,
+      smoke: true,
+    },
+    smoke: {
+      delay: 0,
+      count: 2,
+      fadeInTime: 0.05,
+      fadeOutTime: 0.28,
+      lifetimeMin: 4,
+      lifetimeMax: 6,
+      riseSpeedMin: 1,
+      riseSpeedMax: 1,
+      driftSpeedMin: 0.04,
+      driftSpeedMax: 0.18,
+      startSizeMin: 0.14,
+      startSizeMax: 0.2,
+      endSizeMin: 0.4,
+      endSizeMax: 0.65,
+      alpha: 0.38,
+    },
+  };
+  private readonly lowHealthSmokeTimer: Record<CarName, number> = {
+    carA: 0,
+    carB: 0,
+  };
+  private readonly musicMix = {
+    lowHealthLayer: 0.95,
+    normalWhileLowHealth: 0,
+    pausedFactor: 0.25,
+    crossFadeSeconds: 0.45,
+    roundStartFadeSeconds: 1.2,
+  };
+  private isLowHealthLayerActive = false;
+  private pendingLowHealthStopTimer?: number;
+  private lastNormalTarget = -1;
+  private lastLowHealthTarget = -1;
+  private gameOverSlowMoTimeout?: number;
+  private readonly gameOverSlowMoDelayMs = 5;
+  private readonly gameOverTimeMultiplier = 0.08;
+  private readonly gameOverTextRevealDelayMs = 2350;
+  private readonly gameOverSequenceDuration = 6;
+  private readonly playGameOverExplosionSound = false;
+  private readonly gameOverQuotes = [
+    "{loserColor}, you're chopped lil bro.",
+    "Better luck next time, {loserColor}.",
+    "Carmogged, carmaxxed, i'll just stop now.",
+    "I hope nobody reads this... surely.",
+    "{loserColor}, {loserColor}, what's your problem {loserColor}? Me stay alone ramp, me stay alone ramp",
+    "{loserColor} fainted.",
+    "That's it {loserColor}, play dead we got em right where we-... oh dear",
+    "{loserColor} died before GTA 6"
+  ];
 
   constructor() {
     super();
 
+    this.recomputeMixChannels();
+
     const cartMSD = this.physics.cartMSD;
     const armatureA = this.armatures.carA;
     const armatureB = this.armatures.carB;
-
-    let isMatchOver = false;
-    let winner: CarName | undefined;
 
     this.gameMatch = new MatchManager();
 
@@ -702,18 +835,14 @@ export class BumperCars extends BumperCarsBase {
         this.gui?.showMessage("SUDDEN DEATH");
         suddenDeath.enabled = true;
         suddenDeath.timer = 0;
+        this.syncMusicMix();
       }
     });
     this.gameMatch.addEventListener("gameOver", (args) => {
-      switch (args.loser) {
-        case "carA":
-          winner = "carB";
-          break;
-        case "carB":
-          winner = "carA";
-          break;
-      }
-      isMatchOver = true;
+      this.winner = args.loser === "carA" ? "carB" : "carA";
+      this.isMatchOver = true;
+      this.stopAllMusic();
+      this.startGameOverSequence(args.loser);
     });
     this.gameMatch.addEventListener("powerSpawn", (args) => {
       switch (args.count) {
@@ -763,9 +892,9 @@ export class BumperCars extends BumperCarsBase {
       { type: "event", ident: "enable_physics", isExpired: () => true },
 
       // main match event
-      { type: "event", ident: "match_loop", isExpired: () => isMatchOver },
+      { type: "event", ident: "match_loop", isExpired: () => this.isMatchOver },
       // TODO: outro animation with slow motion and winner toast
-      { type: "timed", ident: "outro", duration: 3 },
+      { type: "timed", ident: "outro", duration: this.gameOverSequenceDuration },
     ];
     this.scheduler = new Scheduler(
       [...gameEvents],
@@ -775,19 +904,18 @@ export class BumperCars extends BumperCarsBase {
             // count down?
             break;
           case "enable_physics":
-            this.sound.music.inMatch.play();
-            this.sound.music.inMatch.setVolume(0.3);
+            this.startRoundMusic();
             this.physics.cartMSD.enable = true;
             break;
           case "match_loop":
             // swap to ActionCamera in prev step (if multiple cameras)
-            if (winner) {
+            if (this.winner) {
               this.gui?.showMessage(
-                `Player ${CarNameLabels[winner].colorName} WINS!!`,
+                `Player ${CarNameLabels[this.winner].colorName} WINS!!`,
               );
               // Do nothing for now, since you said MatchManager tracks score.
               // We'll increment the score in MatchManager instead of through GUI directly.
-              this.gameMatch.addScore(winner);
+              this.gameMatch.addScore(this.winner);
             } else {
               console.warn(`winner is undefined during win toast`);
             }
@@ -800,10 +928,245 @@ export class BumperCars extends BumperCarsBase {
       () => {
         // game finished
         this.resetGame();
-        isMatchOver = false;
-        winner = undefined;
+        this.isMatchOver = false;
+        this.winner = undefined;
       },
     );
+  }
+
+  private setNormalTrack(index: number) {
+    const track = this.bgmTracks[index];
+    if (!track) return;
+
+    this.bgmTrackIndex = index;
+    this.sound.music.normal.setSource(track.path);
+    this.sound.music.normal.play();
+    this.applyMusicTargets({ force: true, fadeSeconds: 0.2 });
+  }
+
+  private stepMasterVolume(delta: number) {
+    this.masterMixVolume = clamp(this.masterMixVolume + delta, 0, 1);
+    this.recomputeMixChannels();
+  }
+
+  private stepMusicVolume(delta: number) {
+    this.musicMixVolume = clamp(this.musicMixVolume + delta, 0, 1);
+    this.recomputeMixChannels();
+  }
+
+  private stepSfxVolume(delta: number) {
+    this.sfxMixVolume = clamp(this.sfxMixVolume + delta, 0, 1);
+    this.recomputeMixChannels();
+  }
+
+  private recomputeMixChannels() {
+    const master = this.masterMixVolume;
+    const music = this.musicMixVolume;
+    const sfx = this.sfxMixVolume;
+
+    this.mixRegistry.setVolume("normalBgm", master * music);
+    this.mixRegistry.setVolume("lowHealthBgm", master * music);
+
+    this.mixRegistry.setVolume("engine", master * sfx);
+    this.mixRegistry.setVolume("collision", master * sfx);
+    this.mixRegistry.setVolume("ability", master * sfx);
+    this.mixRegistry.setVolume("saw", master * sfx);
+    this.mixRegistry.setVolume("gameOver", master * sfx);
+
+    this.sawVolumeScale = this.mixRegistry.getVolume("saw");
+    this.applyEffectMixVolumes();
+    this.applyMusicTargets({ force: true, fadeSeconds: 0.1 });
+  }
+
+  private applyEffectMixVolumes() {
+    this.sound.effects.engine.setMasterVolume(this.mixRegistry.getVolume("engine"));
+    this.sound.effects.collision.setMasterVolume(
+      this.mixRegistry.getVolume("collision"),
+    );
+    this.sound.effects.ability.setMasterVolume(
+      this.mixRegistry.getVolume("ability"),
+    );
+    this.sound.effects.orbitHit.setMasterVolume(
+      this.mixRegistry.getVolume("ability"),
+    );
+    const gameOverVolume = this.mixRegistry.getVolume("gameOver");
+    this.sound.effects.explosion.setMasterVolume(gameOverVolume);
+    this.sound.effects.wastedVoice.setMasterVolume(gameOverVolume);
+  }
+
+  private cycleNormalTrack() {
+    if (this.bgmTracks.length === 0) return;
+    const nextIndex = (this.bgmTrackIndex + 1) % this.bgmTracks.length;
+    this.setNormalTrack(nextIndex);
+  }
+
+  private shouldUseLowHealthLayer() {
+    if (this.globalProps.suddenDeath.enabled) {
+      return true;
+    }
+
+    const hpA = this.gameMatch.getHealth("carA");
+    const hpB = this.gameMatch.getHealth("carB");
+    return (
+      hpA <= this.lowHealthThresholdPercent ||
+      hpB <= this.lowHealthThresholdPercent
+    );
+  }
+
+  private applyMusicTargets(options?: { force?: boolean; fadeSeconds?: number }) {
+    const force = options?.force ?? false;
+    const fadeSeconds = options?.fadeSeconds ?? this.musicMix.crossFadeSeconds;
+
+    const pauseFactor = this.physics.cartMSD.enable
+      ? 1
+      : this.musicMix.pausedFactor;
+
+    const normalWeight = this.globalProps.suddenDeath.enabled
+      ? 0
+      : this.isLowHealthLayerActive
+      ? this.musicMix.normalWhileLowHealth
+      : 1;
+    const lowHealthWeight = this.isLowHealthLayerActive
+      ? this.musicMix.lowHealthLayer
+      : 0;
+
+    const baseVolume = pauseFactor;
+    const normalTarget = clamp(
+      baseVolume * normalWeight * this.mixRegistry.getVolume("normalBgm"),
+      0,
+      1,
+    );
+    const lowHealthTarget = clamp(
+      baseVolume * lowHealthWeight * this.mixRegistry.getVolume("lowHealthBgm"),
+      0,
+      1,
+    );
+
+    if (force || Math.abs(normalTarget - this.lastNormalTarget) > 0.004) {
+      this.sound.music.normal.fadeTo(normalTarget, fadeSeconds);
+      this.lastNormalTarget = normalTarget;
+    }
+    if (force || Math.abs(lowHealthTarget - this.lastLowHealthTarget) > 0.004) {
+      this.sound.music.lowHealth.fadeTo(lowHealthTarget, fadeSeconds);
+      this.lastLowHealthTarget = lowHealthTarget;
+    }
+  }
+
+  private syncMusicMix() {
+    const shouldPlayLowHealth = this.shouldUseLowHealthLayer();
+
+    if (shouldPlayLowHealth !== this.isLowHealthLayerActive) {
+      this.isLowHealthLayerActive = shouldPlayLowHealth;
+
+      if (this.pendingLowHealthStopTimer !== undefined) {
+        window.clearTimeout(this.pendingLowHealthStopTimer);
+        this.pendingLowHealthStopTimer = undefined;
+      }
+
+      if (shouldPlayLowHealth) {
+        this.sound.music.lowHealth.play(true);
+      } else {
+        const delay = this.musicMix.crossFadeSeconds * 1000 + 80;
+        this.pendingLowHealthStopTimer = window.setTimeout(() => {
+          if (!this.isLowHealthLayerActive) {
+            this.sound.music.lowHealth.stop();
+          }
+          this.pendingLowHealthStopTimer = undefined;
+        }, delay);
+      }
+
+      this.applyMusicTargets({ force: true });
+      return;
+    }
+
+    this.applyMusicTargets();
+  }
+
+  private stopAllMusic() {
+    if (this.pendingLowHealthStopTimer !== undefined) {
+      window.clearTimeout(this.pendingLowHealthStopTimer);
+      this.pendingLowHealthStopTimer = undefined;
+    }
+
+    this.sound.music.normal.fadeTo(0, 0.2);
+    this.sound.music.lowHealth.fadeTo(0, 0.2);
+
+    window.setTimeout(() => {
+      this.sound.music.normal.pause();
+      this.sound.music.lowHealth.stop();
+    }, 220);
+
+    this.lastNormalTarget = 0;
+    this.lastLowHealthTarget = 0;
+    this.isLowHealthLayerActive = false;
+  }
+
+  private startRoundMusic() {
+    if (this.pendingLowHealthStopTimer !== undefined) {
+      window.clearTimeout(this.pendingLowHealthStopTimer);
+      this.pendingLowHealthStopTimer = undefined;
+    }
+
+    this.isLowHealthLayerActive = false;
+    this.lastNormalTarget = -1;
+    this.lastLowHealthTarget = -1;
+
+    this.sound.music.lowHealth.stop();
+    this.sound.music.lowHealth.setVolume(0);
+
+    this.sound.music.normal.play();
+    this.sound.music.normal.setVolume(0);
+    this.sound.music.normal.fadeTo(
+      this.mixRegistry.getVolume("normalBgm"),
+      this.musicMix.roundStartFadeSeconds,
+    );
+    this.lastNormalTarget = this.mixRegistry.getVolume("normalBgm");
+    this.lastLowHealthTarget = 0;
+  }
+
+  private getRandomGameOverQuote(loser: CarName) {
+    const winner: CarName = loser === "carA" ? "carB" : "carA";
+    const idx = Math.floor(Math.random() * this.gameOverQuotes.length);
+    return this.gameOverQuotes[idx]
+      .replace(/\{loserColor\}/g, CarNameLabels[loser].colorName)
+      .replace(/\{winnerColor\}/g, CarNameLabels[winner].colorName);
+  }
+
+  private startGameOverSequence(loser: CarName) {
+    this.sound.effects.wastedVoice.play(this.mixRegistry.getVolume("gameOver"), 0);
+
+    const loserPos = this.physics.cartMSD.transforms[loser].center;
+    const xzJitter = 1;
+    const explosionPos = math.vec3(
+      loserPos[0] + (Math.random() * 2 - 1) * xzJitter,
+      loserPos[1] - 0.65,
+      loserPos[2] + (Math.random() * 2 - 1) * xzJitter,
+    );
+
+    this.spawnExplosion(explosionPos, {
+      blastRadius: 2,
+      blastImpulse: 100,
+      blastVerticalScale: 0.3,
+      withForce: true,
+      playSound: this.playGameOverExplosionSound,
+      soundVolume: this.mixRegistry.getVolume("gameOver"),
+    });
+
+    this.gameView.cameraPin = loser;
+    this.gameView.gimbalCam?.setOrigin(loserPos);
+    this.globalProps.timeMultiplier = 1;
+
+    if (this.gameOverSlowMoTimeout !== undefined) {
+      window.clearTimeout(this.gameOverSlowMoTimeout);
+    }
+
+    this.gameOverSlowMoTimeout = window.setTimeout(() => {
+      this.globalProps.timeMultiplier = this.gameOverTimeMultiplier;
+      this.gui?.showGameOverOverlay(this.getRandomGameOverQuote(loser), {
+        textDelayMs: this.gameOverTextRevealDelayMs,
+      });
+      this.gameOverSlowMoTimeout = undefined;
+    }, this.gameOverSlowMoDelayMs);
   }
 
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
@@ -844,6 +1207,10 @@ export class BumperCars extends BumperCarsBase {
       if (p.group.has("orbit")) {
         p.disabled = true;
         gmMatch.makeDamage(target, 1);
+        this.sound.effects.orbitHit.play({
+          pitchJitter: 0.08,
+          volumeJitter: 0.15,
+        });
       } else if (p.group.has("sawblade")) {
         if (this.armatures[source].isArmSpinning()) {
           gmMatch.makeDamage(target, 0.013);
@@ -853,11 +1220,13 @@ export class BumperCars extends BumperCarsBase {
         this.gui?.showMessage(
           `${CarNameLabels[target].labelName} picked up ${p.metadata}`,
         );
-        gmMatch.setPowerup(target, p.metadata as PowerUpKind);
-        if ((p.metadata as PowerUpKind) === "orbit") {
+        const powerup = p.metadata as PowerUpKind;
+        this.sound.effects.ability.play(powerup);
+        gmMatch.setPowerup(target, powerup);
+        if (powerup === "orbit") {
           this.physics.cartMSD.updateCarOrbits(0, true);
           this.physics.cartMSD.setOrbitStatus(target);
-        } else if ((p.metadata as PowerUpKind) === "heavy") {
+        } else if (powerup === "heavy") {
           this.physics.cartMSD.makeHeavy(target);
           this.setThrust(target, 240);
         }
@@ -867,8 +1236,63 @@ export class BumperCars extends BumperCarsBase {
 
   protected resetGame(): void {
     super.resetGame();
+    if (this.gameOverSlowMoTimeout !== undefined) {
+      window.clearTimeout(this.gameOverSlowMoTimeout);
+      this.gameOverSlowMoTimeout = undefined;
+    }
+    this.gameView.cameraPin = "follow";
+    this.gui?.hideGameOverOverlay();
     this.gameMatch.resetState();
     this.scheduler.reset("enable_physics");
+    this.lowHealthSmokeTimer.carA = 0;
+    this.lowHealthSmokeTimer.carB = 0;
+  }
+
+  private maybeSpawnLowHealthSmoke(
+    car: CarName,
+    carTransform: math.Mat4,
+    deltaSeconds: number,
+  ) {
+    if (this.isMatchOver || this.gameMatch.getHealth(car) > this.lowHealthThresholdPercent) {
+      this.lowHealthSmokeTimer[car] = 0;
+      return;
+    }
+
+    this.lowHealthSmokeTimer[car] += deltaSeconds;
+    if (this.lowHealthSmokeTimer[car] < this.lowHealthSmokeSpawnInterval) {
+      return;
+    }
+
+    const rightAxis = math.vec3(
+      carTransform[0][0],
+      carTransform[1][0],
+      carTransform[2][0],
+    );
+    const axisLen = Math.hypot(rightAxis[0], rightAxis[1], rightAxis[2]);
+    const forward = axisLen > 1e-6
+      ? math.vec3(
+          rightAxis[0] / axisLen,
+          rightAxis[1] / axisLen,
+          rightAxis[2] / axisLen,
+        )
+      : math.vec3(1, 0, 0);
+
+    const spawnPos = math.vec3(
+      carTransform[0][3] + forward[0] * this.lowHealthSmokeForwardOffset,
+      carTransform[1][3] + this.lowHealthSmokeUpOffset,
+      carTransform[2][3] + forward[2] * this.lowHealthSmokeForwardOffset,
+    );
+
+    this.spawnExplosion(spawnPos, {
+      visual: this.lowHealthSmokeVisual,
+      withForce: false,
+      playSound: false,
+    });
+
+    this.lowHealthSmokeTimer[car] = Math.max(
+      0,
+      this.lowHealthSmokeTimer[car] - this.lowHealthSmokeSpawnInterval,
+    );
   }
 
   protected setThrust(car: CarName, value: number) {
@@ -901,6 +1325,7 @@ export class BumperCars extends BumperCarsBase {
     const cartMSD = this.physics.cartMSD;
     const { carA: cartA, carB: cartB } = this.armatures;
     const { showMeshes, suddenDeath } = this.globalProps;
+    const explosionFx = this.drawables.explosionFx;
 
     const paused = !cartMSD.enable || this.globalProps.isIdling;
 
@@ -986,10 +1411,17 @@ export class BumperCars extends BumperCarsBase {
           }
         }
       }
+
+      const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
+      this.maybeSpawnLowHealthSmoke("carA", mtxCarA, timeDelta * timeMult);
+      this.maybeSpawnLowHealthSmoke("carB", mtxCarB, timeDelta * timeMult);
+
+      explosionFx.update(timeDelta * timeMult);
     }
 
     this.sound.effects.engine.setPaused(paused);
     this.sound.effects.collision.flush(paused);
+    this.syncMusicMix();
 
     // this pattern can be used to create a sky texture later
     GL.disable(GL.DEPTH_TEST);
@@ -1136,6 +1568,8 @@ export class BumperCars extends BumperCarsBase {
     );
 
     GL.depthMask(false);
+    GL.enable(GL.BLEND);
+    GL.blendFunc(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA);
     cartMSD.traverseBoxes((p, power) => {
       if (power == null) return;
       camSubjects.push(p.location);
@@ -1191,6 +1625,8 @@ export class BumperCars extends BumperCarsBase {
         "LINE_STRIP",
       );
     }
+    explosionFx.draw(context, this.uniforms);
+    GL.disable(GL.BLEND);
     GL.depthMask(true);
 
     // do this at the very end always
@@ -1312,15 +1748,68 @@ export class BumperCars extends BumperCarsBase {
     });
     this.new_line();
 
+    this.live_string((elem) => {
+      elem.textContent = "Mix Controls";
+    });
+    this.new_line();
+    this.key_triggered_button("master -", ["i"], () => {
+      this.stepMasterVolume(-0.05);
+    });
+    this.key_triggered_button("master +", ["o"], () => {
+      this.stepMasterVolume(0.05);
+    });
+    this.new_line();
+    this.key_triggered_button("music -", ["j"], () => {
+      this.stepMusicVolume(-0.05);
+    });
+    this.key_triggered_button("music +", ["k"], () => {
+      this.stepMusicVolume(0.05);
+    });
+    this.new_line();
+    this.key_triggered_button("sfx -", ["u"], () => {
+      this.stepSfxVolume(-0.05);
+    });
+    this.key_triggered_button("sfx +", ["y"], () => {
+      this.stepSfxVolume(0.05);
+    });
+    this.new_line();
+    this.key_triggered_button("next track", ["p"], () => {
+      this.cycleNormalTrack();
+    });
+    this.live_string((elem) => {
+      elem.style.paddingLeft = "20px";
+      elem.textContent = `master: ${Math.round(this.masterMixVolume * 100)}%`;
+    });
+    this.new_line();
+    this.live_string((elem) => {
+      elem.style.paddingLeft = "20px";
+      elem.textContent = `music: ${Math.round(this.musicMixVolume * 100)}%`;
+    });
+    this.new_line();
+    this.live_string((elem) => {
+      elem.style.paddingLeft = "20px";
+      elem.textContent = `sfx: ${Math.round(this.sfxMixVolume * 100)}%`;
+    });
+    this.new_line();
+    this.live_string((elem) => {
+      elem.style.paddingLeft = "20px";
+      elem.textContent = `track: ${this.bgmTracks[this.bgmTrackIndex]?.label ?? "Unknown"}`;
+    });
+    this.new_line();
+
     // other shortcuts
     this.key_triggered_button("pause", ["p"], () => {
       this.physics.cartMSD.enable = !this.physics.cartMSD.enable;
       if (this.physics.cartMSD.enable) {
-        this.sound.music.inMatch.setVolume(bgMusicVol);
-        this.sound.effects.sawBlade.carA.setVolume(bladeVolume);
-        this.sound.effects.sawBlade.carB.setVolume(bladeVolume);
+        this.applyMusicTargets({ force: true, fadeSeconds: 0.15 });
+        this.sound.effects.sawBlade.carA.setVolume(
+          bladeVolume * this.mixRegistry.getVolume("saw"),
+        );
+        this.sound.effects.sawBlade.carB.setVolume(
+          bladeVolume * this.mixRegistry.getVolume("saw"),
+        );
       } else {
-        this.sound.music.inMatch.setVolume(bgMusicVol * 0.25);
+        this.applyMusicTargets({ force: true, fadeSeconds: 0.15 });
         this.sound.effects.sawBlade.carA.setVolume(0);
         this.sound.effects.sawBlade.carB.setVolume(0);
       }
@@ -1369,5 +1858,35 @@ export class BumperCars extends BumperCarsBase {
     this.key_triggered_button("hard reset", ["t"], () => {
       this.resetGame();
     });
+    this.new_line();
+    this.key_triggered_button("spawn explosion", ["x"], () => {
+      this.spawnExplosion(math.vec3(0, 0.75, 0));
+    });
+  }
+
+  spawnExplosion(
+    position: math.Vector3,
+    options?: {
+      visual?: SpawnExplosionOptions;
+      blastRadius?: number;
+      blastImpulse?: number;
+      blastVerticalScale?: number;
+      withForce?: boolean;
+      playSound?: boolean;
+      soundVolume?: number;
+    },
+  ): void {
+    this.drawables.explosionFx.spawn(position, options?.visual);
+    if (options?.playSound ?? true) {
+      this.sound.effects.explosion.play(options?.soundVolume ?? 1);
+    }
+
+    if (options?.withForce ?? true) {
+      this.physics.cartMSD.applyRadialImpulse(position, {
+        radius: options?.blastRadius,
+        impulse: options?.blastImpulse,
+        verticalScale: options?.blastVerticalScale,
+      });
+    }
   }
 }
