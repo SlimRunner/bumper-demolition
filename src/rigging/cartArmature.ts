@@ -33,9 +33,15 @@ const PI2 = 2 * Math.PI;
 export type ArmatureEvents = {
   slash_started: {};
   blade_is_reaching: {
-    t: number;
+    time: number;
+    completion: number;
   };
   blade_retreated: {};
+  blade_is_returning: {
+    time: number;
+    completion: number;
+  };
+  blade_returned: {};
 };
 
 export class CartArmature implements EventEmitter<ArmatureEvents> {
@@ -412,14 +418,22 @@ export class CartArmature implements EventEmitter<ArmatureEvents> {
       const dt = timeDelta * anim.animRate;
 
       // SMELL: ngl this is a crap design because order matters...
-      if (anim.timing >= 1 && anim.timing <= 4) {
-        this.execListeners("blade_is_reaching", { t: anim.timing - 1 });
+      if (anim.timing > 1 && anim.timing <= 4) {
+        const time = anim.timing - 1;
+        const t = time / 3;
+        this.execListeners("blade_is_reaching", { time, completion: t });
+      } else if (anim.timing > 4 && anim.timing <= 5) {
+        const time = anim.timing - 4;
+        const t = time;
+        this.execListeners("blade_is_returning", { time, completion: t });
       }
 
       if (anim.timing == 0) {
         this.execListeners("slash_started", {});
       } else if (anim.timing < 4 && anim.timing + dt >= 4) {
         this.execListeners("blade_retreated", {});
+      } else if (anim.timing < 5 && anim.timing + dt >= 5) {
+        this.execListeners("blade_returned", {});
       }
 
       anim.timing = anim.timing + dt;

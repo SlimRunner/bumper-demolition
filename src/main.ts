@@ -34,8 +34,13 @@ import { CarNameLabels } from "./utils/text";
 import { splatMats, SplatShader } from "./shaders/splatShader";
 import { sdCylinderColumn } from "./linearAlgebra/sdfs";
 import { applyMeshTransform, computeTangents } from "./shapes/extendMesh";
+import { AudioSystem, SpatialSound } from "./audio/audioSystem";
+import { MusicPlayer } from "./audio/musicPlayer";
 
 type CarTarget = "carA" | "carB";
+
+const bladeVolume = 0.4;
+const bgMusicVol = 0.3;
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -137,9 +142,21 @@ export class BumperCarsBase extends tiny.Component {
   };
 
   gui?: GameGUI;
-  engineSound?: CarSound;
-  collisionSound?: CollisionSound;
-  bladeSlashSound?: BladeSlashSound;
+
+  sound: {
+    system: AudioSystem;
+    effects: {
+      engine: CarSound;
+      collision: CollisionSound;
+      sawBlade: {
+        carA: SpatialSound;
+        carB: SpatialSound;
+      };
+    };
+    music: {
+      inMatch: MusicPlayer;
+    };
+  };
 
   readonly lightCount = 7;
 
@@ -422,6 +439,81 @@ export class BumperCarsBase extends tiny.Component {
       cartMSD,
     };
 
+    const audioSystem = new AudioSystem();
+    this.sound = {
+      system: new AudioSystem(),
+      effects: {
+        engine: new CarSound(audioSystem, "../assets/sounds/motor-sound3.mp3"),
+        collision: new CollisionSound(
+          "../assets/sounds/car-collision-slow.mp3",
+          "../assets/sounds/car-collision-fast.mp3",
+        ),
+        sawBlade: {
+          carA: new SpatialSound(
+            audioSystem,
+            "../assets/sounds/saw-running-82131.mp3",
+          ),
+          carB: new SpatialSound(
+            audioSystem,
+            "../assets/sounds/saw-running-82131.mp3",
+          ),
+        },
+      },
+      music: {
+        // fking awesome cover: https://www.youtube.com/watch?v=JTO5uj1-ND0
+        inMatch: new MusicPlayer("../assets/sounds/batmap-stage-1-cover-trim.mp3"),
+      },
+    };
+
+    const {carA: soundBladeA, carB: soundBladeB} = this.sound.effects.sawBlade;
+
+    soundBladeA.preservesPitch = false;
+    soundBladeB.preservesPitch = false;
+
+    this.armatures.carA.addEventListener("slash_started", () => {
+      soundBladeA.play(bladeVolume);
+      soundBladeA.setRate(1);
+    });
+    this.armatures.carA.addEventListener("blade_is_reaching", () => {
+      cartMSD.enableSparks("carA");
+    });
+    this.armatures.carA.addEventListener(
+      "blade_is_returning",
+      ({ completion }) => {
+        const t = smoothstep(1 - completion);
+        soundBladeA.setRate(lerp(1, 0.8, completion));
+        soundBladeA.setVolume(bladeVolume * t);
+      },
+    );
+    this.armatures.carA.addEventListener("blade_retreated", () => {
+      cartMSD.disableSparks("carA");
+    });
+    this.armatures.carA.addEventListener("blade_returned", () => {
+      soundBladeA.stop();
+    });
+
+    this.armatures.carB.addEventListener("slash_started", () => {
+      soundBladeB.play(bladeVolume);
+      soundBladeA.setRate(1);
+    });
+    this.armatures.carB.addEventListener("blade_is_reaching", () => {
+      cartMSD.enableSparks("carB");
+    });
+    this.armatures.carB.addEventListener(
+      "blade_is_returning",
+      ({ completion }) => {
+        const t = smoothstep(1 - completion);
+        soundBladeB.setRate(lerp(1, 0.8, completion));
+        soundBladeB.setVolume(bladeVolume * t);
+      },
+    );
+    this.armatures.carB.addEventListener("blade_retreated", () => {
+      cartMSD.disableSparks("carB");
+    });
+    this.armatures.carB.addEventListener("blade_returned", () => {
+      soundBladeB.stop();
+    });
+
     document.addEventListener("visibilitychange", () => {
       // this prevents the window from hanging due to the physics loop
       // (which has a fixed time delta) trying to step through a large
@@ -456,6 +548,12 @@ export class BumperCarsBase extends tiny.Component {
     canvas.parentElement?.insertBefore(canvasDiv, canvas);
     canvasDiv.insertBefore(canvas, null);
 
+    const resumeUser = () => {
+      this.sound.system.resume();
+      canvas.removeEventListener("click", resumeUser);
+    };
+    canvas.addEventListener("click", resumeUser);
+
     this.gui = new GameGUI(canvasDiv);
 
     const fov = (Math.PI * 60) / 180;
@@ -479,28 +577,6 @@ export class BumperCarsBase extends tiny.Component {
     };
 
     this.gui.resetState();
-
-    if (!this.engineSound) {
-      this.engineSound = new CarSound("../assets/sounds/motor-sound3.mp3");
-    }
-    if (!this.collisionSound) {
-      this.collisionSound = new CollisionSound(
-        "../assets/sounds/car-collision-slow.mp3",
-        "../assets/sounds/car-collision-fast.mp3",
-      );
-    }
-    if (!this.bladeSlashSound) {
-      this.bladeSlashSound = new BladeSlashSound(
-        "../assets/sounds/blade-slash1.mp3",
-        "../assets/sounds/blade-slash2.mp3",
-      );
-      this.armatures.carA.addEventListener("slash_started", () => {
-        this.bladeSlashSound?.play();
-      });
-      this.armatures.carB.addEventListener("slash_started", () => {
-        this.bladeSlashSound?.play();
-      });
-    }
   }
 
   render_animation(context: tiny.Component): void {
@@ -660,10 +736,14 @@ export class BumperCars extends BumperCarsBase {
 
     const gameEvents: SchedulerEvent<EventNamespace>[] = [
       // TODO: camera looking to the sky to let the meshes load out of sight
-      { type: "event", ident: "intro_look_up", isExpired: (t) => {
-        this.gui?.showMessage(Math.ceil(4 - t).toString());
-        return t >= 4;
-      } },
+      {
+        type: "event",
+        ident: "intro_look_up",
+        isExpired: (t) => {
+          this.gui?.showMessage(Math.ceil(4 - t).toString());
+          return t >= 4;
+        },
+      },
 
       /* TODO: cinematic pan over the players
       { type: "timed", ident: "intro_line_up_A", duration: 2 },
@@ -690,6 +770,8 @@ export class BumperCars extends BumperCarsBase {
             // count down?
             break;
           case "enable_physics":
+            this.sound.music.inMatch.play();
+            this.sound.music.inMatch.setVolume(0.3);
             this.physics.cartMSD.enable = true;
             break;
           case "match_loop":
@@ -717,19 +799,6 @@ export class BumperCars extends BumperCarsBase {
         winner = undefined;
       },
     );
-
-    armatureA.addEventListener("blade_is_reaching", ({ t: time }) => {
-      cartMSD.enableSparks("carA");
-    });
-    armatureA.addEventListener("blade_retreated", () => {
-      cartMSD.disableSparks("carA");
-    });
-    armatureB.addEventListener("blade_is_reaching", ({ t: time }) => {
-      cartMSD.enableSparks("carB");
-    });
-    armatureB.addEventListener("blade_retreated", () => {
-      cartMSD.disableSparks("carB");
-    });
   }
 
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
@@ -748,7 +817,8 @@ export class BumperCars extends BumperCarsBase {
       // later if you prefer (0.5*m*v^2 loss etc.)
       const other: CarTarget = player === "carA" ? "carB" : "carA";
       gmMatch.makeDamage(other, impulse * 0.04);
-      this.collisionSound?.accumulate(impulse);
+      this.sound.effects.collision.accumulate(impulse);
+      // this.collisionSound?.accumulate(impulse);
     };
 
     cartMSD.msdSystem.trespassCB = (p, field) => {
@@ -874,7 +944,7 @@ export class BumperCars extends BumperCarsBase {
         groundSpeeds.carA,
         groundSpeeds.carB,
       );
-      this.engineSound?.update({
+      this.sound.effects.engine.update({
         carA: {
           speed: avgWheelSpeed.carA,
           pos: cartMSD.transforms.carA.center,
@@ -913,8 +983,8 @@ export class BumperCars extends BumperCarsBase {
       }
     }
 
-    this.engineSound?.setPaused(paused);
-    this.collisionSound?.flush(paused);
+    this.sound.effects.engine.setPaused(paused);
+    this.sound.effects.collision.flush(paused);
 
     // this pattern can be used to create a sky texture later
     GL.disable(GL.DEPTH_TEST);
@@ -1238,8 +1308,17 @@ export class BumperCars extends BumperCarsBase {
     this.new_line();
 
     // other shortcuts
-    this.key_triggered_button("toggle physics", ["p"], () => {
+    this.key_triggered_button("pause", ["p"], () => {
       this.physics.cartMSD.enable = !this.physics.cartMSD.enable;
+      if (this.physics.cartMSD.enable) {
+        this.sound.music.inMatch.setVolume(bgMusicVol);
+        this.sound.effects.sawBlade.carA.setVolume(bladeVolume);
+        this.sound.effects.sawBlade.carB.setVolume(bladeVolume);
+      } else {
+        this.sound.music.inMatch.setVolume(bgMusicVol * 0.25);
+        this.sound.effects.sawBlade.carA.setVolume(0);
+        this.sound.effects.sawBlade.carB.setVolume(0);
+      }
     });
     this.new_line();
     this.key_triggered_button("normal speed", ["v"], () => {
