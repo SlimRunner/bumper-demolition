@@ -12,11 +12,11 @@ export class CarSound {
   private ctx: AudioContext | null = null;
   private paused = false;
 
-  private readonly minVolume = 0.05;
-  private readonly maxVolume = 0.35;
+  private readonly minVolume = 0.2;
+  private readonly maxVolume = 0.6;
 
   private readonly minRate = 0.8;
-  private readonly maxRate = 3.5;
+  private readonly maxRate = 2.5;
 
   constructor(
     src: string,
