@@ -41,7 +41,7 @@ import { screenMats, ScreenShader } from "./shaders/fullscreenShader";
 type CarTarget = "carA" | "carB";
 
 const bladeVolume = 0.4;
-const bgMusicVol = 0.3;
+const bgMusicVol = 0.20;
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
