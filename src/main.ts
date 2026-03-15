@@ -216,7 +216,7 @@ export class BumperCarsBase extends tiny.Component {
       columnOfDeath: math.color(1, 1, 1, 0.06),
       columnOfWires: math.color(1, 0.66, 0.33, 0.1),
       columnOfDeathLight: math.color(1, 0.66, 0.33, 1),
-      blackShade: math.color(0, 0, 0, 0.8),
+      blackShade: math.color(0, 0, 0, 0.6),
     };
 
     this.transforms = {
