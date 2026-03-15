@@ -36,6 +36,7 @@ import { sdCylinderColumn } from "./linearAlgebra/sdfs";
 import { applyMeshTransform, computeTangents } from "./shapes/extendMesh";
 import { AudioSystem, SpatialSound } from "./audio/audioSystem";
 import { MusicPlayer } from "./audio/musicPlayer";
+import { screenMats, ScreenShader } from "./shaders/fullscreenShader";
 import { AudioMixRegistry, defaultMixChannels } from "./audio/mixRegistry";
 import { AbilityPickupSound } from "./audio/abilityPickupSound";
 import {
@@ -70,6 +71,7 @@ export class BumperCarsBase extends tiny.Component {
     cyl: defs.Cylindrical_Tube;
     ball: defs.Subdivision_Sphere;
     column: defs.Cylindrical_Tube;
+    quad: defs.Square;
   };
   colors: {
     readonly red: math.Vector4;
@@ -87,6 +89,7 @@ export class BumperCarsBase extends tiny.Component {
     readonly columnOfDeath: math.Vector4;
     readonly columnOfWires: math.Vector4;
     readonly columnOfDeathLight: math.Vector4;
+    readonly blackShade: math.Vector4;
     sunAmbient: math.Vector4;
     sunColor: math.Vector4;
     skyHorizon: math.Vector4;
@@ -119,6 +122,9 @@ export class BumperCarsBase extends tiny.Component {
     splats: {
       shader: SplatShader;
     } & splatMats;
+    screen: {
+      shader: ScreenShader;
+    } & screenMats;
   };
   armatures: {
     carA: CartArmature;
@@ -210,6 +216,7 @@ export class BumperCarsBase extends tiny.Component {
       columnOfDeath: math.color(1, 1, 1, 0.06),
       columnOfWires: math.color(1, 0.66, 0.33, 0.1),
       columnOfDeathLight: math.color(1, 0.66, 0.33, 1),
+      blackShade: math.color(0, 0, 0, 0.6),
     };
 
     this.transforms = {
@@ -256,6 +263,14 @@ export class BumperCarsBase extends tiny.Component {
         shader: new SplatShader(),
         color: this.colors.white,
         point_size: 150,
+      },
+      screen: {
+        shader: new ScreenShader(),
+        // color: this.colors.blackShade,
+        color1: this.colors.blackShade,
+        color2: this.colors.blackShade,
+        hp1: 1,
+        hp2: 1,
       },
     };
 
@@ -330,8 +345,10 @@ export class BumperCarsBase extends tiny.Component {
       uvScaling: math.Vector.create(75, 75),
       lightCount: this.lightCount,
     });
+    const singleQuad = new defs.Square();
 
     this.shapes = {
+      quad: singleQuad,
       grid: grid,
       box: cubeShape,
       cyl: closedTube,
@@ -358,7 +375,7 @@ export class BumperCarsBase extends tiny.Component {
         duration: 30,
         timer: 0,
         enabled: false,
-        damageRate: (t, d) => 20,
+        damageRate: (t, d) => t * d * 1.5,
       },
     };
 
@@ -523,7 +540,8 @@ export class BumperCarsBase extends tiny.Component {
     this.sound.music.normal.setVolume(0);
     this.sound.music.lowHealth.setVolume(0);
 
-    const {carA: soundBladeA, carB: soundBladeB} = this.sound.effects.sawBlade;
+    const { carA: soundBladeA, carB: soundBladeB } =
+      this.sound.effects.sawBlade;
 
     soundBladeA.preservesPitch = false;
     soundBladeB.preservesPitch = false;
@@ -747,6 +765,7 @@ type EventNamespace =
 export class BumperCars extends BumperCarsBase {
   gameMatch: MatchManager;
   scheduler: Scheduler<EventNamespace, SchedulerEvent<EventNamespace>>;
+  powerupSpawnCount: number = 0;
   private isMatchOver = false;
   private winner?: CarName;
   private readonly mixRegistry = new AudioMixRegistry(defaultMixChannels);
@@ -845,16 +864,16 @@ export class BumperCars extends BumperCarsBase {
       this.startGameOverSequence(args.loser);
     });
     this.gameMatch.addEventListener("powerSpawn", (args) => {
-      switch (args.count) {
-        case 0:
-          cartMSD.spawnPowerup(args.kind, math.vec3(0, 0.75, 10));
-          break;
-        case 1:
-          cartMSD.spawnPowerup(args.kind, math.vec3(0, 0.75, -10));
-          break;
-        default:
-          cartMSD.spawnPowerup(args.kind);
+      if (this.powerupSpawnCount < 2) {
+        const pos =
+          this.powerupSpawnCount === 0
+            ? math.vec3(0, 0.75, 10)
+            : math.vec3(0, 0.75, -10);
+        cartMSD.spawnPowerup(args.kind, pos);
+      } else {
+        cartMSD.spawnPowerup(args.kind);
       }
+      this.powerupSpawnCount++;
     });
     this.gameMatch.addEventListener("powerExpires", (args) => {
       switch (args.kind) {
@@ -1244,6 +1263,7 @@ export class BumperCars extends BumperCarsBase {
     this.gui?.hideGameOverOverlay();
     this.gameMatch.resetState();
     this.scheduler.reset("enable_physics");
+    this.powerupSpawnCount = 0;
     this.lowHealthSmokeTimer.carA = 0;
     this.lowHealthSmokeTimer.carB = 0;
   }
@@ -1568,7 +1588,6 @@ export class BumperCars extends BumperCarsBase {
     );
 
     GL.depthMask(false);
-    GL.enable(GL.BLEND);
     GL.blendFunc(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA);
     cartMSD.traverseBoxes((p, power) => {
       if (power == null) return;
@@ -1626,7 +1645,14 @@ export class BumperCars extends BumperCarsBase {
       );
     }
     explosionFx.draw(context, this.uniforms);
-    GL.disable(GL.BLEND);
+    if (paused && this.gameView.cameraPin === "follow") {
+      this.shapes.quad.draw(
+        context,
+        this.uniforms,
+        this.transforms.identity,
+        this.materials.screen,
+      );
+    }
     GL.depthMask(true);
 
     // do this at the very end always
