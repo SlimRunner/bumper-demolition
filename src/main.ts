@@ -347,7 +347,7 @@ export class BumperCarsBase extends tiny.Component {
         duration: 30,
         timer: 0,
         enabled: false,
-        damageRate: (t, d) => 20,
+        damageRate: (t, d) => t * d * 1.5,
       },
     };
 
