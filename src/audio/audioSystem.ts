@@ -43,6 +43,8 @@ export class SpatialSound {
   private panner: StereoPannerNode;
   private gain: GainNode;
 
+  private _playing = false;
+
   constructor(private audioSystem: AudioSystem, src: string) {
     this.audio = new Audio(src);
     this.audio.preload = "auto";
@@ -64,6 +66,7 @@ export class SpatialSound {
   }
 
   play(volume = 1) {
+    this._playing = true;
     const ctx = this.audioSystem.ctx;
 
     this.audio.currentTime = 0;
@@ -75,6 +78,7 @@ export class SpatialSound {
   }
 
   stop() {
+    this._playing = false;
     const ctx = this.audioSystem.ctx;
 
     const t = ctx.currentTime;
@@ -84,6 +88,7 @@ export class SpatialSound {
     this.gain.gain.linearRampToValueAtTime(0, t + 0.2);
 
     setTimeout(() => {
+      if (this._playing) return;
       this.audio.pause();
       this.audio.currentTime = 0;
     }, 200);
