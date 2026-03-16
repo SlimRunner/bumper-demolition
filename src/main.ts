@@ -834,7 +834,8 @@ export class BumperCars extends BumperCarsBase {
     "{loserColor}, {loserColor}, what's your problem {loserColor}? Me stay alone ramp, me stay alone ramp",
     "{loserColor} fainted.",
     "That's it {loserColor}, play dead we got em right where we-... oh dear",
-    "{loserColor} died before GTA 6"
+    "{loserColor} died before GTA 6",
+    "*ring* *ring* {loserColor} Answer me! {loserColor} {loserColor}!!!!!!"
   ];
 
   constructor() {
@@ -1319,8 +1320,10 @@ export class BumperCars extends BumperCarsBase {
     switch (car) {
       case "carA":
         this.armatures.carA.maxThrust = value;
+        break;
       case "carB":
         this.armatures.carB.maxThrust = value;
+        break;
     }
   }
 
