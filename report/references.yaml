@@ -5,6 +5,7 @@ pajunen-skybox:
   author: pajunen
   date: 2020-05-02
   url: https://www.shadertoy.com/view/wslfD7
+
 cs174a-project:
   type: Web
   title: Ripple Rampage
@@ -14,9 +15,75 @@ cs174a-project:
     - Phung, Corwin
   date: 2026
   url: https://github.com/SlimRunner/cs174a-project-w24
+
 quilez-sdf:
   type: Article
   title: Distance Functions
   author: Quilez, Inigo
   date: 2026
   url: https://iquilezles.org/articles/distfunctions/
+
+engine-sim:
+  type: Web
+  title: Engine Sim Community Edition
+  author: 
+    - Yaghi, Ange
+    - Perceus
+  date: 2023
+  url: https://github.com/Engine-Simulator/engine-sim-community-edition/
+
+car-model:
+  type: Web
+  title: Low Poly Camper Van
+  author: SwordSan
+  date: 2025
+  url: https://skfb.ly/pwVIF
+saw-blade:
+  type: Web
+  title: Saw Blade
+  author: Dogan Kirnaz
+  date: 2023
+  url: https://skfb.ly/oCxDK
+ultrakill-assets:
+  type: Web
+  title: Various Assets from the hit game Ultrakill
+  author: 
+    - Arsi "Hakita" Patala
+    - New Blood Interactive
+  date: 2020
+  url: https://store.steampowered.com/app/1229490/ULTRAKILL/
+batman-nes-remix:
+  type: Web
+  title: Batman Nes Theme (Synthwave Remake/ Cover) | Streets of Desolation | LS3
+  author: thebadsociety
+  date: 2021
+  url: https://youtu.be/exhRZAn7gj0
+pokemon-lowHp-theme:
+  type: Web
+  title: Hang On! Low HP Theme for Battle VS Champion Zephyr (World Tournament Style)
+  author: Lala19357 - The Zephyr
+  date: 2012
+  url: https://youtu.be/fCiHSZzuwdc
+deadlock-assets:
+  type: Web
+  title: Various Assets from the game Deadlock
+  author: Valve Software
+  url: https://store.steampowered.com/app/1422450/Deadlock
+lol-assets:
+  type: Web
+  title: Orbit Icon Inspiration Aurelion Sol Ability Icon
+  author: Riot Games
+  date: 2009
+  url: https://www.leagueoflegends.com/en-us/
+gta5-assets:
+  type: Web
+  title: GTA 5 Wasted Sound Effect
+  author: Rockstar Games
+  date: 2013
+  url: https://www.rockstargames.com/gta-v
+deltarune-explosion:
+  type: Web
+  title: Deltarune Explosion Sound Effect
+  author: Toby Fox
+  date: 2018
+  url: https://deltarune.com
