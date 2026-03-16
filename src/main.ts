@@ -1775,6 +1775,12 @@ export class BumperCars extends BumperCarsBase {
     this.live_string((elem) => {
       elem.textContent = "GUI Debug";
     });
+    this.key_triggered_button("set Car A HP to 0", ["g"], () => {
+      this.gameMatch.makeDamage("carA", this.gameMatch.getHealth("carA"));
+    });
+    this.key_triggered_button("set Car B HP to 0", ["b"], () => {
+      this.gameMatch.makeDamage("carB", this.gameMatch.getHealth("carB"));
+    });
     this.new_line();
 
     this.live_string((elem) => {
@@ -1881,6 +1887,10 @@ export class BumperCars extends BumperCarsBase {
     this.live_string((elem) => {
       elem.style.paddingLeft = "20px";
       elem.textContent = `meshes: ${this.globalProps.showMeshes ? "ON" : "OFF"}`;
+    });
+    this.new_line();
+    this.key_triggered_button("toggle GUI", ["h"], () => {
+      this.gui?.toggleVisibility();
     });
     this.new_line();
     this.key_triggered_button("hard reset", ["t"], () => {

@@ -244,6 +244,10 @@ export class GameGUI implements MatchGui {
     this.gameOverOverlay.classList.add("hidden");
   }
 
+  toggleVisibility(): void {
+    this.root.classList.toggle("hidden");
+  }
+
   resetState(): void {
     this.elapsedSeconds = 0;
     this.timerValue.textContent = this.formatClock(0);
@@ -351,6 +355,10 @@ export class GameGUI implements MatchGui {
         pointer-events: none;
         font-family: "DeadlockFont", "Segoe UI", Tahoma, sans-serif;
         color: #ffffff;
+      }
+
+      .gui.hidden {
+        display: none;
       }
 
       .card {
