@@ -1799,7 +1799,7 @@ export class BumperCars extends BumperCarsBase {
       this.stepSfxVolume(0.05);
     });
     this.new_line();
-    this.key_triggered_button("next track", ["p"], () => {
+    this.key_triggered_button("next track", ["n"], () => {
       this.cycleNormalTrack();
     });
     this.live_string((elem) => {
@@ -1841,14 +1841,13 @@ export class BumperCars extends BumperCarsBase {
       }
     });
     this.new_line();
-    this.key_triggered_button("normal speed", ["v"], () => {
+    this.key_triggered_button("normal speed", [","], () => {
       this.globalProps.timeMultiplier = 1;
     });
-    this.new_line();
-    this.key_triggered_button("10x slow-mo", ["b"], () => {
+    this.key_triggered_button("10x slow-mo", ["."], () => {
       this.globalProps.timeMultiplier = 1 / 10;
     });
-    this.key_triggered_button("100x slow-mo", ["n"], () => {
+    this.key_triggered_button("100x slow-mo", ["/"], () => {
       this.globalProps.timeMultiplier = 1 / 100;
     });
     this.new_line();
