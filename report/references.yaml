@@ -1,22 +1,22 @@
 # https://github.com/typst/hayagriva/blob/main/docs/file-format.md
-pajunen:
+pajunen-skybox:
   type: Web
   title: Hosek-Wilkie Skylight Model
   author: pajunen
   date: 2020-05-02
   url: https://www.shadertoy.com/view/wslfD7
-char:
+cs174a-project:
   type: Web
   title: Ripple Rampage
   author:
-    - Shriya, Char
-    - Mario, Flores
-    - Corwin, Phung
+    - Char, Shriya
+    - Flores, Mario
+    - Phung, Corwin
   date: 2026
   url: https://github.com/SlimRunner/cs174a-project-w24
-quilez:
+quilez-sdf:
   type: Article
   title: Distance Functions
-  author: Inigo Quilez
+  author: Quilez, Inigo
   date: 2026
   url: https://iquilezles.org/articles/distfunctions/
