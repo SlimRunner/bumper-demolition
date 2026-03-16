@@ -83,9 +83,7 @@ export class GimbalCamera {
       this.mseY = ev.screenY;
     });
     target.addEventListener("dblclick", (ev) => {
-      this.offset[0] = 0;
-      this.offset[1] = 0;
-      this.offset[2] = 0;
+      this.clearOffset();
     });
     target.addEventListener("wheel", (ev) => {
       ev.preventDefault();
@@ -102,6 +100,12 @@ export class GimbalCamera {
 
   setOrigin(pos: math.Vector3) {
     this.center = pos;
+  }
+
+  clearOffset() {
+    this.offset[0] = 0;
+    this.offset[1] = 0;
+    this.offset[2] = 0;
   }
 
   getCameraTransform() {

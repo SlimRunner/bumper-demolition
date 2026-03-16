@@ -1182,7 +1182,10 @@ export class BumperCars extends BumperCarsBase {
       soundVolume: this.mixRegistry.getVolume("gameOver"),
     });
 
+    // BUGBUG: this relies on the debug which might not always be
+    // "centered". A new camera should be created for this.
     this.gameView.cameraPin = loser;
+    this.gameView.gimbalCam?.clearOffset();
     this.gameView.gimbalCam?.setOrigin(loserPos);
     this.globalProps.timeMultiplier = 1;
 
@@ -1510,6 +1513,7 @@ export class BumperCars extends BumperCarsBase {
     switch (this.gameView.cameraPin) {
       case "follow":
       case "detached":
+        this.gameView.gimbalCam?.setOrigin(math.vec3(0, 0, 0));
         break;
       case "carA":
         this.gameView.gimbalCam?.setOrigin(carAPos);
