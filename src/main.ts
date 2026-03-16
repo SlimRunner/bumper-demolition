@@ -1538,7 +1538,12 @@ export class BumperCars extends BumperCarsBase {
       cartB.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
         if (name === "saw") {
-          cartMSD.setBlade("carB", matrix[0][3], matrix[1][3], matrix[2][3]);
+          cartMSD.setBlade(
+            "carB",
+            matrix[0][3],
+            matrix[1][3] - 0.2,
+            matrix[2][3],
+          );
         }
 
         if (node.shape instanceof FileMesh) {
@@ -1563,13 +1568,23 @@ export class BumperCars extends BumperCarsBase {
       cartA.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
         if (name === "saw") {
-          cartMSD.setBlade("carA", matrix[0][3], matrix[1][3], matrix[2][3]);
+          cartMSD.setBlade(
+            "carA",
+            matrix[0][3],
+            matrix[1][3] - 0.2,
+            matrix[2][3],
+          );
         }
       }, mtxCarA);
       cartB.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
         if (name === "saw") {
-          cartMSD.setBlade("carB", matrix[0][3], matrix[1][3], matrix[2][3]);
+          cartMSD.setBlade(
+            "carB",
+            matrix[0][3],
+            matrix[1][3] - 0.2,
+            matrix[2][3],
+          );
         }
       }, mtxCarB);
       this.drawables.cartFrame.draw(
