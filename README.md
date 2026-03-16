@@ -30,13 +30,13 @@ Our game will be based on Bumper Cars. It is a 2-player game where the goal of t
 
 In addition each car is equipped with a mechanic arm with a saw. Unlike the power ups which automatically enable on pick up, this one is user controlled. It swings right in front of the car.
 
-The game has a 4 minute time limit. If at the end of that time no player has won, a sudden death stage begins where a circle closes on the arena. Standing outside the cirlce makes constant damage. Only one can come out victorious!
+The game has a 2 minute time limit. If at the end of that time no player has won, a sudden death stage begins where a circle closes on the arena. Standing outside the cirlce makes constant damage. Only one can come out victorious!
 
 The gameplay cycle:
 1. Game starts with both cars looking at each other on opposite ends of the arena (they both have a power up in front)
-2. 3 second countdown to start game
-3. The game continues for 4 minutes until one player dies
-4. After time limit the arena starts closing for a extra 1 minute
+2. 4 second countdown to start game
+3. The game continues 1 minutes and 30 seconds until one player dies
+4. After time limit the arena starts closing for 30 seconds
 5. After winner is announced return to 1
 
 ## Documentation

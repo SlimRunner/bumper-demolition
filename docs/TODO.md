@@ -14,12 +14,12 @@ A tentative and non-exhaustive TODO list
   - [x] create a function to make the arm swing forward or back ward (think of a scorpion strikes)
   - [x] create a function to manage wheel rotation
   - [x] create a function to manage steer rotation (see link for steer geometry below)
-- [ ] create a way to manage the game state
+- [x] create a way to manage the game state
   - [x] timer for game cycle
   - [x] health of each car
   - [x] allow game to be reset
   - [x] manage game cycling transition
-  - [ ] add a sudden death circle of death
+  - [x] add a sudden death circle of death
 - [x] add a library to manage mass-spring-damper (MSD) frame
   - [x] add a way to assign signed distance fields to nodes (search Inigo Quilez)
   - [x] add a rolling-friction model assignable to nodes (for tires)
@@ -32,7 +32,7 @@ A tentative and non-exhaustive TODO list
     - [x] show timer in between health bars
     - [x] show WIN toast at the end
   - [x] tracking score
-- [ ] prettify game
+- [x] prettify game
   - [x] find nice meshes
     - [x] arena floor
     - [x] arena walls
@@ -56,7 +56,7 @@ A tentative and non-exhaustive TODO list
   - [x] add sound
     - [x] engine sound
     - [x] collision sound
-    - [ ] music?
+    - [x] music?
 
 ## Algorithms
 
@@ -78,5 +78,6 @@ A tentative and non-exhaustive TODO list
 
 - [ ] light poles for night time lights
 - [ ] add dynamic lighting for orbits and sparks
-- [ ] add saw blade sound while the blade is running (listener is alredy implemented)
-- [ ] add a nice intro animation with dynamic cameras
+- [x] add saw blade sound while the blade is running (listener is alredy implemented)
+- [x] add a nice intro/outro animation with dynamic cameras
+- [x] add explosion animation when player is defeated
