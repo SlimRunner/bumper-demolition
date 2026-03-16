@@ -1,10 +1,10 @@
 import { clamp } from "../utils/math";
-import { math } from "../../tiny-graphics-math"
+import { math } from "../../tiny-graphics-math";
 
 export function computePan(
   objPos: math.Vector3,
   camPos: math.Vector3,
-  camRight: math.Vector3
+  camRight: math.Vector3,
 ): number {
   const toObj = objPos.minus(camPos);
   const dist = Math.max(toObj.norm(), 0.001);
@@ -45,7 +45,10 @@ export class SpatialSound {
 
   private _playing = false;
 
-  constructor(private audioSystem: AudioSystem, src: string) {
+  constructor(
+    private audioSystem: AudioSystem,
+    src: string,
+  ) {
     this.audio = new Audio(src);
     this.audio.preload = "auto";
     this.audio.load();
@@ -70,7 +73,7 @@ export class SpatialSound {
     const ctx = this.audioSystem.ctx;
 
     this.audio.currentTime = 0;
-    this.audio.play().catch(()=>{});
+    this.audio.play().catch(() => {});
 
     this.gain.gain.cancelScheduledValues(ctx.currentTime);
     this.gain.gain.setValueAtTime(0, ctx.currentTime);

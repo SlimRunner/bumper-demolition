@@ -52,7 +52,7 @@ export function* zipgen<T extends any[]>(
 
   while (true) {
     const results = iterators.map((iter) => iter.next());
-    
+
     // If any iterator is done, we stop
     if (results.some((res) => res.done)) {
       return;

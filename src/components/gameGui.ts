@@ -152,7 +152,13 @@ export class GameGUI implements MatchGui {
     this.gameOverOverlay.append(gameOverBody);
 
     bottomCenter.appendChild(this.messageBox);
-    this.root.append(topLeft, topCenter, topRight, bottomCenter, this.gameOverOverlay);
+    this.root.append(
+      topLeft,
+      topCenter,
+      topRight,
+      bottomCenter,
+      this.gameOverOverlay,
+    );
     this.host.appendChild(this.root);
 
     this.resetState();
