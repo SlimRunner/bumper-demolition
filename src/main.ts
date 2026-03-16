@@ -358,7 +358,7 @@ export class BumperCarsBase extends tiny.Component {
 
     this.gameView = {
       aspectRatio: 16 / 9,
-      fov: Math.PI / 4,
+      fov: (Math.PI * 60) / 180,
       cameraPin: "follow",
     };
 
@@ -643,7 +643,7 @@ export class BumperCarsBase extends tiny.Component {
 
     this.gui = new GameGUI(canvasDiv);
 
-    const fov = (Math.PI * 60) / 180;
+    const fov = this.gameView.fov;
     const aspectRatio = this.width / this.height;
     this.gameView = {
       gimbalCam: new GimbalCamera(canvas, {
