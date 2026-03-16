@@ -7,6 +7,7 @@ export class GimbalCamera {
   private rollAngle: number;
   private distance: number;
   private center: math.Vector3;
+  private offset: math.Vector3;
   mseX?: number;
   mseY?: number;
   mouseLatch: "none" | "left" | "right" | "middle" = "none";
@@ -22,12 +23,14 @@ export class GimbalCamera {
       pitchAngle?: number;
       rollAngle?: number;
       center?: math.Vector3;
+      offset?: math.Vector3;
     },
   ) {
     this.pitchAngle = initial?.pitchAngle ?? 0;
     this.rollAngle = initial?.rollAngle ?? 0;
     this.distance = initial?.distance ?? 1;
     this.center = initial?.center ?? math.vec3(0, 0, 0);
+    this.offset = math.vec3(0, 0, 0);
 
     target.addEventListener("mousedown", (ev) => {
       switch (ev.button) {
@@ -68,21 +71,21 @@ export class GimbalCamera {
         const cs = Math.cos(this.rollAngle + Math.PI);
         const sn = Math.sin(this.rollAngle + Math.PI);
         const vel = this.sensitivity.mouse * this.distance * 0.25;
-        this.center[0] += (xd * sn + yd * cs) * vel;
-        this.center[2] -= (xd * cs - yd * sn) * vel;
+        this.offset[0] += (xd * sn + yd * cs) * vel;
+        this.offset[2] -= (xd * cs - yd * sn) * vel;
       } else if (this.mouseLatch === "left" && modKey === 2) {
         ev.preventDefault();
         const yd = (ev.screenY - this.mseY) * (flip ? -1 : 1);
         const vel = this.sensitivity.mouse * this.distance * 0.25;
-        this.center[1] += yd * vel;
+        this.offset[1] += yd * vel;
       }
       this.mseX = ev.screenX;
       this.mseY = ev.screenY;
     });
     target.addEventListener("dblclick", (ev) => {
-      this.center[0] = 0;
-      this.center[1] = 0;
-      this.center[2] = 0;
+      this.offset[0] = 0;
+      this.offset[1] = 0;
+      this.offset[2] = 0;
     });
     target.addEventListener("wheel", (ev) => {
       ev.preventDefault();
@@ -113,10 +116,15 @@ export class GimbalCamera {
         this.distance * sn,
         this.distance * z1 * cs,
       )
-      .plus(this.center);
+      .plus(this.center)
+      .plus(this.offset);
     const upAxis = cs >= 0 ? math.vec3(0, 1, 0) : math.vec3(0, -1, 0);
     return {
-      cameraMatrix: math.Mat4.look_at(pos, this.center, upAxis),
+      cameraMatrix: math.Mat4.look_at(
+        pos,
+        this.center.plus(this.offset),
+        upAxis,
+      ),
       position: pos,
     };
   }
