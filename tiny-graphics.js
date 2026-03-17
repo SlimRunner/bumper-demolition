@@ -224,7 +224,7 @@ const Shader = tiny.Shader =
           gl.attachShader (program, fragShdr);
           gl.linkProgram (program);
           if ( !gl.getProgramParameter (program, gl.LINK_STATUS))
-              throw "Shader linker error: " + gl.getProgramInfoLog (this.program);
+              throw "Shader linker error: " + gl.getProgramInfoLog (program);
 
           Object.assign (gpu_instance,
                          {program, vertShdr, fragShdr, gpu_addresses: new Graphics_Addresses (program, gl)});
