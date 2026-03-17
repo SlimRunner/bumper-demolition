@@ -17,7 +17,7 @@ import {
   parseOBJLine,
 } from "../utils/parsers";
 import { ComplexTextured, CplxMats } from "../shaders/complexTexture";
-import { defs } from "../../examples/common";
+import { ShadowPhong } from "../shaders/shadowPhong";
 
 type _3tuple<T> = [T, T, T];
 
@@ -235,8 +235,7 @@ export class FileMesh implements ShapeCollection {
       // Kd is a diffuse COLOR (rgb), not a scalar — do not average it for diffusivity.
       // Ks is a specular COLOR (rgb) — average it to get a specularity scalar.
       const shader =
-        this._shaders.get(mtlMat.name) ??
-        new defs.Phong_Shader(this._lightCount);
+        this._shaders.get(mtlMat.name) ?? new ShadowPhong(this._lightCount);
 
       const material: MaterialRecord = {
         shader: shader,
