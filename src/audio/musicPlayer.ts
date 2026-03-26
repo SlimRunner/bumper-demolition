@@ -13,7 +13,7 @@ export class MusicPlayer {
     if (restart) {
       this.audio.currentTime = 0;
     }
-    this.audio.play().catch(()=>{});
+    this.audio.play().catch(() => {});
   }
 
   pause() {
@@ -65,7 +65,7 @@ export class MusicPlayer {
     this.audio.loop = true;
 
     if (wasPlaying) {
-      this.audio.play().catch(()=>{});
+      this.audio.play().catch(() => {});
     }
   }
 

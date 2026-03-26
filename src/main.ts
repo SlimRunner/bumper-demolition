@@ -500,15 +500,13 @@ export class BumperCarsBase extends tiny.Component {
           "../assets/sounds/car-collision-fast.mp3",
         ),
         ability: new AbilityPickupSound({
-          heavy: [
-            "../assets/sounds/newAbilitySounds/metalskin_cast.mp3"
-          ],
+          heavy: ["../assets/sounds/newAbilitySounds/metalskin_cast.mp3"],
           orbit: [
-            "../assets/sounds/newAbilitySounds/unicorn_dazzling_orb_cast_delay.mp3"
+            "../assets/sounds/newAbilitySounds/unicorn_dazzling_orb_cast_delay.mp3",
           ],
         }),
         orbitHit: new OrbitHitSound([
-          "../assets/sounds/newAbilitySounds/unicorn_dazzling_orb_bounce_01.mp3"
+          "../assets/sounds/newAbilitySounds/unicorn_dazzling_orb_bounce_01.mp3",
         ]),
         explosion: new ExplosionSound(
           "../assets/sounds/deltarune-explosion.mp3",
@@ -835,7 +833,7 @@ export class BumperCars extends BumperCarsBase {
     "{loserColor} fainted.",
     "That's it {loserColor}, play dead we got em right where we-... oh dear",
     "{loserColor} died before GTA 6",
-    "*ring* *ring* {loserColor} Answer me! {loserColor} {loserColor}!!!!!!"
+    "*ring* *ring* {loserColor} Answer me! {loserColor} {loserColor}!!!!!!",
   ];
 
   constructor() {
@@ -914,7 +912,11 @@ export class BumperCars extends BumperCarsBase {
       // main match event
       { type: "event", ident: "match_loop", isExpired: () => this.isMatchOver },
       // TODO: outro animation with slow motion and winner toast
-      { type: "timed", ident: "outro", duration: this.gameOverSequenceDuration },
+      {
+        type: "timed",
+        ident: "outro",
+        duration: this.gameOverSequenceDuration,
+      },
     ];
     this.scheduler = new Scheduler(
       [...gameEvents],
@@ -999,7 +1001,9 @@ export class BumperCars extends BumperCarsBase {
   }
 
   private applyEffectMixVolumes() {
-    this.sound.effects.engine.setMasterVolume(this.mixRegistry.getVolume("engine"));
+    this.sound.effects.engine.setMasterVolume(
+      this.mixRegistry.getVolume("engine"),
+    );
     this.sound.effects.collision.setMasterVolume(
       this.mixRegistry.getVolume("collision"),
     );
@@ -1033,7 +1037,10 @@ export class BumperCars extends BumperCarsBase {
     );
   }
 
-  private applyMusicTargets(options?: { force?: boolean; fadeSeconds?: number }) {
+  private applyMusicTargets(options?: {
+    force?: boolean;
+    fadeSeconds?: number;
+  }) {
     const force = options?.force ?? false;
     const fadeSeconds = options?.fadeSeconds ?? this.musicMix.crossFadeSeconds;
 
@@ -1044,8 +1051,8 @@ export class BumperCars extends BumperCarsBase {
     const normalWeight = this.globalProps.suddenDeath.enabled
       ? 0
       : this.isLowHealthLayerActive
-      ? this.musicMix.normalWhileLowHealth
-      : 1;
+        ? this.musicMix.normalWhileLowHealth
+        : 1;
     const lowHealthWeight = this.isLowHealthLayerActive
       ? this.musicMix.lowHealthLayer
       : 0;
@@ -1153,7 +1160,10 @@ export class BumperCars extends BumperCarsBase {
   }
 
   private startGameOverSequence(loser: CarName) {
-    this.sound.effects.wastedVoice.play(this.mixRegistry.getVolume("gameOver"), 0);
+    this.sound.effects.wastedVoice.play(
+      this.mixRegistry.getVolume("gameOver"),
+      0,
+    );
 
     const loserPos = this.physics.cartMSD.transforms[loser].center;
     const xzJitter = 1;
@@ -1172,7 +1182,10 @@ export class BumperCars extends BumperCarsBase {
       soundVolume: this.mixRegistry.getVolume("gameOver"),
     });
 
+    // BUGBUG: this relies on the debug which might not always be
+    // "centered". A new camera should be created for this.
     this.gameView.cameraPin = loser;
+    this.gameView.gimbalCam?.clearOffset();
     this.gameView.gimbalCam?.setOrigin(loserPos);
     this.globalProps.timeMultiplier = 1;
 
@@ -1274,7 +1287,10 @@ export class BumperCars extends BumperCarsBase {
     carTransform: math.Mat4,
     deltaSeconds: number,
   ) {
-    if (this.isMatchOver || this.gameMatch.getHealth(car) > this.lowHealthThresholdPercent) {
+    if (
+      this.isMatchOver ||
+      this.gameMatch.getHealth(car) > this.lowHealthThresholdPercent
+    ) {
       this.lowHealthSmokeTimer[car] = 0;
       return;
     }
@@ -1290,13 +1306,14 @@ export class BumperCars extends BumperCarsBase {
       carTransform[2][0],
     );
     const axisLen = Math.hypot(rightAxis[0], rightAxis[1], rightAxis[2]);
-    const forward = axisLen > 1e-6
-      ? math.vec3(
-          rightAxis[0] / axisLen,
-          rightAxis[1] / axisLen,
-          rightAxis[2] / axisLen,
-        )
-      : math.vec3(1, 0, 0);
+    const forward =
+      axisLen > 1e-6
+        ? math.vec3(
+            rightAxis[0] / axisLen,
+            rightAxis[1] / axisLen,
+            rightAxis[2] / axisLen,
+          )
+        : math.vec3(1, 0, 0);
 
     const spawnPos = math.vec3(
       carTransform[0][3] + forward[0] * this.lowHealthSmokeForwardOffset,
@@ -1496,6 +1513,7 @@ export class BumperCars extends BumperCarsBase {
     switch (this.gameView.cameraPin) {
       case "follow":
       case "detached":
+        this.gameView.gimbalCam?.setOrigin(math.vec3(0, 0, 0));
         break;
       case "carA":
         this.gameView.gimbalCam?.setOrigin(carAPos);
@@ -1538,7 +1556,12 @@ export class BumperCars extends BumperCarsBase {
       cartB.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
         if (name === "saw") {
-          cartMSD.setBlade("carB", matrix[0][3], matrix[1][3], matrix[2][3]);
+          cartMSD.setBlade(
+            "carB",
+            matrix[0][3],
+            matrix[1][3] - 0.2,
+            matrix[2][3],
+          );
         }
 
         if (node.shape instanceof FileMesh) {
@@ -1563,13 +1586,23 @@ export class BumperCars extends BumperCarsBase {
       cartA.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
         if (name === "saw") {
-          cartMSD.setBlade("carA", matrix[0][3], matrix[1][3], matrix[2][3]);
+          cartMSD.setBlade(
+            "carA",
+            matrix[0][3],
+            matrix[1][3] - 0.2,
+            matrix[2][3],
+          );
         }
       }, mtxCarA);
       cartB.arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
         if (name === "saw") {
-          cartMSD.setBlade("carB", matrix[0][3], matrix[1][3], matrix[2][3]);
+          cartMSD.setBlade(
+            "carB",
+            matrix[0][3],
+            matrix[1][3] - 0.2,
+            matrix[2][3],
+          );
         }
       }, mtxCarB);
       this.drawables.cartFrame.draw(

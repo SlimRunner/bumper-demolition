@@ -157,12 +157,7 @@ export class CarSound {
     return -clamp(toCar.dot(camRight) / dist, -1, 1);
   }
 
-  private apply(
-    i: number,
-    speedNorm: number,
-    thrustNorm: number,
-    pan: number,
-  ) {
+  private apply(i: number, speedNorm: number, thrustNorm: number, pan: number) {
     if (this.paused) return;
 
     if (this.panners[i]) {
@@ -211,7 +206,11 @@ export class CarSound {
     for (const [audio, blendVolume, soundIdx] of sounds) {
       const finalVolume = baseVolume * blendVolume;
       audio.volume = clamp(finalVolume, 0, this.maxVolume);
-      audio.playbackRate = clamp(this.currentRate[i], this.minRate, this.maxRate);
+      audio.playbackRate = clamp(
+        this.currentRate[i],
+        this.minRate,
+        this.maxRate,
+      );
 
       if (!this.playing[i] && audio.paused) {
         this.ensureContext();

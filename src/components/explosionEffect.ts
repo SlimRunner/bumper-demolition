@@ -120,9 +120,9 @@ class PixelTexture extends tiny.Texture {
     );
 
     const gl = context;
-  if (!gpu_instance.texture_buffer_pointer) return gpu_instance;
+    if (!gpu_instance.texture_buffer_pointer) return gpu_instance;
 
-  gl.bindTexture(gl.TEXTURE_2D, gpu_instance.texture_buffer_pointer);
+    gl.bindTexture(gl.TEXTURE_2D, gpu_instance.texture_buffer_pointer);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 
@@ -213,7 +213,9 @@ export class ExplosionEffect {
 
   spawn(position: math.Vector3, options?: SpawnExplosionOptions) {
     const config = this.resolveConfig(options);
-    const streaks = config.enabled.streaks ? this.makeStreaks(config.streaks) : [];
+    const streaks = config.enabled.streaks
+      ? this.makeStreaks(config.streaks)
+      : [];
     const smoke = config.enabled.smoke ? this.makeSmoke(config.smoke) : [];
     const layerLifetimes: number[] = [];
     if (config.enabled.inner) {
@@ -234,7 +236,8 @@ export class ExplosionEffect {
     if (config.enabled.streaks) {
       layerLifetimes.push(config.streaks.delay + config.streaks.lifetime);
     }
-    const lifetime = layerLifetimes.length > 0 ? Math.max(...layerLifetimes) : 0;
+    const lifetime =
+      layerLifetimes.length > 0 ? Math.max(...layerLifetimes) : 0;
 
     this.instances.push({
       position: math.vec3(position[0], position[1], position[2]),
@@ -307,7 +310,8 @@ export class ExplosionEffect {
         ? this.getLayerState(fx.age, fx.config.shockwave)
         : null;
       if (shockwave) {
-        const shockY = Math.min(fx.position[1], 0.06) + fx.config.shockwave.yOffset;
+        const shockY =
+          Math.min(fx.position[1], 0.06) + fx.config.shockwave.yOffset;
         const shockTransform = math.Mat4.translation(
           fx.position[0],
           shockY,
@@ -427,11 +431,7 @@ export class ExplosionEffect {
         fx.position[2] + smoke.direction[2] * drift,
       );
 
-      const transform = math.Mat4.translation(
-        center[0],
-        center[1],
-        center[2],
-      )
+      const transform = math.Mat4.translation(center[0], center[1], center[2])
         .times(billboardRotation)
         .times(math.Mat4.rotation(smoke.rotation + smoke.spin * age, 0, 0, 1))
         .times(math.Mat4.scale(size, size, 1));
@@ -444,12 +444,15 @@ export class ExplosionEffect {
   }
 
   private withAlpha(material: MaterialRecord, alpha: number) {
-    const color = (material.color as math.Vector4 | undefined) ??
-      math.color(1, 1, 1, 1);
+    const color =
+      (material.color as math.Vector4 | undefined) ?? math.color(1, 1, 1, 1);
     return math.color(color[0], color[1], color[2], alpha);
   }
 
-  private getLayerState(age: number, config: ScaleLayerConfig): LayerState | null {
+  private getLayerState(
+    age: number,
+    config: ScaleLayerConfig,
+  ): LayerState | null {
     const localAge = age - config.delay;
     if (localAge < 0 || localAge > config.lifetime) return null;
 
@@ -485,7 +488,11 @@ export class ExplosionEffect {
       const y = (Math.random() - 0.5) * 0.45;
       const horizontal = Math.sqrt(Math.max(1 - y * y, 0.05));
       streaks.push({
-        direction: math.vec3(Math.cos(theta) * horizontal, y, Math.sin(theta) * horizontal),
+        direction: math.vec3(
+          Math.cos(theta) * horizontal,
+          y,
+          Math.sin(theta) * horizontal,
+        ),
         speed: lerp(config.speedMin, config.speedMax, Math.random()),
         length: lerp(config.lengthMin, config.lengthMax, Math.random()),
       });
@@ -499,10 +506,22 @@ export class ExplosionEffect {
       const theta = Math.random() * Math.PI * 2;
       smoke.push({
         direction: math.vec3(Math.cos(theta), 0, Math.sin(theta)),
-        riseSpeed: lerp(config.riseSpeedMin, config.riseSpeedMax, Math.random()),
-        driftSpeed: lerp(config.driftSpeedMin, config.driftSpeedMax, Math.random()),
+        riseSpeed: lerp(
+          config.riseSpeedMin,
+          config.riseSpeedMax,
+          Math.random(),
+        ),
+        driftSpeed: lerp(
+          config.driftSpeedMin,
+          config.driftSpeedMax,
+          Math.random(),
+        ),
         lifetime: lerp(config.lifetimeMin, config.lifetimeMax, Math.random()),
-        startSize: lerp(config.startSizeMin, config.startSizeMax, Math.random()),
+        startSize: lerp(
+          config.startSizeMin,
+          config.startSizeMax,
+          Math.random(),
+        ),
         endSize: lerp(config.endSizeMin, config.endSizeMax, Math.random()),
         spin: lerp(-0.9, 0.9, Math.random()),
         rotation: Math.random() * Math.PI * 2,
