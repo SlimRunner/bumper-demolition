@@ -1,10 +1,10 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  base: "/bumper-demolition/",
   build: {
     outDir: "dist",
     emptyOutDir: true,
-
     rollupOptions: {
       output: {
         format: "iife", // safer for legacy/global-style libs
@@ -16,11 +16,9 @@ export default defineConfig({
     // @ts-ignore
     treeshake: false,
   },
-
   server: {
     open: true,
   },
-
   resolve: {
     alias: {
       "@": new URL("./src/game", import.meta.url).pathname,
