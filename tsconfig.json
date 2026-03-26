@@ -1,48 +1,21 @@
 {
   "compilerOptions": {
-    /* Language & output */
-    "target": "ES2020",
+    // "allowSyntheticDefaultImports": true,
+    "target": "ESNext",
     "module": "ESNext",
-    "moduleResolution": "Bundler",
-
-    /* Project structure */
-    "rootDir": "./src",
-    "outDir": "./my_code",
-
-    /* JS interop */
-    "allowJs": false,
-    "checkJs": false,
-
-    /* Type safety */
+    "moduleResolution": "bundler",
     "strict": true,
-    "noImplicitAny": true,
-    "useUnknownInCatchVariables": true,
-
-    /* Ergonomics */
+    "jsx": "preserve",
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": false,
-
-    /* Declarations */
-    "typeRoots": [
-      "./node_modules/@types"
-    ],
-
+    "lib": ["ESNext", "DOM"],
     "baseUrl": ".",
-
     "paths": {
-      "tiny-graphics": ["./tiny-graphics.js"]
+      "@/*": ["src/game/*"],
+      "@tiny/*": ["src/tiny-graphics/*"]
     }
   },
-
-  "include": [
-    "src/**/*",
-    "*.d.ts",
-    "libraries/**/*.d.ts"
-  ],
-
-  "exclude": [
-    "node_modules",
-    "my_code"
-  ]
+  "include": ["src"]
 }
