@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "/bumper-demolition/",
+  base: "./",
   build: {
     outDir: "dist",
     emptyOutDir: true,

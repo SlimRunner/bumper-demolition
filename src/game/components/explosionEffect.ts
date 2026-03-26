@@ -139,10 +139,10 @@ export class ExplosionEffect {
   private readonly solidShader = new SolidColor();
 
   private readonly textures = {
-    explosion: new PixelTexture("/assets/images/explosion/explosion.png"),
-    shockwave: new PixelTexture("/assets/images/explosion/Shockwave.png"),
-    gust: new PixelTexture("/assets/images/explosion/ShockwaveThin.png"),
-    smoke: new PixelTexture("/assets/images/explosion/smokesprite.png"),
+    explosion: new PixelTexture("assets/images/explosion/explosion.png"),
+    shockwave: new PixelTexture("assets/images/explosion/Shockwave.png"),
+    gust: new PixelTexture("assets/images/explosion/ShockwaveThin.png"),
+    smoke: new PixelTexture("assets/images/explosion/smokesprite.png"),
   };
 
   private readonly materials: {

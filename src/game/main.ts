@@ -56,15 +56,15 @@ const bgMusicVol = 0.3;
 const defaultBgmTracks: BgmTrack[] = [
   {
     label: "Batmap Stage 1 Cover",
-    path: "/assets/sounds/batmap-stage-1-cover-trim.mp3",
+    path: "assets/sounds/batmap-stage-1-cover-trim.mp3",
   },
   {
     label: "Batman NES Synthwave",
-    path: "/assets/sounds/soundtrack2/Batman_Nes_Theme_(Synthwave Remake-Cover).mp3",
+    path: "assets/sounds/soundtrack2/Batman_Nes_Theme_(Synthwave Remake-Cover).mp3",
   },
 ];
 const defaultLowHealthTrackPath =
-  "/assets/sounds/soundtrack2/Hang_On_Low_HP_Theme_VS_Champion_Zephyr.mp3";
+  "assets/sounds/soundtrack2/Hang_On_Low_HP_Theme_VS_Champion_Zephyr.mp3";
 
 export class BumperCarsBase extends tiny.Component {
   shapes: {
@@ -305,43 +305,43 @@ export class BumperCarsBase extends tiny.Component {
     ]);
     applyMeshTransform(columnCyl, math.Mat4.rotation(Math.PI / 2, 1, 0, 0));
 
-    const tireMesh = new FileMesh("/assets/meshes/wheels-tire-mmc.obj", {
+    const tireMesh = new FileMesh("assets/meshes/wheels-tire-mmc.obj", {
       // preTransform: math.Mat4.scale(3.49, 3.49, 3.49),
       preTransform: math.Mat4.rotation(-Math.PI / 2, 0, 1, 0)
         .times(math.Mat4.scale(3.521, 2.255, 2.255))
         .times(math.Mat4.translation(0, 0, -1)),
       lightCount: this.lightCount,
     });
-    const chasisMeshRed = new FileMesh("/assets/meshes/CarChasis_Red.obj", {
+    const chasisMeshRed = new FileMesh("assets/meshes/CarChasis_Red.obj", {
       preTransform: math.Mat4.translation(0.261, 0, 0).times(
         math.Mat4.scale(0.559, 1.218, 1.152),
       ),
       lightCount: this.lightCount,
     });
-    const chasisMeshBlue = new FileMesh("/assets/meshes/CarChasis_Blue.obj", {
+    const chasisMeshBlue = new FileMesh("assets/meshes/CarChasis_Blue.obj", {
       preTransform: math.Mat4.translation(0.261, 0, 0).times(
         math.Mat4.scale(0.559, 1.218, 1.152),
       ),
       lightCount: this.lightCount,
     });
-    const sawMesh = new FileMesh("/assets/meshes/Sawblade_2.obj", {
+    const sawMesh = new FileMesh("assets/meshes/Sawblade_2.obj", {
       preTransform: math.Mat4.scale(0.62, 0.62, 0.62),
       lightCount: this.lightCount,
     });
-    const saw_arm1_mesh = new FileMesh("/assets/meshes/SawArm1_1.obj", {
+    const saw_arm1_mesh = new FileMesh("assets/meshes/SawArm1_1.obj", {
       preTransform: math.Mat4.translation(0, 0, -0.495).times(
         math.Mat4.scale(1.208, 1.208, 0.0789),
       ),
       lightCount: this.lightCount,
     });
-    const saw_arm2_mesh = new FileMesh("/assets/meshes/SawArm2_1.obj", {
+    const saw_arm2_mesh = new FileMesh("assets/meshes/SawArm2_1.obj", {
       preTransform: math.Mat4.translation(0, 0, -0.495).times(
         math.Mat4.scale(1.208, 1.208, 0.0789),
       ),
       lightCount: this.lightCount,
     });
     const arenaFloor = new FileMesh(
-      "/assets/meshes/capsule-shape-arena-floor.obj",
+      "assets/meshes/capsule-shape-arena-floor.obj",
       {
         preTransform: math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
         uvScaling: math.Vector.create(2, 2),
@@ -349,14 +349,14 @@ export class BumperCarsBase extends tiny.Component {
       },
     );
     const arenaWalls = new FileMesh(
-      "/assets/meshes/capsule-shape-arena-walls.obj",
+      "assets/meshes/capsule-shape-arena-walls.obj",
       {
         preTransform: math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
         uvScaling: math.Vector.create(1, 1.2),
         lightCount: this.lightCount,
       },
     );
-    const grassMound = new FileMesh("/assets/meshes/grass-mound.obj", {
+    const grassMound = new FileMesh("assets/meshes/grass-mound.obj", {
       preTransform: math.Mat4.translation(0, -0.2, 0).times(
         math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
       ),
@@ -508,41 +508,41 @@ export class BumperCarsBase extends tiny.Component {
       effects: {
         engine: new CarSound(
           audioSystem,
-          "/assets/sounds/newEngineSounds/engineSim_idle.mp3",
-          "/assets/sounds/newEngineSounds/engineSim_HalfThrottle.mp3",
-          "/assets/sounds/newEngineSounds/engineSim_fullThrottle.mp3",
+          "assets/sounds/newEngineSounds/engineSim_idle.mp3",
+          "assets/sounds/newEngineSounds/engineSim_HalfThrottle.mp3",
+          "assets/sounds/newEngineSounds/engineSim_fullThrottle.mp3",
         ),
         collision: new CollisionSound(
-          "/assets/sounds/car-collision-slow.mp3",
-          "/assets/sounds/car-collision-fast.mp3",
+          "assets/sounds/car-collision-slow.mp3",
+          "assets/sounds/car-collision-fast.mp3",
         ),
         ability: new AbilityPickupSound({
-          heavy: ["/assets/sounds/newAbilitySounds/metalskin_cast.mp3"],
+          heavy: ["assets/sounds/newAbilitySounds/metalskin_cast.mp3"],
           orbit: [
-            "/assets/sounds/newAbilitySounds/unicorn_dazzling_orb_cast_delay.mp3",
+            "assets/sounds/newAbilitySounds/unicorn_dazzling_orb_cast_delay.mp3",
           ],
         }),
         orbitHit: new OrbitHitSound([
-          "/assets/sounds/newAbilitySounds/unicorn_dazzling_orb_bounce_01.mp3",
+          "assets/sounds/newAbilitySounds/unicorn_dazzling_orb_bounce_01.mp3",
         ]),
         explosion: new ExplosionSound(
-          "/assets/sounds/deltarune-explosion.mp3",
+          "assets/sounds/deltarune-explosion.mp3",
           0.8,
           4,
         ),
         wastedVoice: new ExplosionSound(
-          "/assets/sounds/gta5-wasted-hd.mp3",
+          "assets/sounds/gta5-wasted-hd.mp3",
           1,
           1,
         ),
         sawBlade: {
           carA: new SpatialSound(
             audioSystem,
-            "/assets/sounds/saw-running-82131.mp3",
+            "assets/sounds/saw-running-82131.mp3",
           ),
           carB: new SpatialSound(
             audioSystem,
-            "/assets/sounds/saw-running-82131.mp3",
+            "assets/sounds/saw-running-82131.mp3",
           ),
         },
       },
