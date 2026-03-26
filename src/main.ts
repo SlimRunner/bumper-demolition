@@ -51,6 +51,7 @@ import { ShadowDepthShader } from "./shaders/shadowDepth";
 type CarTarget = "carA" | "carB";
 type BgmTrack = { label: string; path: string };
 
+let killEnable = true;
 const bladeVolume = 0.4;
 const bgMusicVol = 0.3;
 const defaultBgmTracks: BgmTrack[] = [
@@ -766,6 +767,7 @@ export class BumperCarsBase extends tiny.Component {
 }
 
 type EventNamespace =
+  | "loading-textures"
   | "intro_look_up"
   | "match_loop"
   | "outro"
@@ -908,7 +910,14 @@ export class BumperCars extends BumperCarsBase {
     });
 
     const gameEvents: SchedulerEvent<EventNamespace>[] = [
-      // TODO: camera looking to the sky to let the meshes load out of sight
+      {
+        type: "event",
+        ident: "loading-textures",
+        isExpired: (t) => {
+          this.gui?.showMessage("Loading...");
+          return t >= 5;
+        },
+      },
       {
         type: "event",
         ident: "intro_look_up",
@@ -918,21 +927,11 @@ export class BumperCars extends BumperCarsBase {
         },
       },
 
-      /* TODO: cinematic pan over the players
-      { type: "timed", ident: "intro_line_up_A", duration: 2 },
-      { type: "timed", ident: "intro_line_up_B", duration: 2 },
-      */
-
-      /* TODO: show off skybox and time management
-      { type: "timed", ident: "intro_day_cycle", duration: 2 },
-      */
-
       //event used to prevent hard resets
       { type: "event", ident: "enable_physics", isExpired: () => true },
 
       // main match event
       { type: "event", ident: "match_loop", isExpired: () => this.isMatchOver },
-      // TODO: outro animation with slow motion and winner toast
       {
         type: "timed",
         ident: "outro",
@@ -948,6 +947,7 @@ export class BumperCars extends BumperCarsBase {
             break;
           case "enable_physics":
             this.startRoundMusic();
+            killEnable = false;
             this.physics.cartMSD.enable = true;
             break;
           case "match_loop":
@@ -2092,6 +2092,7 @@ export class BumperCars extends BumperCarsBase {
 
     // other shortcuts
     this.key_triggered_button("pause", ["p"], () => {
+      if (killEnable) return;
       this.physics.cartMSD.enable = !this.physics.cartMSD.enable;
       if (this.physics.cartMSD.enable) {
         this.applyMusicTargets({ force: true, fadeSeconds: 0.15 });
