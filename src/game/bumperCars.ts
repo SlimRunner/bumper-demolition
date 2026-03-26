@@ -637,6 +637,14 @@ export class BumperCarsBase extends tiny.Component {
     GP.timeMultiplier = 1;
   }
 
+  render_explanation(): void {
+    const link =
+      "https://github.com/SlimRunner/bumper-demolition?tab=readme-ov-file#attributions";
+    this.document_region.innerHTML = `
+      For attributions <a href="${link}">follow this link</a>.
+    `;
+  }
+
   render_layout(div: HTMLDivElement, options?: ComponentLayoutOptions): void {
     super.render_layout(div, options);
 
