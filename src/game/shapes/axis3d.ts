@@ -1,8 +1,8 @@
-import { math } from "../../tiny-graphics-math";
-import { MaterialRecord, tiny, Uniforms } from "../../tiny-graphics";
-import { vecTransform } from "../utils/math";
-import type { DrawableShape } from "./types";
-import { SolidColor } from "../shaders/solidColor";
+import { math } from "@tiny/tiny-graphics-math";
+import { MaterialRecord, tiny, Uniforms } from "@tiny/tiny-graphics";
+import { vecTransform } from "@/utils/math";
+import type { DrawableShape } from "@/shapes/types";
+import { SolidColor } from "@/shaders/solidColor";
 
 export type ArrowProps = {
   length: number;

@@ -1,5 +1,5 @@
-import { math } from "../../tiny-graphics-math";
-import { GPUAddresses, tiny, Uniforms } from "../../tiny-graphics";
+import { math } from "@tiny/tiny-graphics-math";
+import { GPUAddresses, tiny, Uniforms } from "@tiny/tiny-graphics";
 
 type ShadowUniforms = Uniforms & {
   light_view?: math.Mat4;

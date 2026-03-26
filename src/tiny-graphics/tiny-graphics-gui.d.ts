@@ -1,4 +1,4 @@
-import type { tiny } from "./tiny-graphics";
+import type { tiny } from "@tiny/tiny-graphics";
 
 export interface TinyDefs {
   [key: string]: any;

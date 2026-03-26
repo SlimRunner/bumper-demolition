@@ -1,4 +1,4 @@
-import { CarName } from "../components/types";
+import { CarName } from "@/components/types";
 
 export const CarNameLabels: Record<
   CarName,

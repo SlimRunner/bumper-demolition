@@ -1,8 +1,8 @@
-import { clamp } from "../utils/math";
-import { math } from "../../tiny-graphics-math";
-import { CarName } from "../components/types";
-import { enumerate } from "../utils/iterators";
-import { AudioSystem } from "./audioSystem";
+import { clamp } from "@/utils/math";
+import { math } from "@tiny/tiny-graphics-math";
+import { CarName } from "@/components/types";
+import { enumerate } from "@/utils/iterators";
+import { AudioSystem } from "@/audio/audioSystem";
 
 export class CarSound {
   // audio[car][sound] = [idle, half, full]

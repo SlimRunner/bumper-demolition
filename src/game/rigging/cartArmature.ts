@@ -1,9 +1,9 @@
-import { ArcJoint, NodeLink } from "../rigging/kinematics";
-import { math } from "../../tiny-graphics-math";
-import { tiny } from "../../tiny-graphics";
-import { clamp, lerp, smoothstep } from "../utils/math";
-import { DrawableShape, ShapeCollection } from "src/shapes/types";
-import { EventEmitter } from "../types";
+import { ArcJoint, NodeLink } from "@/rigging/kinematics";
+import { math } from "@tiny/tiny-graphics-math";
+import { tiny } from "@tiny/tiny-graphics";
+import { clamp, lerp, smoothstep } from "@/utils/math";
+import { DrawableShape, ShapeCollection } from "@/shapes/types";
+import { EventEmitter } from "@/types";
 
 const armJointInitAngle1 = -0.1;
 const armJointInitAngle2 = 0.45;

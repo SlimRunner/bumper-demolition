@@ -1,5 +1,5 @@
-import { clamp } from "../utils/math";
-import { math } from "../../tiny-graphics-math";
+import { clamp } from "@/utils/math";
+import { math } from "@tiny/tiny-graphics-math";
 
 export function computePan(
   objPos: math.Vector3,

@@ -1,5 +1,5 @@
-import { math } from "../../tiny-graphics-math";
-import { clamp, lerp } from "../utils/math";
+import { math } from "@tiny/tiny-graphics-math";
+import { clamp, lerp } from "@/utils/math";
 
 export class ActionCamera {
   // view orientation

@@ -13,8 +13,8 @@ import {
   lerp,
   linearTransform,
   matrix3x3,
-} from "../utils/math";
-import { math } from "../../tiny-graphics-math";
+} from "@/utils/math";
+import { math } from "@tiny/tiny-graphics-math";
 
 const ALBEDO = 1;
 const TURBIDITY = 3;

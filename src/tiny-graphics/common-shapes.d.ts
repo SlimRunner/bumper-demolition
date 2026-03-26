@@ -1,5 +1,5 @@
-import { math } from "../tiny-graphics-math";
-import type { tiny } from "../tiny-graphics";
+import { math } from "@tiny/tiny-graphics-math";
+import type { tiny } from "@tiny/tiny-graphics";
 
 type TextureRange = [[number, number], [number, number]];
 

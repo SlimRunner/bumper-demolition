@@ -1,4 +1,4 @@
-import { createError } from "./error";
+import { createError } from "@/utils/error";
 
 export const FileError = createError("FileError");
 

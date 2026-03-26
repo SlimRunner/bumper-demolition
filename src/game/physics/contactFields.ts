@@ -4,10 +4,10 @@ import {
   sdGradient3DMut,
   sdInvertedCapsule2D,
   sdPlane,
-} from "../linearAlgebra/sdfs";
-import { math } from "../../tiny-graphics-math";
-import { MSDParticle } from "./msdSystem";
-import { PlaneChoice, Vector2 } from "../utils/math";
+} from "@/linearAlgebra/sdfs";
+import { math } from "@tiny/tiny-graphics-math";
+import { MSDParticle } from "@/physics/msdSystem";
+import { PlaneChoice, Vector2 } from "@/utils/math";
 
 export type FieldRole = "ground" | "static boundary" | "dynamic boundary";
 

@@ -1,12 +1,12 @@
-import { range } from "../utils/iterators";
-import { math } from "../../tiny-graphics-math";
+import { range } from "@/utils/iterators";
+import { math } from "@tiny/tiny-graphics-math";
 import {
   ContactField,
   ImpulseRestitution,
   ReactiveTraction,
   TangentialFriction,
-} from "./contactFields";
-import { clamp, crossMut, projMut, setVector } from "../utils/math";
+} from "@/physics/contactFields";
+import { clamp, crossMut, projMut, setVector } from "@/utils/math";
 
 // function helpers to speed up the physics loop. They are way to
 // specific to be put in utils.

@@ -188,7 +188,7 @@ const Code_Widget = widgets.Code_Widget =
 
           this.component = component;
 
-          import( './main-scene.js' )
+          import( '../main.ts' )
             .then (module => {
 
                 const code_in_focus = options.code_in_focus || component.constructor;

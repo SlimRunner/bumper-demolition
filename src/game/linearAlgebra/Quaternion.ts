@@ -1,5 +1,5 @@
-import type { Arithmetic, ArithmeticIdentities, Equatable } from "./types";
-import { createError } from "../utils/error";
+import type { Arithmetic, ArithmeticIdentities, Equatable } from "@/linearAlgebra/types";
+import { createError } from "@/utils/error";
 
 export const QuaternionError = createError("QuaternionError");
 

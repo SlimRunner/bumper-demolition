@@ -1,5 +1,5 @@
-import { ComponentProps, tiny } from "../tiny-graphics";
-import { math } from "../tiny-graphics-math";
+import { ComponentProps, tiny } from "@tiny/tiny-graphics";
+import { math } from "@tiny/tiny-graphics-math";
 
 export namespace defs {
   export class Minimal_Webgl_Demo extends tiny.Component {

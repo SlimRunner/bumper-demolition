@@ -1,10 +1,10 @@
-import { tiny, Uniforms, MaterialRecord } from "../../tiny-graphics";
-import { math } from "../../tiny-graphics-math";
-import { normalizeLines, resolveSiblingPath } from "../utils/text";
-import { affineTransform, VectorKind } from "../utils/math";
-import { loadFile } from "../utils/requests";
-import { DrawableShape, ShapeCollection } from "./types";
-import { computeTangents } from "./extendMesh";
+import { tiny, Uniforms, MaterialRecord } from "@tiny/tiny-graphics";
+import { math } from "@tiny/tiny-graphics-math";
+import { normalizeLines, resolveSiblingPath } from "@/utils/text";
+import { affineTransform, VectorKind } from "@/utils/math";
+import { loadFile } from "@/utils/requests";
+import { DrawableShape, ShapeCollection } from "@/shapes/types";
+import { computeTangents } from "@/shapes/extendMesh";
 import {
   FaceIndexPack,
   MTLImplMissing,
@@ -15,9 +15,9 @@ import {
   OBJPayload,
   parseMTLLine,
   parseOBJLine,
-} from "../utils/parsers";
-import { ComplexTextured, CplxMats } from "../shaders/complexTexture";
-import { ShadowPhong } from "../shaders/shadowPhong";
+} from "@/utils/parsers";
+import { ComplexTextured, CplxMats } from "@/shaders/complexTexture";
+import { ShadowPhong } from "@/shaders/shadowPhong";
 
 type _3tuple<T> = [T, T, T];
 

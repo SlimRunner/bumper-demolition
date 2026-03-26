@@ -1,6 +1,6 @@
-import { EventEmitter } from "../types";
-import { clamp } from "../utils/math";
-import type { CarName, MatchGui, PowerUpKind } from "./types";
+import { EventEmitter } from "@/types";
+import { clamp } from "@/utils/math";
+import type { CarName, MatchGui, PowerUpKind } from "@/components/types";
 
 export type PowerupMetadata = {
   kind: PowerUpKind;

@@ -1,8 +1,8 @@
-import { math } from "../../tiny-graphics-math";
-import { tiny } from "../../tiny-graphics";
-import { createError } from "../utils/error";
-import { zipgen } from "../utils/iterators";
-import { affineTransform, VectorKind } from "../utils/math";
+import { math } from "@tiny/tiny-graphics-math";
+import { tiny } from "@tiny/tiny-graphics";
+import { createError } from "@/utils/error";
+import { zipgen } from "@/utils/iterators";
+import { affineTransform, VectorKind } from "@/utils/math";
 
 const MeshError = createError("MeshError");
 

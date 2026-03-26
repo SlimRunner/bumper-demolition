@@ -1,10 +1,10 @@
-import { math } from "../../tiny-graphics-math";
+import { math } from "@tiny/tiny-graphics-math";
 import {
   GPUAddresses,
   tiny,
   Uniforms,
   MaterialRecord,
-} from "../../tiny-graphics";
+} from "@tiny/tiny-graphics";
 
 export type uvMats = MaterialRecord & {
   color: math.Vector4;

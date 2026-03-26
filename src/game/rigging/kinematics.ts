@@ -1,7 +1,7 @@
-import { math } from "../../tiny-graphics-math";
-import { tiny } from "../../tiny-graphics";
-import { clamp, matrixMult, transposeMatrix } from "../utils/math";
-import { DrawableShape, ShapeCollection } from "src/shapes/types";
+import { math } from "@tiny/tiny-graphics-math";
+import { tiny } from "@tiny/tiny-graphics";
+import { clamp, matrixMult, transposeMatrix } from "@/utils/math";
+import { DrawableShape, ShapeCollection } from "@/shapes/types";
 
 export type traverseCB = (
   joint: ArcJoint,

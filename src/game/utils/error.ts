@@ -1,4 +1,4 @@
-import { StringParsable } from "./text";
+import { StringParsable } from "@/utils/text";
 
 // Define a class factory function
 export function createError(name: string) {

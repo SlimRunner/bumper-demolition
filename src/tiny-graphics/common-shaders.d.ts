@@ -1,5 +1,5 @@
-import { GPUAddresses, MaterialRecord, tiny, Uniforms } from "../tiny-graphics";
-import { math } from "../tiny-graphics-math";
+import { GPUAddresses, MaterialRecord, tiny, Uniforms } from "@tiny/tiny-graphics";
+import { math } from "@tiny/tiny-graphics-math";
 
 export interface LightSource {
   position: math.Vector4;

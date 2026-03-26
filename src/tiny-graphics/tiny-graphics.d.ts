@@ -1,5 +1,5 @@
-import type { math as MathNamespace, math } from "./tiny-graphics-math";
-import type { widgets as WidgetsNamespace, widgets } from "./tiny-graphics-gui";
+import type { math as MathNamespace, math } from "@tiny/tiny-graphics-math";
+import type { widgets as WidgetsNamespace, widgets } from "@tiny/tiny-graphics-gui";
 
 export type ShapeArrayKeys = "position" | "tangents" | "normal" | (string & {});
 

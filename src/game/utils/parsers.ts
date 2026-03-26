@@ -1,5 +1,5 @@
-import { createError } from "./error";
-import { TokenStream } from "./text";
+import { createError } from "@/utils/error";
+import { TokenStream } from "@/utils/text";
 
 export const OBJParserError = createError("OBJParserError");
 export const OBJImplMissing = createError("OBJImplMissing");

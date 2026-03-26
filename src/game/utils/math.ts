@@ -1,5 +1,5 @@
-import { FunctorSDF } from "../linearAlgebra/sdfs";
-import { math } from "../../tiny-graphics-math";
+import { FunctorSDF } from "@/linearAlgebra/sdfs";
+import { math } from "@tiny/tiny-graphics-math";
 
 export type tuple4 = [number, number, number];
 export type tuple3 = [number, number, number];

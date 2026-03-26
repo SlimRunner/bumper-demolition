@@ -2,8 +2,8 @@
 // - https://iquilezles.org/articles/distfunctions/
 // - https://iquilezles.org/articles/distfunctions2d/
 
-import { clamp, PlaneChoice, vec2, Vec3Ext, Vector2 } from "../utils/math";
-import { math } from "../../tiny-graphics-math";
+import { clamp, PlaneChoice, vec2, Vec3Ext, Vector2 } from "@/utils/math";
+import { math } from "@tiny/tiny-graphics-math";
 
 // reference: https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-0.html
 type Arr = readonly unknown[];

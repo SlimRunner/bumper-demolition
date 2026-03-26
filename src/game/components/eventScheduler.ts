@@ -1,4 +1,4 @@
-import { enumerate } from "../utils/iterators";
+import { enumerate } from "@/utils/iterators";
 
 export type SchedulerEvent<K extends string> =
   | { type: "timed"; ident: K; duration: number }

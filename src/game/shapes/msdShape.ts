@@ -1,8 +1,8 @@
-import { SpringDamperSystem } from "../physics/msdSystem";
-import { tiny, Uniforms, MaterialRecord } from "../../tiny-graphics";
-import { math } from "../../tiny-graphics-math";
-import type { DrawableShape } from "./types";
-import { ParticleShape } from "./particleShape";
+import { SpringDamperSystem } from "@/physics/msdSystem";
+import { tiny, Uniforms, MaterialRecord } from "@tiny/tiny-graphics";
+import { math } from "@tiny/tiny-graphics-math";
+import type { DrawableShape } from "@/shapes/types";
+import { ParticleShape } from "@/shapes/particleShape";
 
 export class MSDFrameShape implements DrawableShape {
   private _msd?: SpringDamperSystem;

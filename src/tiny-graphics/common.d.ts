@@ -1,11 +1,11 @@
-import { defs as ShaderNamespace } from "./common-shaders";
-import { defs as ShapeNamespace } from "./common-shapes";
-import { defs as CompNamespace } from "./common-components";
-import { math } from "../tiny-graphics-math";
+import { defs as ShaderNamespace } from "@tiny/common-shaders";
+import { defs as ShapeNamespace } from "@tiny/common-shapes";
+import { defs as CompNamespace } from "@tiny/common-components";
+import { math } from "@tiny/tiny-graphics-math";
 import {
   GPUAddresses,
   tiny as TinyNamespace,
-} from "../tiny-graphics";
+} from "@tiny/tiny-graphics";
 
 export namespace defs {
   // current common is empty

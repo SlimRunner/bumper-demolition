@@ -1,15 +1,15 @@
-import { math } from "../../tiny-graphics-math";
+import { math } from "@tiny/tiny-graphics-math";
 import {
   GPUAddresses,
   tiny,
   Uniforms,
   MaterialRecord,
-} from "../../tiny-graphics";
+} from "@tiny/tiny-graphics";
 import {
   get_shared_skybox_model,
   get_vertex_skybox_model,
   get_fragment_skybox_model,
-} from "./skyboxStrings";
+} from "@/shaders/skyboxStrings";
 
 export type skyboxMats = MaterialRecord & {
   sun_zenith: number;

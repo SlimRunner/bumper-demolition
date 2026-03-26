@@ -1,12 +1,12 @@
-import { math } from "../../tiny-graphics-math";
+import { math } from "@tiny/tiny-graphics-math";
 import {
   GPUAddresses,
   tiny,
   Uniforms,
   MaterialRecord,
-} from "../../tiny-graphics";
-import { affineTransform, VectorKind } from "../utils/math";
-import { LightSource } from "../../libraries/common-shaders";
+} from "@tiny/tiny-graphics";
+import { affineTransform, VectorKind } from "@/utils/math";
+import { LightSource } from "@tiny/common-shaders";
 
 const DEF_TEXTURES = {
   whiteTexture: createTexture("#ffffff"),

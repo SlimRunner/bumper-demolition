@@ -54,12 +54,12 @@ export class GameGUI implements MatchGui {
 
     const labelA = document.createElement("img");
     labelA.className = "car-icon car-icon-a";
-    labelA.src = "./assets/images/carIcon_CarA.png";
+    labelA.src = "/assets/images/carIcon_CarA.png";
     labelA.alt = "Car A";
 
     const labelB = document.createElement("img");
     labelB.className = "car-icon car-icon-b";
-    labelB.src = "./assets/images/carIcon_CarB.png";
+    labelB.src = "/assets/images/carIcon_CarB.png";
     labelB.alt = "Car B";
 
     this.healthTextA = document.createElement("span");
@@ -277,7 +277,7 @@ export class GameGUI implements MatchGui {
     label: HTMLSpanElement,
     powerup: PowerUpState,
   ): void {
-    icon.src = `./assets/images/${this.getPowerupIconName(powerup)}.png`;
+    icon.src = `/assets/images/${this.getPowerupIconName(powerup)}.png`;
     label.textContent =
       powerup !== "none" ? this.getPowerupDisplayName(powerup) : "";
   }

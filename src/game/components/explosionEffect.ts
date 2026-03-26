@@ -1,9 +1,9 @@
-import { defs } from "../../libraries/common";
-import { math } from "../../tiny-graphics-math";
-import { MaterialRecord, tiny, Uniforms } from "../../tiny-graphics";
-import { SolidColor } from "../shaders/solidColor";
-import { ParticleShape } from "../shapes/particleShape";
-import { lerp } from "../utils/math";
+import { defs } from "@tiny/common";
+import { math } from "@tiny/tiny-graphics-math";
+import { MaterialRecord, tiny, Uniforms } from "@tiny/tiny-graphics";
+import { SolidColor } from "@/shaders/solidColor";
+import { ParticleShape } from "@/shapes/particleShape";
+import { lerp } from "@/utils/math";
 
 type ScaleLayerConfig = {
   delay: number;
@@ -139,10 +139,10 @@ export class ExplosionEffect {
   private readonly solidShader = new SolidColor();
 
   private readonly textures = {
-    explosion: new PixelTexture("../assets/images/explosion/explosion.png"),
-    shockwave: new PixelTexture("../assets/images/explosion/Shockwave.png"),
-    gust: new PixelTexture("../assets/images/explosion/ShockwaveThin.png"),
-    smoke: new PixelTexture("../assets/images/explosion/smokesprite.png"),
+    explosion: new PixelTexture("/assets/images/explosion/explosion.png"),
+    shockwave: new PixelTexture("/assets/images/explosion/Shockwave.png"),
+    gust: new PixelTexture("/assets/images/explosion/ShockwaveThin.png"),
+    smoke: new PixelTexture("/assets/images/explosion/smokesprite.png"),
   };
 
   private readonly materials: {

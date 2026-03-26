@@ -1,4 +1,4 @@
-import { math } from "../../tiny-graphics-math";
+import { math } from "@tiny/tiny-graphics-math";
 import {
   Integrator,
   MSDParticle,

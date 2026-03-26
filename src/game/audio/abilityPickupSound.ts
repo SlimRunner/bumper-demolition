@@ -1,5 +1,5 @@
-import { clamp } from "../utils/math";
-import type { PowerUpKind } from "../components/types";
+import { clamp } from "@/utils/math";
+import type { PowerUpKind } from "@/components/types";
 
 type AbilitySources = Record<PowerUpKind, string[]>;
 

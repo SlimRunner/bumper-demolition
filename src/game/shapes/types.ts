@@ -1,5 +1,5 @@
-import { math } from "../../tiny-graphics-math";
-import { MaterialRecord, tiny, Uniforms } from "../../tiny-graphics";
+import { math } from "@tiny/tiny-graphics-math";
+import { MaterialRecord, tiny, Uniforms } from "@tiny/tiny-graphics";
 
 export interface DrawableShape {
   draw(

@@ -1,4 +1,4 @@
-import { math } from "../../tiny-graphics-math";
+import { math } from "@tiny/tiny-graphics-math";
 
 // This is not meant to be smooth, but utilitarian.
 
