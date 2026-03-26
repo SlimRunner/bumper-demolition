@@ -247,14 +247,17 @@ export class ShadowPhong extends tiny.Shader {
     const shadowMapSizes: number[] = [];
     const shadowLightPositions: number[] = [];
     for (let i = 0; i < this.lightCount; i++) {
-      shadowViews.push(uniforms.shadow_light_views?.[i] ?? math.Mat4.identity());
+      shadowViews.push(
+        uniforms.shadow_light_views?.[i] ?? math.Mat4.identity(),
+      );
       shadowProjections.push(
         uniforms.shadow_light_projections?.[i] ?? math.Mat4.identity(),
       );
       shadowEnabled.push(uniforms.shadow_enabled?.[i] ?? 0);
       shadowMapSizes.push(uniforms.shadow_map_sizes?.[i] ?? 2048);
       const shadowLight =
-        uniforms.shadow_light_positions_or_vectors?.[i] ?? math.vec4(0, 1, 0, 0);
+        uniforms.shadow_light_positions_or_vectors?.[i] ??
+        math.vec4(0, 1, 0, 0);
       shadowLightPositions.push(
         shadowLight[0],
         shadowLight[1],
@@ -274,11 +277,7 @@ export class ShadowPhong extends tiny.Shader {
       );
     }
     gl.uniformMatrix4fv(gpu.shadow_light_views, false, shadowViewFlat);
-    gl.uniformMatrix4fv(
-      gpu.shadow_light_projections,
-      false,
-      shadowProjFlat,
-    );
+    gl.uniformMatrix4fv(gpu.shadow_light_projections, false, shadowProjFlat);
     gl.uniform1iv(gpu.shadow_enabled, shadowEnabled);
     gl.uniform1fv(gpu.shadow_map_sizes, shadowMapSizes);
     gl.uniform4fv(gpu.shadow_light_positions_or_vectors, shadowLightPositions);

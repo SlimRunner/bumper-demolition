@@ -1439,7 +1439,11 @@ export class BumperCars extends BumperCarsBase {
     const center = math.vec3(0, 0, 0);
 
     if (light.position[3] === 0) {
-      const lightDir = math.vec3(light.position[0], light.position[1], light.position[2]);
+      const lightDir = math.vec3(
+        light.position[0],
+        light.position[1],
+        light.position[2],
+      );
       const lightLen = Math.hypot(lightDir[0], lightDir[1], lightDir[2]);
       if (lightLen < 1e-6) {
         return null;
@@ -1455,7 +1459,8 @@ export class BumperCars extends BumperCarsBase {
         center[1] + dir[1] * 130,
         center[2] + dir[2] * 130,
       );
-      const up = Math.abs(dir[1]) > 0.95 ? math.vec3(0, 0, 1) : math.vec3(0, 1, 0);
+      const up =
+        Math.abs(dir[1]) > 0.95 ? math.vec3(0, 0, 1) : math.vec3(0, 1, 0);
 
       return {
         view: math.Mat4.look_at(eye, center, up),
@@ -1464,13 +1469,24 @@ export class BumperCars extends BumperCarsBase {
       };
     }
 
-    const eye = math.vec3(light.position[0], light.position[1], light.position[2]);
-    const toCenter = math.vec3(center[0] - eye[0], center[1] - eye[1], center[2] - eye[2]);
+    const eye = math.vec3(
+      light.position[0],
+      light.position[1],
+      light.position[2],
+    );
+    const toCenter = math.vec3(
+      center[0] - eye[0],
+      center[1] - eye[1],
+      center[2] - eye[2],
+    );
     const dist = Math.hypot(toCenter[0], toCenter[1], toCenter[2]);
     if (dist < 1e-6) {
       return null;
     }
-    const up = Math.abs(toCenter[1] / dist) > 0.95 ? math.vec3(0, 0, 1) : math.vec3(0, 1, 0);
+    const up =
+      Math.abs(toCenter[1] / dist) > 0.95
+        ? math.vec3(0, 0, 1)
+        : math.vec3(0, 1, 0);
 
     return {
       view: math.Mat4.look_at(eye, center, up),
@@ -1504,7 +1520,11 @@ export class BumperCars extends BumperCarsBase {
 
     for (let i = 0; i < this.lightCount; i++) {
       const light = this.uniforms.lights[i];
-      if (!light || !this.shadowDepthTextures[i] || !this.shadowFramebuffers[i]) {
+      if (
+        !light ||
+        !this.shadowDepthTextures[i] ||
+        !this.shadowFramebuffers[i]
+      ) {
         continue;
       }
       if (light.attenuation <= 0) {
@@ -1552,12 +1572,7 @@ export class BumperCars extends BumperCarsBase {
       this.armatures[car].arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
         if (updateBlades && name === "saw") {
-          cartMSD.setBlade(
-            car,
-            matrix[0][3],
-            matrix[1][3] - 0.2,
-            matrix[2][3],
-          );
+          cartMSD.setBlade(car, matrix[0][3], matrix[1][3] - 0.2, matrix[2][3]);
         }
 
         if (!showMeshes) return;
@@ -1582,7 +1597,11 @@ export class BumperCars extends BumperCarsBase {
     }
 
     if (showMeshes) return;
-    this.drawables.cartFrame.draw(context, this.uniforms, this.transforms.identity);
+    this.drawables.cartFrame.draw(
+      context,
+      this.uniforms,
+      this.transforms.identity,
+    );
   }
 
   private renderShadowPass(

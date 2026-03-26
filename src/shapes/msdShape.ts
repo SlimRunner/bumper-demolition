@@ -42,7 +42,7 @@ export class MSDFrameShape implements DrawableShape {
     this.beam = {
       ...props.beam,
       type: "LINES",
-      shape: new ParticleShape(springCount * 2)
+      shape: new ParticleShape(springCount * 2),
     };
   }
 
