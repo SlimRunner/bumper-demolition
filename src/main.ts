@@ -1,4 +1,4 @@
-import { BumperCars } from "@/main"; // your scene
+import { BumperCars } from "@/bumperCars"; // your scene
 import { defs } from "@tiny/common"; // if still needed
 
 // If tiny-graphics relies on defs mutation, keep this:
