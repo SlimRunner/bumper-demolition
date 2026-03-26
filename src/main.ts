@@ -468,12 +468,11 @@ export class BumperCarsBase extends tiny.Component {
           radius: 0.1,
         },
         beam: {
-          shape: cubeShape,
           material: {
             ...this.materials.solid,
             color: this.colors.softBlue,
           },
-          radius: 0.015,
+          radius: 5,
         },
       },
       cartMSD.msdSystem,

@@ -2,6 +2,7 @@ import { SpringDamperSystem } from "../physics/msdSystem";
 import { tiny, Uniforms, MaterialRecord } from "../../tiny-graphics";
 import { math } from "../../tiny-graphics-math";
 import type { DrawableShape } from "./types";
+import { ParticleShape } from "./particleShape";
 
 export class MSDFrameShape implements DrawableShape {
   private _msd?: SpringDamperSystem;
@@ -12,10 +13,10 @@ export class MSDFrameShape implements DrawableShape {
     type?: keyof WebGL2RenderingContext;
   };
   beam: {
-    shape: tiny.Shape;
+    shape: ParticleShape;
     material: MaterialRecord;
     radius: number;
-    type?: keyof WebGL2RenderingContext;
+    type: keyof WebGL2RenderingContext;
   };
 
   constructor(
@@ -27,19 +28,22 @@ export class MSDFrameShape implements DrawableShape {
         type?: keyof WebGL2RenderingContext;
       };
       beam: {
-        shape: tiny.Shape;
+        // shape: tiny.Shape;
         material: MaterialRecord;
         radius: number;
-        type?: keyof WebGL2RenderingContext;
       };
     },
     msdSystem?: SpringDamperSystem,
   ) {
     this._msd = msdSystem;
     props.particle.type ??= "TRIANGLES";
-    props.beam.type ??= "TRIANGLES";
     this.particle = props.particle;
-    this.beam = props.beam;
+    const springCount = msdSystem?.springs.container.length ?? 0;
+    this.beam = {
+      ...props.beam,
+      type: "LINES",
+      shape: new ParticleShape(springCount * 2)
+    };
   }
 
   draw(
@@ -66,36 +70,21 @@ export class MSDFrameShape implements DrawableShape {
         );
       }
 
-      const rb = this.beam.radius;
+      webgl_manager.context?.lineWidth(this.beam.radius);
+      this.beam.shape.clearParticles();
       for (const [_, [p1, p2]] of this._msd.links) {
-        const dir = p2.location.minus(p1.location);
-        const dirNorm = dir.normalized();
-        let mainAxis = math.vec3(0, 0, 1);
-        let rotAxis = mainAxis.cross(dirNorm);
-        if (rotAxis.norm() < 0.1) {
-          mainAxis = math.vec3(0, 1, 0);
-          rotAxis = mainAxis.cross(dir);
-        }
-        const dist = dir.norm();
-        const [xs, ys, zs] = mainAxis
-          .times(dist / 2)
-          .map((n) => (n === 0 ? rb : n));
-        const [xr, yr, zr] = rotAxis.normalized();
-        const angle = Math.acos(mainAxis.dot(dirNorm));
-        const [xc, yc, zc] = p1.location.plus(p2.location).times(0.5);
-
-        const matrix = math.Mat4.translation(xc, yc, zc);
-        matrix.post_multiply(math.Mat4.rotation(angle, xr, yr, zr));
-        matrix.post_multiply(math.Mat4.scale(xs, ys, zs));
-
-        this.beam.shape.draw(
-          webgl_manager,
-          uniforms,
-          model_transform.times(matrix),
-          this.beam.material,
-          this.beam.type,
-        );
+        this.beam.shape.addParticles(p1.location);
+        this.beam.shape.addParticles(p2.location);
       }
+
+      this.beam.shape.draw(
+        webgl_manager,
+        uniforms,
+        model_transform,
+        this.beam.material,
+        this.beam.type,
+      );
+      webgl_manager.context?.lineWidth(1);
     }
   }
 }
