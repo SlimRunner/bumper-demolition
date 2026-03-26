@@ -81,3 +81,4 @@ A tentative and non-exhaustive TODO list
 - [x] add saw blade sound while the blade is running (listener is alredy implemented)
 - [x] add a nice intro/outro animation with dynamic cameras
 - [x] add explosion animation when player is defeated
+- [x] add dynamic shadows
