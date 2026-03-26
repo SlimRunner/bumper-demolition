@@ -1,5 +1,6 @@
 import { ComponentLayoutOptions, tiny } from "../tiny-graphics";
-import { defs } from "../examples/common";
+import { defs } from "../libraries/common";
+import type { LightSource } from "../libraries/common-shaders";
 import { math } from "../tiny-graphics-math";
 import { UVShader } from "./shaders/UVShader";
 import { SolidColor } from "./shaders/solidColor";
@@ -13,7 +14,6 @@ import { range } from "./utils/iterators";
 import { basisChange, clamp, lerp, smoothstep } from "./utils/math";
 import { FileMesh } from "./shapes/fileMesh";
 import { ActionCamera } from "./cameras/actionCamera";
-import { ComplexTextured, CplxMats } from "./shaders/complexTexture";
 import { SkyboxWH } from "./shaders/skyboxShader";
 import { GameGUI } from "./components/gameGui";
 import { CarSound } from "./audio/carSound";
@@ -45,10 +45,13 @@ import {
 } from "./components/explosionEffect";
 import { ExplosionSound } from "./audio/explosionSound";
 import { OrbitHitSound } from "./audio/orbitHitSound";
+import { ShadowPhong } from "./shaders/shadowPhong";
+import { ShadowDepthShader } from "./shaders/shadowDepth";
 
 type CarTarget = "carA" | "carB";
 type BgmTrack = { label: string; path: string };
 
+let killEnable = true;
 const bladeVolume = 0.4;
 const bgMusicVol = 0.3;
 const defaultBgmTracks: BgmTrack[] = [
@@ -104,6 +107,13 @@ export class BumperCarsBase extends tiny.Component {
       shader: UVShader;
     };
     plastic: {
+      shader: tiny.Shader;
+      ambient: number;
+      diffusivity: number;
+      specularity: number;
+      color: math.Vector4;
+    };
+    plastic_unshadowed: {
       shader: tiny.Shader;
       ambient: number;
       diffusivity: number;
@@ -191,8 +201,9 @@ export class BumperCarsBase extends tiny.Component {
     };
   };
 
-  readonly lightCount = 7;
+  readonly lightCount = 6;
   protected sawVolumeScale = 1;
+  protected useNightShadowSource = false;
 
   constructor() {
     super();
@@ -236,7 +247,8 @@ export class BumperCarsBase extends tiny.Component {
     };
 
     const uvShader = new UVShader();
-    const phongShader = new defs.Phong_Shader(this.lightCount);
+    const shadowPhongShader = new ShadowPhong(this.lightCount);
+    const plainPhongShader = new defs.Phong_Shader(this.lightCount);
     const solidColor = new SolidColor();
 
     this.materials = {
@@ -244,10 +256,17 @@ export class BumperCarsBase extends tiny.Component {
         shader: uvShader,
       },
       plastic: {
-        shader: phongShader,
+        shader: shadowPhongShader,
         ambient: 0.2,
         diffusivity: 1,
         specularity: 0.5,
+        color: math.color(0.9, 0.5, 0.9, 1),
+      },
+      plastic_unshadowed: {
+        shader: plainPhongShader,
+        ambient: 0.08,
+        diffusivity: 1,
+        specularity: 0.45,
         color: math.color(0.9, 0.5, 0.9, 1),
       },
       solid: {
@@ -449,12 +468,11 @@ export class BumperCarsBase extends tiny.Component {
           radius: 0.1,
         },
         beam: {
-          shape: cubeShape,
           material: {
             ...this.materials.solid,
             color: this.colors.softBlue,
           },
-          radius: 0.015,
+          radius: 5,
         },
       },
       cartMSD.msdSystem,
@@ -708,15 +726,8 @@ export class BumperCarsBase extends tiny.Component {
       10 * Math.sin(sun_zenith) * Math.sin(sun_azimuth),
       0,
     );
-    const backdrop_dir = math.vec4(
-      10 * Math.sin(-sun_zenith) * Math.cos(sun_azimuth),
-      10 * Math.cos(sun_zenith),
-      10 * Math.sin(sun_zenith) * Math.sin(sun_azimuth),
-      0,
-    );
     this.uniforms.lights = [
-      defs.Phong_Shader.light_source(light_dir, sunColor, 620),
-      defs.Phong_Shader.light_source(backdrop_dir, sunAmbient, 100),
+      defs.Phong_Shader.light_source(light_dir, sunColor, 1200),
     ];
     for (const [x, z] of [
       [-1, -1],
@@ -732,6 +743,7 @@ export class BumperCarsBase extends tiny.Component {
         ),
       );
     }
+
     if (this.globalProps.suddenDeath.enabled) {
       const tFlicker = time * timeMult;
       const cs = 0.3 * Math.sin(tFlicker * 60) + 0.7 * Math.cos(tFlicker * 37);
@@ -755,6 +767,7 @@ export class BumperCarsBase extends tiny.Component {
 }
 
 type EventNamespace =
+  | "loading-textures"
   | "intro_look_up"
   | "match_loop"
   | "outro"
@@ -835,6 +848,16 @@ export class BumperCars extends BumperCarsBase {
     "{loserColor} died before GTA 6",
     "*ring* *ring* {loserColor} Answer me! {loserColor} {loserColor}!!!!!!",
   ];
+  private readonly shadowDepthShader = new ShadowDepthShader();
+  private readonly shadowDepthMaterial = { shader: this.shadowDepthShader };
+  private readonly shadowMapSize = 3072;
+  private shadowFramebuffers: (WebGLFramebuffer | null)[] = [];
+  private shadowDepthTextures: (WebGLTexture | null)[] = [];
+  private shadowLightViews: math.Mat4[] = [];
+  private shadowLightProjections: math.Mat4[] = [];
+  private shadowLightPositionOrVectors: math.Vector4[] = [];
+  private shadowLightEnabled: number[] = [];
+  private shadowMapSizes: number[] = [];
 
   constructor() {
     super();
@@ -887,7 +910,14 @@ export class BumperCars extends BumperCarsBase {
     });
 
     const gameEvents: SchedulerEvent<EventNamespace>[] = [
-      // TODO: camera looking to the sky to let the meshes load out of sight
+      {
+        type: "event",
+        ident: "loading-textures",
+        isExpired: (t) => {
+          this.gui?.showMessage("Loading...");
+          return t >= 5;
+        },
+      },
       {
         type: "event",
         ident: "intro_look_up",
@@ -897,21 +927,11 @@ export class BumperCars extends BumperCarsBase {
         },
       },
 
-      /* TODO: cinematic pan over the players
-      { type: "timed", ident: "intro_line_up_A", duration: 2 },
-      { type: "timed", ident: "intro_line_up_B", duration: 2 },
-      */
-
-      /* TODO: show off skybox and time management
-      { type: "timed", ident: "intro_day_cycle", duration: 2 },
-      */
-
       //event used to prevent hard resets
       { type: "event", ident: "enable_physics", isExpired: () => true },
 
       // main match event
       { type: "event", ident: "match_loop", isExpired: () => this.isMatchOver },
-      // TODO: outro animation with slow motion and winner toast
       {
         type: "timed",
         ident: "outro",
@@ -927,6 +947,7 @@ export class BumperCars extends BumperCarsBase {
             break;
           case "enable_physics":
             this.startRoundMusic();
+            killEnable = false;
             this.physics.cartMSD.enable = true;
             break;
           case "match_loop":
@@ -1344,6 +1365,313 @@ export class BumperCars extends BumperCarsBase {
     }
   }
 
+  private initShadowResources(gl: WebGL2RenderingContext) {
+    if (
+      this.shadowFramebuffers.length === this.lightCount &&
+      this.shadowDepthTextures.length === this.lightCount &&
+      this.shadowFramebuffers.every((fbo) => !!fbo) &&
+      this.shadowDepthTextures.every((tex) => !!tex)
+    ) {
+      return;
+    }
+
+    this.shadowFramebuffers = [];
+    this.shadowDepthTextures = [];
+
+    for (let i = 0; i < this.lightCount; i++) {
+      const shadowFramebuffer = gl.createFramebuffer();
+      const shadowDepthTexture = gl.createTexture();
+      if (!shadowFramebuffer || !shadowDepthTexture) {
+        console.warn("Failed to initialize shadow framebuffer resources.");
+        this.shadowFramebuffers[i] = null;
+        this.shadowDepthTextures[i] = null;
+        continue;
+      }
+
+      gl.bindTexture(gl.TEXTURE_2D, shadowDepthTexture);
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.DEPTH_COMPONENT24,
+        this.shadowMapSize,
+        this.shadowMapSize,
+        0,
+        gl.DEPTH_COMPONENT,
+        gl.UNSIGNED_INT,
+        null,
+      );
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, shadowFramebuffer);
+      gl.framebufferTexture2D(
+        gl.FRAMEBUFFER,
+        gl.DEPTH_ATTACHMENT,
+        gl.TEXTURE_2D,
+        shadowDepthTexture,
+        0,
+      );
+      gl.drawBuffers([gl.NONE]);
+      gl.readBuffer(gl.NONE);
+
+      const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+      if (status !== gl.FRAMEBUFFER_COMPLETE) {
+        console.warn("Shadow framebuffer incomplete:", status, "light", i);
+        this.shadowFramebuffers[i] = null;
+        this.shadowDepthTextures[i] = null;
+      } else {
+        this.shadowFramebuffers[i] = shadowFramebuffer;
+        this.shadowDepthTextures[i] = shadowDepthTexture;
+      }
+    }
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+  }
+
+  private buildShadowCameraForLight(light: LightSource): {
+    view: math.Mat4;
+    projection: math.Mat4;
+    positionOrVector: math.Vector4;
+  } | null {
+    const center = math.vec3(0, 0, 0);
+
+    if (light.position[3] === 0) {
+      const lightDir = math.vec3(
+        light.position[0],
+        light.position[1],
+        light.position[2],
+      );
+      const lightLen = Math.hypot(lightDir[0], lightDir[1], lightDir[2]);
+      if (lightLen < 1e-6) {
+        return null;
+      }
+
+      const dir = math.vec3(
+        lightDir[0] / lightLen,
+        lightDir[1] / lightLen,
+        lightDir[2] / lightLen,
+      );
+      const eye = math.vec3(
+        center[0] + dir[0] * 130,
+        center[1] + dir[1] * 130,
+        center[2] + dir[2] * 130,
+      );
+      const up =
+        Math.abs(dir[1]) > 0.95 ? math.vec3(0, 0, 1) : math.vec3(0, 1, 0);
+
+      return {
+        view: math.Mat4.look_at(eye, center, up),
+        projection: math.Mat4.orthographic(-80, 80, -80, 80, 1, 360),
+        positionOrVector: light.position,
+      };
+    }
+
+    const eye = math.vec3(
+      light.position[0],
+      light.position[1],
+      light.position[2],
+    );
+    const toCenter = math.vec3(
+      center[0] - eye[0],
+      center[1] - eye[1],
+      center[2] - eye[2],
+    );
+    const dist = Math.hypot(toCenter[0], toCenter[1], toCenter[2]);
+    if (dist < 1e-6) {
+      return null;
+    }
+    const up =
+      Math.abs(toCenter[1] / dist) > 0.95
+        ? math.vec3(0, 0, 1)
+        : math.vec3(0, 1, 0);
+
+    return {
+      view: math.Mat4.look_at(eye, center, up),
+      projection: math.Mat4.perspective((2 * Math.PI) / 3, 1, 0.5, 260),
+      positionOrVector: light.position,
+    };
+  }
+
+  private updateShadowUniforms() {
+    if (!this.uniforms.lights?.length || !this.shadowDepthTextures.length) {
+      return;
+    }
+
+    this.shadowLightViews = [];
+    this.shadowLightProjections = [];
+    this.shadowLightPositionOrVectors = [];
+    this.shadowLightEnabled = [];
+    this.shadowMapSizes = [];
+
+    for (let i = 0; i < this.lightCount; i++) {
+      this.shadowLightViews[i] = math.Mat4.identity();
+      this.shadowLightProjections[i] = math.Mat4.identity();
+      this.shadowLightPositionOrVectors[i] = math.vec4(0, 1, 0, 0);
+      this.shadowLightEnabled[i] = 0;
+      this.shadowMapSizes[i] = this.shadowMapSize;
+    }
+
+    this.uniforms.arena_capsule_a = math.Vector.create(0, -22.5);
+    this.uniforms.arena_capsule_b = math.Vector.create(0, 22.5);
+    this.uniforms.arena_capsule_radius = 15;
+
+    for (let i = 0; i < this.lightCount; i++) {
+      const light = this.uniforms.lights[i];
+      if (
+        !light ||
+        !this.shadowDepthTextures[i] ||
+        !this.shadowFramebuffers[i]
+      ) {
+        continue;
+      }
+      if (light.attenuation <= 0) {
+        continue;
+      }
+
+      const shadowCamera = this.buildShadowCameraForLight(light);
+      if (!shadowCamera) {
+        continue;
+      }
+
+      this.shadowLightViews[i] = shadowCamera.view;
+      this.shadowLightProjections[i] = shadowCamera.projection;
+      this.shadowLightPositionOrVectors[i] = shadowCamera.positionOrVector;
+      this.shadowLightEnabled[i] = 1;
+    }
+
+    this.uniforms.shadow_light_views = this.shadowLightViews;
+    this.uniforms.shadow_light_projections = this.shadowLightProjections;
+    this.uniforms.shadow_light_positions_or_vectors =
+      this.shadowLightPositionOrVectors;
+    this.uniforms.shadow_enabled = this.shadowLightEnabled;
+    this.uniforms.shadow_maps = this.shadowDepthTextures;
+    this.uniforms.shadow_map_sizes = this.shadowMapSizes;
+  }
+
+  private drawCars(
+    context: tiny.Component,
+    mtxCarA: math.Mat4,
+    mtxCarB: math.Mat4,
+    showMeshes: boolean,
+    options?: {
+      updateBlades?: boolean;
+      materialOverride?: Record<string, unknown>;
+    },
+  ) {
+    const { updateBlades = false, materialOverride } = options ?? {};
+    const cartMSD = this.physics.cartMSD;
+    const cars: CarName[] = ["carA", "carB"];
+    const matrices: Record<CarName, math.Mat4> = {
+      carA: mtxCarA,
+      carB: mtxCarB,
+    };
+    for (const car of cars) {
+      this.armatures[car].arcs.root.traverse((joint, node, matrix) => {
+        const name = node.name as CartNodeNames;
+        if (updateBlades && name === "saw") {
+          cartMSD.setBlade(car, matrix[0][3], matrix[1][3] - 0.2, matrix[2][3]);
+        }
+
+        if (!showMeshes) return;
+        if (node.shape instanceof FileMesh) {
+          node.shape.foreach((shape, mat, name) => {
+            shape.draw(
+              context,
+              this.uniforms,
+              matrix,
+              materialOverride ?? mat ?? this.materials.uvSimple,
+            );
+          });
+        } else {
+          node.shape.draw(
+            context,
+            this.uniforms,
+            matrix,
+            materialOverride ?? this.materials.plastic,
+          );
+        }
+      }, matrices[car]);
+    }
+
+    if (showMeshes) return;
+    this.drawables.cartFrame.draw(
+      context,
+      this.uniforms,
+      this.transforms.identity,
+    );
+  }
+
+  private renderShadowPass(
+    context: tiny.Component,
+    mtxCarA: math.Mat4,
+    mtxCarB: math.Mat4,
+    showMeshes: boolean,
+  ) {
+    const gl = context.context!;
+    if (!this.shadowFramebuffers.length || !this.shadowDepthTextures.length) {
+      return;
+    }
+
+    for (let i = 0; i < this.lightCount; i++) {
+      if (
+        this.shadowLightEnabled[i] !== 1 ||
+        !this.shadowFramebuffers[i] ||
+        !this.shadowDepthTextures[i]
+      ) {
+        continue;
+      }
+
+      this.uniforms.light_view = this.shadowLightViews[i];
+      this.uniforms.light_projection = this.shadowLightProjections[i];
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowFramebuffers[i]);
+      gl.viewport(0, 0, this.shadowMapSize, this.shadowMapSize);
+      gl.clear(gl.DEPTH_BUFFER_BIT);
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthMask(true);
+      gl.enable(gl.POLYGON_OFFSET_FILL);
+      gl.polygonOffset(1.0, 1.0);
+
+      this.drawables.grassMound.foreach((shape) => {
+        shape.draw(
+          context,
+          this.uniforms,
+          this.transforms.background,
+          this.shadowDepthMaterial,
+        );
+      });
+      this.drawables.arenaFloor.foreach((shape) => {
+        shape.draw(
+          context,
+          this.uniforms,
+          this.transforms.identity,
+          this.shadowDepthMaterial,
+        );
+      });
+      this.drawables.arenaWalls.foreach((shape) => {
+        shape.draw(
+          context,
+          this.uniforms,
+          this.transforms.identity,
+          this.shadowDepthMaterial,
+        );
+      });
+
+      this.drawCars(context, mtxCarA, mtxCarB, showMeshes, {
+        materialOverride: this.shadowDepthMaterial,
+        updateBlades: false,
+      });
+
+      gl.disable(gl.POLYGON_OFFSET_FILL);
+    }
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, context.width, context.height);
+  }
+
   render_animation(context: tiny.Component): void {
     super.render_animation(context);
 
@@ -1463,6 +1791,11 @@ export class BumperCars extends BumperCarsBase {
     this.sound.effects.collision.flush(paused);
     this.syncMusicMix();
 
+    const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
+    this.initShadowResources(GL);
+    this.updateShadowUniforms();
+    this.renderShadowPass(context, mtxCarA, mtxCarB, showMeshes);
+
     // this pattern can be used to create a sky texture later
     GL.disable(GL.DEPTH_TEST);
     this.shapes.box.draw(
@@ -1483,6 +1816,7 @@ export class BumperCars extends BumperCarsBase {
         specularity: 0.2,
         bumpiness: 1.2,
         diffusivity: 0.8,
+        shadow_bias: 0.0016,
       });
     });
 
@@ -1494,6 +1828,7 @@ export class BumperCars extends BumperCarsBase {
         smoothness: 20,
         ambnient: 0.4,
         specularity: 0.6,
+        shadow_bias: 0.0016,
       });
     });
     this.drawables.arenaWalls.foreach((shape, material, name) => {
@@ -1502,10 +1837,10 @@ export class BumperCars extends BumperCarsBase {
         ambient_color: this.colors.sunAmbient,
         fog_color: this.colors.skyHorizon,
         ambient: 0.4,
+        shadow_bias: 0.0016,
       });
     });
 
-    const { mtxCarA, mtxCarB } = cartMSD.getTransforms();
     const carAPos = math.vec3(mtxCarA[0][3], mtxCarA[1][3], mtxCarA[2][3]);
     const carBPos = math.vec3(mtxCarB[0][3], mtxCarB[1][3], mtxCarB[2][3]);
     camSubjects.push(carAPos, carBPos);
@@ -1523,94 +1858,9 @@ export class BumperCars extends BumperCarsBase {
         break;
     }
 
-    if (showMeshes) {
-      cartA.arcs.root.traverse((joint, node, matrix) => {
-        const name = node.name as CartNodeNames;
-        if (name === "saw") {
-          cartMSD.setBlade(
-            "carA",
-            matrix[0][3],
-            matrix[1][3] - 0.2,
-            matrix[2][3],
-          );
-        }
-
-        if (node.shape instanceof FileMesh) {
-          node.shape.foreach((shape, mat, name) => {
-            shape.draw(
-              context,
-              this.uniforms,
-              matrix,
-              mat ?? this.materials.uvSimple,
-            );
-          });
-        } else {
-          node.shape.draw(
-            context,
-            this.uniforms,
-            matrix,
-            this.materials.uvSimple,
-          );
-        }
-      }, mtxCarA);
-      cartB.arcs.root.traverse((joint, node, matrix) => {
-        const name = node.name as CartNodeNames;
-        if (name === "saw") {
-          cartMSD.setBlade(
-            "carB",
-            matrix[0][3],
-            matrix[1][3] - 0.2,
-            matrix[2][3],
-          );
-        }
-
-        if (node.shape instanceof FileMesh) {
-          node.shape.foreach((shape, mat, name) => {
-            shape.draw(
-              context,
-              this.uniforms,
-              matrix,
-              mat ?? this.materials.uvSimple,
-            );
-          });
-        } else {
-          node.shape.draw(
-            context,
-            this.uniforms,
-            matrix,
-            this.materials.uvSimple,
-          );
-        }
-      }, mtxCarB);
-    } else {
-      cartA.arcs.root.traverse((joint, node, matrix) => {
-        const name = node.name as CartNodeNames;
-        if (name === "saw") {
-          cartMSD.setBlade(
-            "carA",
-            matrix[0][3],
-            matrix[1][3] - 0.2,
-            matrix[2][3],
-          );
-        }
-      }, mtxCarA);
-      cartB.arcs.root.traverse((joint, node, matrix) => {
-        const name = node.name as CartNodeNames;
-        if (name === "saw") {
-          cartMSD.setBlade(
-            "carB",
-            matrix[0][3],
-            matrix[1][3] - 0.2,
-            matrix[2][3],
-          );
-        }
-      }, mtxCarB);
-      this.drawables.cartFrame.draw(
-        context,
-        this.uniforms,
-        this.transforms.identity,
-      );
-    }
+    this.drawCars(context, mtxCarA, mtxCarB, showMeshes, {
+      updateBlades: true,
+    });
 
     cartMSD.sparksShape.draw(
       context,
@@ -1640,7 +1890,7 @@ export class BumperCars extends BumperCarsBase {
           .times(math.Mat4.rotation(gblTimer, 0, 1, 0))
           .times(this.transforms.powerupBox),
         {
-          ...this.materials.plastic,
+          ...this.materials.plastic_unshadowed,
           color: colors[power],
         },
       );
@@ -1861,6 +2111,7 @@ export class BumperCars extends BumperCarsBase {
 
     // other shortcuts
     this.key_triggered_button("pause", ["p"], () => {
+      if (killEnable) return;
       this.physics.cartMSD.enable = !this.physics.cartMSD.enable;
       if (this.physics.cartMSD.enable) {
         this.applyMusicTargets({ force: true, fadeSeconds: 0.15 });
