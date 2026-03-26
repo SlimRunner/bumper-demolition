@@ -200,9 +200,8 @@ export class BumperCarsBase extends tiny.Component {
     };
   };
 
-  readonly lightCount = 7;
+  readonly lightCount = 6;
   protected sawVolumeScale = 1;
-  protected smoothedNightFactor = 0;
   protected useNightShadowSource = false;
 
   constructor() {
@@ -743,21 +742,6 @@ export class BumperCarsBase extends tiny.Component {
         ),
       );
     }
-
-    const nightFactorTarget = clamp((0.32 - skyLuminance) / 0.32, 0, 1);
-    const blendRate = clamp(timeDelta * 2.6, 0, 1);
-    this.smoothedNightFactor = lerp(
-      this.smoothedNightFactor,
-      nightFactorTarget,
-      blendRate,
-    );
-    this.uniforms.lights.push(
-      defs.Phong_Shader.light_source(
-        math.vec4(0, 2, 0, 1),
-        math.color(1, 0.97, 0.92, 1),
-        lerp(0, 50000, this.smoothedNightFactor),
-      ),
-    );
 
     if (this.globalProps.suddenDeath.enabled) {
       const tFlicker = time * timeMult;
