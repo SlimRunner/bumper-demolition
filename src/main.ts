@@ -1560,20 +1560,24 @@ export class BumperCars extends BumperCarsBase {
   ) {
     const { updateBlades = false, materialOverride } = options ?? {};
     const cartMSD = this.physics.cartMSD;
-    const { carA: cartA, carB: cartB } = this.armatures;
-
-    if (showMeshes) {
-      cartA.arcs.root.traverse((joint, node, matrix) => {
+    const cars: CarName[] = ["carA", "carB"];
+    const matrices: Record<CarName, math.Mat4> = {
+      carA: mtxCarA,
+      carB: mtxCarB,
+    };
+    for (const car of cars) {
+      this.armatures[car].arcs.root.traverse((joint, node, matrix) => {
         const name = node.name as CartNodeNames;
         if (updateBlades && name === "saw") {
           cartMSD.setBlade(
-            "carA",
+            car,
             matrix[0][3],
             matrix[1][3] - 0.2,
             matrix[2][3],
           );
         }
 
+        if (!showMeshes) return;
         if (node.shape instanceof FileMesh) {
           node.shape.foreach((shape, mat, name) => {
             shape.draw(
@@ -1591,48 +1595,10 @@ export class BumperCars extends BumperCarsBase {
             materialOverride ?? this.materials.plastic,
           );
         }
-      }, mtxCarA);
-
-      cartB.arcs.root.traverse((joint, node, matrix) => {
-        const name = node.name as CartNodeNames;
-        if (updateBlades && name === "saw") {
-          cartMSD.setBlade("carB", matrix[0][3], matrix[1][3], matrix[2][3]);
-        }
-
-        if (node.shape instanceof FileMesh) {
-          node.shape.foreach((shape, mat, name) => {
-            shape.draw(
-              context,
-              this.uniforms,
-              matrix,
-              materialOverride ?? mat ?? this.materials.uvSimple,
-            );
-          });
-        } else {
-          node.shape.draw(
-            context,
-            this.uniforms,
-            matrix,
-            materialOverride ?? this.materials.plastic,
-          );
-        }
-      }, mtxCarB);
-      return;
+      }, matrices[car]);
     }
 
-    cartA.arcs.root.traverse((joint, node, matrix) => {
-      const name = node.name as CartNodeNames;
-      if (updateBlades && name === "saw") {
-        cartMSD.setBlade("carA", matrix[0][3], matrix[1][3], matrix[2][3]);
-      }
-    }, mtxCarA);
-    cartB.arcs.root.traverse((joint, node, matrix) => {
-      const name = node.name as CartNodeNames;
-      if (updateBlades && name === "saw") {
-        cartMSD.setBlade("carB", matrix[0][3], matrix[1][3], matrix[2][3]);
-      }
-    }, mtxCarB);
-
+    if (showMeshes) return;
     this.drawables.cartFrame.draw(context, this.uniforms, this.transforms.identity);
   }
 
