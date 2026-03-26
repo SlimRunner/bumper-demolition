@@ -1,6 +1,7 @@
 - [Bumper Demolition](#bumper-demolition)
   - [Overview](#overview)
   - [Extended Description](#extended-description)
+  - [Attributions](#attributions)
   - [Documentation](#documentation)
 
 # Bumper Demolition
@@ -27,9 +28,45 @@ The gameplay cycle:
 4. After time limit the arena starts closing for 30 seconds
 5. After winner is announced return to 1
 
+## Attributions
+
+This project is NOT intended for commercial purposes, but simply to show off the game itself.
+
+The copyrights of the various assets used in this game belong to the respective owners. A good effort was put forth to list them all below. Also, if you are the owner of any of these works, and you wish your work be removed from this game you can open an issue in this repository with your request, and I will promptly remove it.
+
+- Music
+  - music
+    - [Batman Stage 1 cover by Nestalgica](batmn-stg1-cover)
+    - [Batman Stage 1 cover by thebadsociety](batmn-stg1-synth)
+    - [Pokemon Champion Zephyr cover by Lala19357](pokemon-lowHp-theme)
+  - SketchFab
+    - [Low Poly Camper Van by SwordSan](car-model)
+    - [Saw Blade by Dogan Kirnaz](saw-blade)
+    - [Car wheels and tire by MMC Works](wheel-n-tires)
+  - Misc
+    - [Deadlock by Valve Software](deadlock-assets): various sounds
+    - [Ultrakill by New Blood Interactive](ultrakill-assets): various sounds
+    - [Engine Simulator by Ange the Great](engine-sim): engine sound
+    - [League of Legends by Riot Games](lol-riot): icons
+    - [GTA 5 by Rockstar](gta-wasted): wasted sound
+    - [Deltarune by Toby Fox](explosion-sound): explosion
+
 ## Documentation
 
 Refer to
 
 - [Development](/docs/DEVELOPMENT.md)
 - [TODO](/docs/TODO.md)
+
+[batmn-stg1-cover]: https://youtu.be/JTO5uj1-ND0
+[batmn-stg1-synth]: https://youtu.be/exhRZAn7gj0
+[pokemon-lowHp-theme]: https://youtu.be/fCiHSZzuwdc
+[lol-riot]: https://www.leagueoflegends.com/en-us/
+[gta-wasted]: https://www.rockstargames.com/gta-v
+[explosion-sound]: https://deltarune.com
+[engine-sim]: https://github.com/Engine-Simulator/engine-sim-community-edition/
+[ultrakill-assets]: https://store.steampowered.com/app/1229490/ULTRAKILL/
+[deadlock-assets]: https://store.steampowered.com/app/1422450/Deadlock
+[car-model]: https://skfb.ly/pwVIF
+[saw-blade]: https://skfb.ly/oCxDK
+[wheel-n-tires]: https://skfb.ly/oAqYG
