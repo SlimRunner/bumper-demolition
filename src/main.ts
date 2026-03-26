@@ -1,6 +1,6 @@
 import { ComponentLayoutOptions, tiny } from "../tiny-graphics";
-import { defs } from "../examples/common";
-import type { LightSource } from "../examples/common-shaders";
+import { defs } from "../libraries/common";
+import type { LightSource } from "../libraries/common-shaders";
 import { math } from "../tiny-graphics-math";
 import { UVShader } from "./shaders/UVShader";
 import { SolidColor } from "./shaders/solidColor";

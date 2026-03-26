@@ -1,4 +1,4 @@
-import { defs } from "../../examples/common";
+import { defs } from "../../libraries/common";
 import { math } from "../../tiny-graphics-math";
 import { MaterialRecord, tiny, Uniforms } from "../../tiny-graphics";
 import { SolidColor } from "../shaders/solidColor";

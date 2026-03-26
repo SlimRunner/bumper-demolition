@@ -6,7 +6,7 @@ import {
   MaterialRecord,
 } from "../../tiny-graphics";
 import { affineTransform, VectorKind } from "../utils/math";
-import { LightSource } from "../../examples/common-shaders";
+import { LightSource } from "../../libraries/common-shaders";
 
 const DEF_TEXTURES = {
   whiteTexture: createTexture("#ffffff"),
