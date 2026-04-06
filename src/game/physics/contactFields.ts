@@ -1,8 +1,10 @@
 import {
   curry,
   FunctorSDF,
+  sdfExtrude,
   sdGradient3DMut,
   sdInvertedCapsule2D,
+  sdIsoRamp,
   sdPlane,
 } from "@/linearAlgebra/sdfs";
 import { math } from "@tiny/tiny-graphics-math";
@@ -107,7 +109,11 @@ export class PlaneField implements ContactField {
     this.friction = props.friction ?? null;
     this.restitution = props.restitution ?? null;
     this._normal = normal.copy();
-    this.sdfFunc = curry(sdPlane, normal, props.height);
+    this.sdfFunc = (pt: math.Vector3) => {
+      const d1 = sdfExtrude(pt, curry(sdIsoRamp, [8, -2]), 6, "xy");
+      const d2 = sdPlane(pt, normal, props.height);
+      return Math.min(d1, d2);
+    };
   }
 
   get group(): Set<string> {

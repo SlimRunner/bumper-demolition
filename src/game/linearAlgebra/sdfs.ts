@@ -105,6 +105,36 @@ export function sdPlane(
   return pt.dot(normal) + height;
 }
 
+export function sdIsoRamp(pt: Vector2, dims: Vector2 | [number, number]) {
+  const [base, height] = dims;
+  const px = Math.abs(pt[0]);
+  const py = pt[1] + height;
+  const pqdot = px * base + py * height;
+  const qqdot = base * base + height * height;
+  const dotclamp = pqdot / qqdot;
+  const ax = px - base * dotclamp;
+  const ay = py - height * dotclamp;
+  const s = -Math.sign(height);
+  const dx = ax * ax + ay * ay;
+  const dy = s * (px * height - py * base);
+  return -Math.sqrt(dx) * Math.sign(dy);
+}
+
+export function sdfExtrude(
+  pt3: math.Vector3,
+  prim: FunctorSDF<Vector2, number>,
+  h: number,
+  onto: PlaneChoice,
+) {
+  const pt = Vector2.from3d(pt3, onto);
+  const d = prim(pt);
+  const wx = d;
+  const wy = Math.abs(Vector2.getUp(pt3, onto)) - h;
+  const wxp = Math.max(wx, 0);
+  const wyp = Math.max(wy, 0);
+  return Math.min(Math.max(wx, wy), 0) + Math.sqrt(wxp * wxp + wyp * wyp);
+}
+
 export function sdPrism(
   pt: math.Vector3 | [number, number, number],
   h: math.Vector3 | [number, number],

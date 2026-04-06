@@ -461,6 +461,20 @@ export class Vector2 extends Float32Array {
         return vec2(pt3[2], pt3[1]);
     }
   }
+
+  static getUp(pt3: math.Vector3, pick: PlaneChoice) {
+    switch (pick) {
+      case "xy":
+      case "yx":
+        return pt3[2];
+      case "xz":
+      case "zx":
+        return pt3[1];
+      case "yz":
+      case "zy":
+        return pt3[0];
+    }
+  }
 }
 
 export const vec2 = Vector2.create;

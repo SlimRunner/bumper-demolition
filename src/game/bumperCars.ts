@@ -448,10 +448,10 @@ export class BumperCarsBase extends tiny.Component {
         wheelbase: cartDims.wheelbase,
       },
       transforms: {
-        cartA: math.Mat4.translation(0, 0, 6).times(
+        cartA: math.Mat4.translation(0, 0, 10).times(
           math.Mat4.rotation(-Math.PI / 2, 0, 1, 0),
         ),
-        cartB: math.Mat4.translation(0, 0, -6).times(
+        cartB: math.Mat4.translation(0, 0, -10).times(
           math.Mat4.rotation(Math.PI / 2, 0, 1, 0),
         ),
       },
