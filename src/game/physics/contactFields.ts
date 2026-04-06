@@ -110,7 +110,7 @@ export class PlaneField implements ContactField {
     this.restitution = props.restitution ?? null;
     this._normal = normal.copy();
     this.sdfFunc = (pt: math.Vector3) => {
-      const d1 = sdfExtrude(pt, curry(sdIsoRamp, [8, -2]), 6, "xy");
+      const d1 = sdfExtrude(pt, curry(sdIsoRamp, [8, -2]), 15.1, "zy");
       const d2 = sdPlane(pt, normal, props.height);
       return Math.min(d1, d2);
     };
